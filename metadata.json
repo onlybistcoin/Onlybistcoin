@@ -1,0 +1,5 @@
+{
+  "name": "BIST Analyzer",
+  "description": "Borsa Istanbul stock analysis and pattern scanner app.",
+  "requestFramePermissions": []
+}
