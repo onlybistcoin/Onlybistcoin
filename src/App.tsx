@@ -288,10 +288,21 @@ Mevcut veriler:
 💎 SONUÇ: Al/Bekle/Sat önerisi ve neden`;
 
     // Moving AI Analysis to frontend using process.env.GEMINI_API_KEY
-    // Support both AI Studio (process.env) and Vercel/Vite (import.meta.env)
-    const apiKey = process.env.GEMINI_API_KEY || (import.meta.env && (import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY));
-    if (!apiKey) {
-      throw new Error("Gemini API anahtarı bulunamadı. Lütfen Vercel ayarlarından GEMINI_API_KEY veya VITE_GEMINI_API_KEY eklediğinizden emin olun.");
+    // Robust API key retrieval for Vite/Vercel
+    let apiKey = "";
+    try {
+      // @ts-ignore
+      apiKey = import.meta.env?.VITE_GEMINI_API_KEY || "";
+      // If still empty, check process.env (for AI Studio preview)
+      if (!apiKey) {
+        apiKey = process.env.GEMINI_API_KEY || "";
+      }
+    } catch (e) {
+      apiKey = "";
+    }
+
+    if (!apiKey || apiKey.length < 10) {
+      throw new Error(`Gemini API anahtarı bulunamadı veya çok kısa. Lütfen Vercel ayarlarından VITE_GEMINI_API_KEY eklediğinizden ve 'Redeploy' yaptığınızdan emin olun. (Bulunan: ${apiKey ? apiKey.substring(0, 4) + "..." : "BOŞ"})`);
     }
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
