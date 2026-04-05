@@ -454,12 +454,12 @@ border: "1px solid #1e2535"
 
     <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none" }}>
       {screen === "scanner" && <ScannerScreen
-        scanning={scanning} scanProgress={scanProgress} scanned={scanned}
-        candidates={candidates} prices={prices} lastUpdated={lastUpdated}
+        scanning={scanning} scanProgress={scanProgress} scanned={scanned} setScanned={setScanned}
+        candidates={candidates} setCandidates={setCandidates} prices={prices} lastUpdated={lastUpdated}
         onScan={startScan}
         onViewCandidates={() => setScreen("candidates")}
         onViewScalp={() => setScreen("scalp")}
-        stocks={market === "BIST" ? BIST_STOCKS : CRYPTO_COINS}
+        stocks={stocks}
         market={market} setMarket={setMarket}
       />}
       {screen === "candidates" && <CandidatesScreen
@@ -488,7 +488,7 @@ border: "1px solid #1e2535"
 );
 }
 
-function ScannerScreen({ scanning, scanProgress, scanned, candidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, stocks, market, setMarket }: any) {
+function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, stocks, market, setMarket }: any) {
 const topMovers = [...stocks].sort((a, b) => {
   let changeA = Number(prices[`${a.symbol}_change`] ?? a.change ?? 0);
   if (!Number.isFinite(changeA)) changeA = 0;
@@ -609,7 +609,9 @@ return (
   </div>
 
   <div style={{ padding: "0 20px" }}>
-    <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>Günün Öne Çıkanları</div>
+    <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>
+      {market === "BIST" ? "BİST Öne Çıkanlar" : market === "CRYPTO" ? "KRİPTO Öne Çıkanlar" : "EMTİA Öne Çıkanlar"}
+    </div>
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {topMovers.map(s => (
         <MoverRow key={s.symbol} stock={s} prices={prices} />
@@ -626,6 +628,11 @@ if (!Number.isFinite(price)) price = 0;
 let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
 if (!Number.isFinite(currentChange)) currentChange = 0;
 const up = currentChange >= 0;
+const isCrypto = stock.symbol.includes("-USDT");
+const isCommodity = stock.sector === "Emtia";
+const currency = isCrypto ? "USDT" : (isCommodity && !stock.name.includes("(TL)") ? "$" : "₺");
+const precision = stock.symbol.includes("PEPE") ? 8 : (isCrypto || isCommodity ? 4 : 2);
+
 return (
 <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#131922", borderRadius: 14, padding: "12px 14px" }}>
 <div style={{ width: 40, height: 40, borderRadius: 12, background: up ? "rgba(48,209,88,0.1)" : "rgba(255,69,58,0.1)", border: `1px solid ${up ? "rgba(48,209,88,0.3)" : "rgba(255,69,58,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: up ? "#30d158" : "#ff453a" }}>
@@ -636,7 +643,7 @@ return (
 <div style={{ color: "#4a5568", fontSize: 11 }}>{stock.sector}</div>
 </div>
 <div style={{ textAlign: "right" }}>
-<div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{price.toFixed(2)} ₺</div>
+<div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{price.toFixed(precision)} {currency}</div>
 <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 600 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
 </div>
 <MiniSparkline up={up} />
