@@ -428,19 +428,19 @@ Talimat: Çok kısa, teknik ve net ol.
 return (
 <div style={{
 display: "flex", justifyContent: "center", alignItems: "center",
-minHeight: "100vh", background: "linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #0a0e1a 100%)",
+minHeight: "100vh", background: "linear-gradient(135deg, #161b22 0%, #0d1117 50%, #161b22 100%)",
 fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
 padding: "20px"
 }}>
 <div style={{
 width: 393, minHeight: 852, maxHeight: 900,
-background: "#0d1117",
+background: "#161b22",
 borderRadius: 55, overflow: "hidden",
 boxShadow: "0 0 0 1px #1a1f2e, 0 0 80px rgba(0,200,150,0.15), 0 40px 120px rgba(0,0,0,0.8)",
 position: "relative", display: "flex", flexDirection: "column",
-border: "1px solid #1e2535"
+border: "1px solid #30363d"
 }}>
-<div style={{ padding: "14px 24px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0d1117" }}>
+<div style={{ padding: "14px 24px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#161b22" }}>
 <span style={{ color: "#fff", fontSize: 15, fontWeight: 600 }}>{currentTime}</span>
 <div style={{ width: 120, height: 34, background: "#000", borderRadius: 20, position: "absolute", left: "50%", transform: "translateX(-50%)", top: 8 }} />
 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -501,7 +501,7 @@ return (
 <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e" }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
 <div>
-<div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>{market === "BIST" ? "BİST ANALİZ" : "KRİPTO ANALİZ"}</div>
+<div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>{market === "BIST" ? "BİST ANALİZ" : market === "CRYPTO" ? "KRİPTO ANALİZ" : "EMTİA ANALİZ"}</div>
 <div style={{ color: "#fff", fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>Tarayıcı</div>
 {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10, marginTop: 2 }}>Güncelleme: {lastUpdated}</div>}
 </div>
@@ -511,11 +511,11 @@ return (
 </div>
 </div>
 
-    <div style={{ display: "flex", background: "#131922", borderRadius: 12, padding: 3, marginTop: 14 }}>
+    <div style={{ display: "flex", background: "#21262d", borderRadius: 12, padding: 3, marginTop: 14 }}>
       {[["BIST", "🇹🇷 BİST"], ["CRYPTO", "₿ KRİPTO"], ["EMTİA", "⚒️ EMTİA"]].map(([key, label]) => (
         <button key={key} onClick={() => { setMarket(key as any); setScanned(false); setCandidates([]); }} style={{
           flex: 1, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
-          background: market === key ? "#00d4aa" : "transparent", color: market === key ? "#000" : "#4a5568",
+          background: market === key ? "#00d4aa" : "transparent", color: market === key ? "#000" : "#8b949e",
           transition: "all 0.2s"
         }}>{label}</button>
       ))}
@@ -527,8 +527,8 @@ return (
         { label: "BTC/USDT", val: prices["BTC-USDT"] ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : "...", chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
         { label: "USD/TRY", val: prices["TRY=X"] ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "...", chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
       ].map(m => (
-        <div key={m.label} style={{ background: "#131922", borderRadius: 12, padding: "10px 10px" }}>
-          <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
+        <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
+          <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val}</div>
           <div style={{ color: m.up ? "#30d158" : "#ff453a", fontSize: 10, fontWeight: 600 }}>{m.chg}</div>
         </div>
@@ -537,7 +537,7 @@ return (
   </div>
 
   <div style={{ padding: "20px 20px 16px" }}>
-    <div style={{ background: "linear-gradient(135deg, #131922 0%, #0d1117 100%)", borderRadius: 20, padding: 20, border: "1px solid #1a2535" }}>
+    <div style={{ background: "linear-gradient(135deg, #21262d 0%, #161b22 100%)", borderRadius: 20, padding: 20, border: "1px solid #30363d" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
         <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #00d4aa22, #00b8ff22)", border: "1px solid #00d4aa44", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🔍</div>
         <div>
@@ -552,10 +552,10 @@ return (
             <span style={{ color: "#00d4aa", fontSize: 12, fontWeight: 600 }}>{market === "BIST" ? "BİST" : market === "CRYPTO" ? "Kripto" : "Emtia"} taranıyor...</span>
             <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{Math.round(scanProgress)}%</span>
           </div>
-          <div style={{ background: "#1a1f2e", borderRadius: 8, height: 6, overflow: "hidden" }}>
+          <div style={{ background: "#30363d", borderRadius: 8, height: 6, overflow: "hidden" }}>
             <div style={{ background: "linear-gradient(90deg, #00d4aa, #00b8ff)", width: `${scanProgress}%`, height: "100%", borderRadius: 8, transition: "width 0.1s" }} />
           </div>
-          <div style={{ color: "#4a5568", fontSize: 11, marginTop: 6 }}>
+          <div style={{ color: "#8b949e", fontSize: 11, marginTop: 6 }}>
             {Math.round(scanProgress / 100 * stocks.length)} / {stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"} analiz edildi
           </div>
         </div>
@@ -573,12 +573,12 @@ return (
         disabled={scanning}
         style={{
           width: "100%", padding: "14px", borderRadius: 14,
-          background: scanning ? "#1a1f2e" : "linear-gradient(135deg, #00d4aa, #00b8ff)",
-          color: scanning ? "#4a5568" : "#000", border: "none", cursor: scanning ? "not-allowed" : "pointer",
+          background: scanning ? "#21262d" : "linear-gradient(135deg, #00d4aa, #00b8ff)",
+          color: scanning ? "#8b949e" : "#000", border: "none", cursor: scanning ? "not-allowed" : "pointer",
           fontSize: 15, fontWeight: 700, letterSpacing: 0.3
         }}
       >
-        {scanning ? "Taranıyor..." : scanned ? "Yeniden Tara" : "🚀 Tüm BİST'i Tara"}
+        {scanning ? "Taranıyor..." : scanned ? "Yeniden Tara" : market === "BIST" ? "🚀 Tüm BİST'i Tara" : market === "CRYPTO" ? "🚀 Tüm Kriptoyu Tara" : "🚀 Tüm Emtiayı Tara"}
       </button>
 
       {scanned && (
@@ -634,13 +634,13 @@ const currency = isCrypto ? "USDT" : (isCommodity && !stock.name.includes("(TL)"
 const precision = stock.symbol.includes("PEPE") ? 8 : (isCrypto || isCommodity ? 4 : 2);
 
 return (
-<div style={{ display: "flex", alignItems: "center", gap: 12, background: "#131922", borderRadius: 14, padding: "12px 14px" }}>
+<div style={{ display: "flex", alignItems: "center", gap: 12, background: "#21262d", borderRadius: 14, padding: "12px 14px", border: "1px solid #30363d" }}>
 <div style={{ width: 40, height: 40, borderRadius: 12, background: up ? "rgba(48,209,88,0.1)" : "rgba(255,69,58,0.1)", border: `1px solid ${up ? "rgba(48,209,88,0.3)" : "rgba(255,69,58,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: up ? "#30d158" : "#ff453a" }}>
 {stock.symbol.slice(0, 2)}
 </div>
 <div style={{ flex: 1 }}>
 <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{stock.symbol}</div>
-<div style={{ color: "#4a5568", fontSize: 11 }}>{stock.sector}</div>
+<div style={{ color: "#8b949e", fontSize: 11 }}>{stock.sector}</div>
 </div>
 <div style={{ textAlign: "right" }}>
 <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{price.toFixed(precision)} {currency}</div>
@@ -704,13 +704,13 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
             <button
               key={stock.symbol}
               onClick={() => onSelect(stock)}
-              style={{ background: "#131922", borderRadius: 20, padding: "16px", border: "1px solid rgba(0,212,170,0.2)", cursor: "pointer", textAlign: "left", width: "100%", position: "relative", overflow: "hidden" }}
+              style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: "1px solid rgba(0,212,170,0.2)", cursor: "pointer", textAlign: "left", width: "100%", position: "relative", overflow: "hidden" }}
             >
               <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#00d4aa" }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
                   <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{stock.symbol}</div>
-                  <div style={{ color: "#4a5568", fontSize: 11 }}>{stock.name}</div>
+                  <div style={{ color: "#8b949e", fontSize: 11 }}>{stock.name}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}{currency}</div>
@@ -719,8 +719,8 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
               </div>
               
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
-                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px", textAlign: "center" }}>
-                  <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700 }}>GİRİŞ</div>
+                <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px", textAlign: "center" }}>
+                  <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>GİRİŞ</div>
                   <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}</div>
                 </div>
                 <div style={{ background: "rgba(48,209,88,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: "1px solid rgba(48,209,88,0.2)" }}>
@@ -772,11 +772,14 @@ return (
       if (!Number.isFinite(currentChange)) currentChange = 0;
       const up = currentChange >= 0;
       const isTop = idx < 3;
+      const isCrypto = stock.symbol.includes("-USDT");
+      const isCommodity = stock.sector === "Emtia";
+      const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
       return (
         <button
           key={stock.symbol}
           onClick={() => onSelect(stock)}
-          style={{ background: isTop ? "linear-gradient(135deg, #131922, #0d1420)" : "#131922", borderRadius: 18, padding: "14px 16px", border: isTop ? "1px solid rgba(0,212,170,0.3)" : "1px solid #1a1f2e", cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: isTop ? "linear-gradient(135deg, #21262d, #161b22)" : "#21262d", borderRadius: 18, padding: "14px 16px", border: isTop ? "1px solid rgba(0,212,170,0.3)" : "1px solid #30363d", cursor: "pointer", textAlign: "left", width: "100%" }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -788,11 +791,11 @@ return (
                     +%{(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}
                   </span>
                 </div>
-                <div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>{stock.name}</div>
+                <div style={{ color: "#8b949e", fontSize: 11, marginTop: 2 }}>{stock.name}</div>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(2)} ₺</div>
+              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}{currency}</div>
               <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 600 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
             </div>
           </div>
@@ -810,10 +813,10 @@ return (
 
           <div style={{ marginTop: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ color: "#4a5568", fontSize: 10 }}>Güven Skoru</span>
+              <span style={{ color: "#8b949e", fontSize: 10 }}>Güven Skoru</span>
               <span style={{ color: pd.patternScore > 85 ? "#ffd60a" : "#00d4aa", fontSize: 10, fontWeight: 700 }}>{pd.patternScore}/100</span>
             </div>
-            <div style={{ background: "#1a1f2e", borderRadius: 4, height: 4 }}>
+            <div style={{ background: "#30363d", borderRadius: 4, height: 4 }}>
               <div style={{ background: pd.patternScore > 85 ? "linear-gradient(90deg, #ffd60a, #ff9f0a)" : "linear-gradient(90deg, #00d4aa, #00b8ff)", width: `${pd.patternScore}%`, height: "100%", borderRadius: 4 }} />
             </div>
           </div>
@@ -827,8 +830,8 @@ return (
 
 function Pill({ label, val, good }: any) {
 return (
-<div style={{ background: good ? "rgba(0,212,170,0.08)" : "rgba(255,69,58,0.08)", borderRadius: 8, padding: "5px 0", textAlign: "center" }}>
-<div style={{ color: "#4a5568", fontSize: 9, fontWeight: 600 }}>{label}</div>
+<div style={{ background: good ? "rgba(0,212,170,0.12)" : "rgba(255,69,58,0.12)", borderRadius: 8, padding: "5px 0", textAlign: "center", border: `1px solid ${good ? "rgba(0,212,170,0.2)" : "rgba(255,69,58,0.2)"}` }}>
+<div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600 }}>{label}</div>
 <div style={{ color: good ? "#00d4aa" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{val}</div>
 </div>
 );
@@ -900,13 +903,13 @@ return (
         {["1S", "4S", "1G"].map(tf => (
           <button key={tf} onClick={() => setTimeframe(tf)} style={{
             padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer",
-            background: timeframe === tf ? "#00d4aa" : "#131922", color: timeframe === tf ? "#000" : "#4a5568"
+            background: timeframe === tf ? "#00d4aa" : "#21262d", color: timeframe === tf ? "#000" : "#8b949e"
           }}>{tf}</button>
         ))}
       </div>
     </div>
 
-    <div style={{ background: "#0a0e1a", borderRadius: 16, padding: "10px 0 5px", border: "1px solid #1a1f2e" }}>
+    <div style={{ background: "#161b22", borderRadius: 16, padding: "10px 0 5px", border: "1px solid #30363d" }}>
       <ResponsiveContainer width="100%" height={140}>
         <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -30, bottom: 5 }}>
           <defs>
@@ -916,8 +919,8 @@ return (
             </linearGradient>
           </defs>
           <XAxis dataKey="i" tick={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 9, fill: "#4a5568" }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ background: "#131922", border: "1px solid #1a1f2e", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#4a5568" }} itemStyle={{ color: "#00d4aa" }} formatter={(v: any) => [`${v.toFixed(2)} ₺`, "Fiyat"]} labelFormatter={() => ""} />
+          <YAxis tick={{ fontSize: 9, fill: "#8b949e" }} axisLine={false} tickLine={false} />
+          <Tooltip contentStyle={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#8b949e" }} itemStyle={{ color: "#00d4aa" }} formatter={(v: any) => [`${v.toFixed(2)} ${currency}`, "Fiyat"]} labelFormatter={() => ""} />
           <ReferenceLine y={timeframe === "1S" ? scalpTp1 : tp1} stroke="#30d158" strokeDasharray="3 3" strokeWidth={1} label={{ value: timeframe === "1S" ? `Scalp TP: ${scalpTp1}` : `TP1: ${tp1}`, position: "right", fontSize: 9, fill: "#30d158" }} />
           <ReferenceLine y={timeframe === "1S" ? scalpSl : sl} stroke="#ff453a" strokeDasharray="3 3" strokeWidth={1} label={{ value: timeframe === "1S" ? `Scalp SL: ${scalpSl}` : `SL: ${sl}`, position: "right", fontSize: 9, fill: "#ff453a" }} />
           <Area type="monotone" dataKey="price" stroke="#00d4aa" strokeWidth={1.5} fill="url(#colorUp)" dot={false} />
@@ -926,7 +929,7 @@ return (
     </div>
 
     {timeframe === "1S" ? (
-      <div style={{ marginTop: 12, background: "linear-gradient(135deg, #1a2535 0%, #0a0e1a 100%)", borderRadius: 16, padding: 14, border: "1px solid rgba(0,212,170,0.3)" }}>
+      <div style={{ marginTop: 12, background: "linear-gradient(135deg, #21262d 0%, #161b22 100%)", borderRadius: 16, padding: 14, border: "1px solid rgba(0,212,170,0.3)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div style={{ color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>⚡ Scalp (Çok Kısa Vade) Analizi</div>
           <div style={{ background: "rgba(0,212,170,0.1)", color: "#00d4aa", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6 }}>1 SAATLİK</div>
@@ -939,14 +942,14 @@ return (
             { label: "STOP LOSS (-1.5%)", val: `${scalpSl} ${currency}`, color: "#ff453a", bg: "rgba(255,69,58,0.08)" },
           ].map(t => (
             <div key={t.label} style={{ background: t.bg, borderRadius: 10, padding: "10px 12px", border: `1px solid ${t.color}33` }}>
-              <div style={{ color: "#6b7280", fontSize: 9, fontWeight: 700 }}>{t.label}</div>
+              <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>{t.label}</div>
               <div style={{ color: t.color, fontSize: 14, fontWeight: 800, marginTop: 2 }}>{t.val}</div>
             </div>
           ))}
         </div>
       </div>
     ) : (
-      <div style={{ marginTop: 12, background: "#0a0e1a", borderRadius: 16, padding: 14, border: "1px solid #1a2535" }}>
+      <div style={{ marginTop: 12, background: "#161b22", borderRadius: 16, padding: 14, border: "1px solid #30363d" }}>
         <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🎯 {timeframe === "4S" ? "4 Saatlik" : "Günlük"} TP / SL Seviyeleri</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {[
