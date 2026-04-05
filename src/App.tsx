@@ -131,6 +131,15 @@ const CRYPTO_COINS = [
   symbol, name, price: 0, change: 0, volume: 0, sector: "Crypto"
 }));
 
+const COMMODITY_ITEMS = [
+  { symbol: "GC=F", name: "Altın Ons", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "SI=F", name: "Gümüş Ons", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "BZ=F", name: "Brent Petrol", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "HG=F", name: "Bakır", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "GAU=X", name: "Gram Altın (TL)", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "GAG=X", name: "Gram Gümüş (TL)", price: 0, change: 0, volume: 0, sector: "Emtia" },
+];
+
 const PATTERN_DATA: Record<string, any> = {
 THYAO: { rsi: 38, macd: 0.42, fibLevel: "0.618", patternScore: 78, pattern: "Düşen Kama Kırılımı", potential: 42 },
 GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 18 },
@@ -203,7 +212,7 @@ function generateCandleData(basePrice: number, periods = 60) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function BISTAnalyzer() {
 const [screen, setScreen] = useState("scanner"); 
-const [market, setMarket] = useState<"BIST" | "CRYPTO">("BIST");
+const [market, setMarket] = useState<"BIST" | "CRYPTO" | "EMTİA">("BIST");
 const [selectedStock, setSelectedStock] = useState<any>(null);
 const [scanning, setScanning] = useState(false);
 const [scanProgress, setScanProgress] = useState(0);
@@ -211,7 +220,7 @@ const [scanned, setScanned] = useState(false);
 const [candidates, setCandidates] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
-    [...BIST_STOCKS, ...CRYPTO_COINS].forEach(s => { p[s.symbol] = s.price; p[`${s.symbol}_change`] = s.change; });
+    [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { p[s.symbol] = s.price; p[`${s.symbol}_change`] = s.change; });
     return p;
   });
   const [lastUpdated, setLastUpdated] = useState<string>("");
@@ -239,8 +248,9 @@ useEffect(() => {
     try {
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
       const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("-USDT", "-USD"));
+      const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
-      const allSymbols = [...stockSymbols, ...cryptoSymbols, ...indexSymbols];
+      const allSymbols = [...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols];
       
       // Yahoo Finance spark endpoint limits the number of symbols per request.
       // Split into batches of 20 for better performance with 250+ coins.
@@ -308,7 +318,7 @@ const startScan = useCallback(() => {
   setScanned(false);
   setCandidates([]);
   let p = 0;
-  const currentStocks = market === "BIST" ? BIST_STOCKS : CRYPTO_COINS;
+  const currentStocks = market === "BIST" ? BIST_STOCKS : market === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS;
   scanIntervalRef.current = setInterval(() => {
     p += Math.random() * 4 + 1;
     if (p >= 100) {
@@ -497,8 +507,8 @@ return (
 </div>
 
     <div style={{ display: "flex", background: "#131922", borderRadius: 12, padding: 3, marginTop: 14 }}>
-      {[["BIST", "🇹🇷 BİST"], ["CRYPTO", "₿ KRİPTO"]].map(([key, label]) => (
-        <button key={key} onClick={() => setMarket(key)} style={{
+      {[["BIST", "🇹🇷 BİST"], ["CRYPTO", "₿ KRİPTO"], ["EMTİA", "⚒️ EMTİA"]].map(([key, label]) => (
+        <button key={key} onClick={() => { setMarket(key as any); setScanned(false); setCandidates([]); }} style={{
           flex: 1, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
           background: market === key ? "#00d4aa" : "transparent", color: market === key ? "#000" : "#4a5568",
           transition: "all 0.2s"
@@ -534,14 +544,14 @@ return (
       {scanning && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <span style={{ color: "#00d4aa", fontSize: 12, fontWeight: 600 }}>{market === "BIST" ? "BİST" : "Kripto"} taranıyor...</span>
+            <span style={{ color: "#00d4aa", fontSize: 12, fontWeight: 600 }}>{market === "BIST" ? "BİST" : market === "CRYPTO" ? "Kripto" : "Emtia"} taranıyor...</span>
             <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{Math.round(scanProgress)}%</span>
           </div>
           <div style={{ background: "#1a1f2e", borderRadius: 8, height: 6, overflow: "hidden" }}>
             <div style={{ background: "linear-gradient(90deg, #00d4aa, #00b8ff)", width: `${scanProgress}%`, height: "100%", borderRadius: 8, transition: "width 0.1s" }} />
           </div>
           <div style={{ color: "#4a5568", fontSize: 11, marginTop: 6 }}>
-            {Math.round(scanProgress / 100 * stocks.length)} / {stocks.length} {market === "BIST" ? "hisse" : "coin"} analiz edildi
+            {Math.round(scanProgress / 100 * currentStocks.length)} / {currentStocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"} analiz edildi
           </div>
         </div>
       )}
