@@ -232,6 +232,12 @@ const [kapNews, setKapNews] = useState<any[]>([]);
 const scanIntervalRef = useRef<any>(null);
 const [currentTime, setCurrentTime] = useState("");
 
+const stocks = useMemo(() => {
+  if (market === "BIST") return BIST_STOCKS;
+  if (market === "CRYPTO") return CRYPTO_COINS;
+  return COMMODITY_ITEMS;
+}, [market]);
+
 useEffect(() => {
   const updateTime = () => {
     const now = new Date();
@@ -318,7 +324,6 @@ const startScan = useCallback(() => {
   setScanned(false);
   setCandidates([]);
   let p = 0;
-  const currentStocks = market === "BIST" ? BIST_STOCKS : market === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS;
   scanIntervalRef.current = setInterval(() => {
     p += Math.random() * 4 + 1;
     if (p >= 100) {
@@ -328,7 +333,7 @@ const startScan = useCallback(() => {
       setScanned(true);
 
       // Dynamically calculate potential based on live price changes and mock pattern data
-      const found = currentStocks.map(s => {
+      const found = stocks.map(s => {
         const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
         let liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
         if (!Number.isFinite(liveChange)) liveChange = 0;
@@ -346,7 +351,7 @@ const startScan = useCallback(() => {
     }
     setScanProgress(Math.min(p, 100));
   }, 80);
-}, [prices, market]);
+}, [prices, stocks]);
 
 const openDetail = useCallback(async (stock: any) => {
   setSelectedStock(stock);
@@ -502,7 +507,7 @@ return (
 </div>
 <div style={{ textAlign: "right" }}>
 <div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
-<div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : "coin"}</div>
+<div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"}</div>
 </div>
 </div>
 
@@ -551,7 +556,7 @@ return (
             <div style={{ background: "linear-gradient(90deg, #00d4aa, #00b8ff)", width: `${scanProgress}%`, height: "100%", borderRadius: 8, transition: "width 0.1s" }} />
           </div>
           <div style={{ color: "#4a5568", fontSize: 11, marginTop: 6 }}>
-            {Math.round(scanProgress / 100 * currentStocks.length)} / {currentStocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"} analiz edildi
+            {Math.round(scanProgress / 100 * stocks.length)} / {stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"} analiz edildi
           </div>
         </div>
       )}
