@@ -32,22 +32,71 @@ const BIST_STOCKS = [
 ];
 
 const CRYPTO_COINS = [
-  { symbol: "BTC-USDT", name: "Bitcoin", price: 65000, change: 1.2, volume: 35000000000, sector: "Crypto" },
-  { symbol: "ETH-USDT", name: "Ethereum", price: 3500, change: 0.8, volume: 15000000000, sector: "Crypto" },
-  { symbol: "SOL-USDT", name: "Solana", price: 145, change: 4.5, volume: 4000000000, sector: "Crypto" },
-  { symbol: "BNB-USDT", name: "Binance Coin", price: 580, change: -0.5, volume: 1200000000, sector: "Crypto" },
-  { symbol: "XRP-USDT", name: "XRP", price: 0.62, change: 2.1, volume: 2000000000, sector: "Crypto" },
-  { symbol: "ADA-USDT", name: "Cardano", price: 0.58, change: -1.2, volume: 500000000, sector: "Crypto" },
-  { symbol: "AVAX-USDT", name: "Avalanche", price: 54, change: 3.8, volume: 800000000, sector: "Crypto" },
-  { symbol: "DOGE-USDT", name: "Dogecoin", price: 0.18, change: 8.5, volume: 3000000000, sector: "Crypto" },
-  { symbol: "DOT-USDT", name: "Polkadot", price: 9.2, change: 0.4, volume: 300000000, sector: "Crypto" },
-  { symbol: "LINK-USDT", name: "Chainlink", price: 18.5, change: 2.3, volume: 600000000, sector: "Crypto" },
-  { symbol: "MATIC-USDT", name: "Polygon", price: 0.98, change: -0.2, volume: 400000000, sector: "Crypto" },
-  { symbol: "NEAR-USDT", name: "Near Protocol", price: 7.4, change: 5.6, volume: 700000000, sector: "Crypto" },
-  { symbol: "PEPE-USDT", name: "Pepe", price: 0.000008, change: 12.4, volume: 1200000000, sector: "Crypto" },
-  { symbol: "FET-USDT", name: "Fetch.ai", price: 2.8, change: 6.2, volume: 400000000, sector: "Crypto" },
-  { symbol: "RNDR-USDT", name: "Render", price: 11.2, change: 4.8, volume: 500000000, sector: "Crypto" },
-];
+  ["BTC-USDT", "Bitcoin"], ["ETH-USDT", "Ethereum"], ["SOL-USDT", "Solana"], ["BNB-USDT", "Binance Coin"],
+  ["XRP-USDT", "XRP"], ["ADA-USDT", "Cardano"], ["AVAX-USDT", "Avalanche"], ["DOGE-USDT", "Dogecoin"],
+  ["DOT-USDT", "Polkadot"], ["LINK-USDT", "Chainlink"], ["MATIC-USDT", "Polygon"], ["NEAR-USDT", "Near Protocol"],
+  ["PEPE-USDT", "Pepe"], ["FET-USDT", "Fetch.ai"], ["RNDR-USDT", "Render"], ["SHIB-USDT", "Shiba Inu"],
+  ["LTC-USDT", "Litecoin"], ["BCH-USDT", "Bitcoin Cash"], ["UNI-USDT", "Uniswap"], ["ARB-USDT", "Arbitrum"],
+  ["TIA-USDT", "Celestia"], ["OP-USDT", "Optimism"], ["INJ-USDT", "Injective"], ["SUI-USDT", "Sui"],
+  ["APT-USDT", "Aptos"], ["STX-USDT", "Stacks"], ["FIL-USDT", "Filecoin"], ["ATOM-USDT", "Cosmos"],
+  ["IMX-USDT", "Immutable"], ["KAS-USDT", "Kaspa"], ["HBAR-USDT", "Hedera"], ["ETC-USDT", "Ethereum Classic"],
+  ["ICP-USDT", "Internet Computer"], ["RUNE-USDT", "THORChain"], ["LDO-USDT", "Lido DAO"], ["TAO-USDT", "Bittensor"],
+  ["SEI-USDT", "Sei"], ["JUP-USDT", "Jupiter"], ["WIF-USDT", "dogwifhat"], ["FLOKI-USDT", "Floki"],
+  ["BONK-USDT", "Bonk"], ["ORDI-USDT", "Ordi"], ["GALA-USDT", "Gala"], ["VET-USDT", "VeChain"],
+  ["MKR-USDT", "Maker"], ["GRT-USDT", "The Graph"], ["AAVE-USDT", "Aave"], ["ALGO-USDT", "Algorand"],
+  ["EGLD-USDT", "MultiversX"], ["FLOW-USDT", "Flow"], ["QNT-USDT", "Quant"], ["AXS-USDT", "Axie Infinity"],
+  ["SAND-USDT", "The Sandbox"], ["MANA-USDT", "Decentraland"], ["THETA-USDT", "Theta Network"], ["CHZ-USDT", "Chiliz"],
+  ["EOS-USDT", "EOS"], ["NEO-USDT", "Neo"], ["IOTA-USDT", "IOTA"], ["XMR-USDT", "Monero"],
+  ["ZEC-USDT", "Zcash"], ["DASH-USDT", "Dash"], ["CRV-USDT", "Curve DAO"], ["DYDX-USDT", "dYdX"],
+  ["SNX-USDT", "Synthetix"], ["GMX-USDT", "GMX"], ["PENDLE-USDT", "Pendle"], ["ARKM-USDT", "Arkham"],
+  ["W-USDT", "Wormhole"], ["ENA-USDT", "Ethena"], ["SATS-USDT", "Sats"], ["BOME-USDT", "Book of Meme"],
+  ["MEW-USDT", "cat in a dogs world"], ["NOT-USDT", "Notcoin"], ["STRK-USDT", "Starknet"], ["PYTH-USDT", "Pyth Network"],
+  ["JTO-USDT", "Jito"], ["ALT-USDT", "AltLayer"], ["MANTA-USDT", "Manta Network"], ["BEAM-USDT", "Beam"],
+  ["RON-USDT", "Ronin"], ["PIXEL-USDT", "Pixels"], ["PORTAL-USDT", "Portal"], ["XAI-USDT", "Xai"],
+  ["ACE-USDT", "Fusionist"], ["ZETA-USDT", "ZetaChain"], ["DYM-USDT", "Dymension"], ["MAVIA-USDT", "Heroes of Mavia"],
+  ["AEVO-USDT", "Aevo"], ["ETHFI-USDT", "ether.fi"], ["METIS-USDT", "Metis"], ["VANRY-USDT", "Vanar Chain"],
+  ["OM-USDT", "Mantra"], ["ONDO-USDT", "Ondo"], ["PENDLE-USDT", "Pendle"], ["CORE-USDT", "Core"],
+  ["TNSR-USDT", "Tensor"], ["SAGA-USDT", "Saga"], ["TAIKO-USDT", "Taiko"], ["ZK-USDT", "ZKsync"],
+  ["IO-USDT", "IO.NET"], ["ATH-USDT", "Aethir"], ["ZRO-USDT", "LayerZero"], ["LISTA-USDT", "Lista DAO"],
+  ["HMSTR-USDT", "Hamster Kombat"], ["CATI-USDT", "Catizen"], ["EIGEN-USDT", "EigenLayer"], ["SCR-USDT", "Scroll"],
+  ["GRASS-USDT", "Grass"], ["DRIFT-USDT", "Drift"], ["MOODENG-USDT", "Moo Deng"], ["GOAT-USDT", "Goatseus Maximus"],
+  ["PNUT-USDT", "Peanut the Squirrel"], ["ACT-USDT", "AI Prophecy"], ["HYPE-USDT", "Hyperliquid"], ["VIRTUAL-USDT", "Virtuals Protocol"],
+  ["AI16Z-USDT", "ai16z"], ["FARTCOIN-USDT", "Fartcoin"], ["TRUMP-USDT", "Official Trump"], ["MELANIA-USDT", "Melania Trump"],
+  ["SPX-USDT", "SPX6900"], ["MOG-USDT", "Mog Coin"], ["POPCAT-USDT", "Popcat"], ["BRETT-USDT", "Brett"],
+  ["TURBO-USDT", "Turbo"], ["BABYDOGE-USDT", "Baby Doge Coin"], ["1CAT-USDT", "Bitcoin Cats"], ["MYRO-USDT", "Myro"],
+  ["COQ-USDT", "Coq Inu"], ["WEN-USDT", "Wen"], ["ZIG-USDT", "Zignaly"], ["GNS-USDT", "Gains Network"],
+  ["JOE-USDT", "Trader Joe"], ["PANGOLIN-USDT", "Pangolin"], ["BENQI-USDT", "Benqi"], ["STEEM-USDT", "Steem"],
+  ["HIVE-USDT", "Hive"], ["WAXP-USDT", "WAX"], ["LOOM-USDT", "Loom Network"], ["MTL-USDT", "Metal DAO"],
+  ["STPT-USDT", "STP"], ["RAD-USDT", "Radicle"], ["UMA-USDT", "UMA"], ["BAND-USDT", "Band Protocol"],
+  ["NMR-USDT", "Numeraire"], ["TRB-USDT", "Tellor"], ["API3-USDT", "API3"], ["DIA-USDT", "DIA"],
+  ["ANKR-USDT", "Ankr"], ["OCEAN-USDT", "Ocean Protocol"], ["AGIX-USDT", "SingularityNET"], ["RLC-USDT", "iExec RLC"],
+  ["GLM-USDT", "Golem"], ["STORJ-USDT", "Storj"], ["SC-USDT", "Siacoin"], ["AR-USDT", "Arweave"],
+  ["LPT-USDT", "Livepeer"], ["AUDIO-USDT", "Audius"], ["ENS-USDT", "Ethereum Name Service"], ["ID-USDT", "SPACE ID"],
+  ["GAL-USDT", "Galxe"], ["HOOK-USDT", "Hooked Protocol"], ["HFT-USDT", "Hashflow"], ["GMT-USDT", "STEPN"],
+  ["GST-USDT", "Green Satoshi Token"], ["SWEAT-USDT", "Sweat Economy"], ["FITFI-USDT", "Step App"], ["SLP-USDT", "Smooth Love Potion"],
+  ["ILV-USDT", "Illuvium"], ["YGG-USDT", "Yield Guild Games"], ["MC-USDT", "Merit Circle"], ["MAGIC-USDT", "Magic"],
+  ["GALA-USDT", "Gala Games"], ["ENJ-USDT", "Enjin Coin"], ["CHZ-USDT", "Chiliz"], ["OG-USDT", "OG Fan Token"],
+  ["CITY-USDT", "Manchester City Fan Token"], ["BAR-USDT", "FC Barcelona Fan Token"], ["PSG-USDT", "Paris Saint-Germain Fan Token"], ["JUV-USDT", "Juventus Fan Token"],
+  ["ACM-USDT", "AC Milan Fan Token"], ["ASR-USDT", "AS Roma Fan Token"], ["ATM-USDT", "Atletico Madrid Fan Token"], ["INTER-USDT", "Inter Milan Fan Token"],
+  ["LAZIO-USDT", "S.S. Lazio Fan Token"], ["PORTO-USDT", "FC Porto Fan Token"], ["SANTOS-USDT", "Santos FC Fan Token"], ["ALPINE-USDT", "BWT Alpine F1 Team Fan Token"],
+  ["FLOW-USDT", "Flow"], ["IMX-USDT", "Immutable"], ["RON-USDT", "Ronin"], ["BEAM-USDT", "Beam"],
+  ["PIXEL-USDT", "Pixels"], ["PORTAL-USDT", "Portal"], ["XAI-USDT", "Xai"], ["ACE-USDT", "Fusionist"],
+  ["ZETA-USDT", "ZetaChain"], ["DYM-USDT", "Dymension"], ["MAVIA-USDT", "Heroes of Mavia"], ["AEVO-USDT", "Aevo"],
+  ["ETHFI-USDT", "ether.fi"], ["METIS-USDT", "Metis"], ["VANRY-USDT", "Vanar Chain"], ["OM-USDT", "Mantra"],
+  ["ONDO-USDT", "Ondo"], ["CORE-USDT", "Core"], ["TNSR-USDT", "Tensor"], ["SAGA-USDT", "Saga"],
+  ["TAIKO-USDT", "Taiko"], ["ZK-USDT", "ZKsync"], ["IO-USDT", "IO.NET"], ["ATH-USDT", "Aethir"],
+  ["ZRO-USDT", "LayerZero"], ["LISTA-USDT", "Lista DAO"], ["HMSTR-USDT", "Hamster Kombat"], ["CATI-USDT", "Catizen"],
+  ["EIGEN-USDT", "EigenLayer"], ["SCR-USDT", "Scroll"], ["GRASS-USDT", "Grass"], ["DRIFT-USDT", "Drift"],
+  ["MOODENG-USDT", "Moo Deng"], ["GOAT-USDT", "Goatseus Maximus"], ["PNUT-USDT", "Peanut the Squirrel"], ["ACT-USDT", "AI Prophecy"],
+  ["HYPE-USDT", "Hyperliquid"], ["VIRTUAL-USDT", "Virtuals Protocol"], ["AI16Z-USDT", "ai16z"], ["FARTCOIN-USDT", "Fartcoin"],
+  ["TRUMP-USDT", "Official Trump"], ["MELANIA-USDT", "Melania Trump"], ["SPX-USDT", "SPX6900"], ["MOG-USDT", "Mog Coin"],
+  ["POPCAT-USDT", "Popcat"], ["BRETT-USDT", "Brett"], ["TURBO-USDT", "Turbo"], ["BABYDOGE-USDT", "Baby Doge Coin"],
+  ["1CAT-USDT", "Bitcoin Cats"], ["MYRO-USDT", "Myro"], ["COQ-USDT", "Coq Inu"], ["WEN-USDT", "Wen"],
+  ["ZIG-USDT", "Zignaly"], ["GNS-USDT", "Gains Network"], ["JOE-USDT", "Trader Joe"], ["PANGOLIN-USDT", "Pangolin"],
+  ["BENQI-USDT", "Benqi"], ["STEEM-USDT", "Steem"], ["HIVE-USDT", "Hive"], ["WAXP-USDT", "WAX"],
+].map(([symbol, name]) => ({
+  symbol, name, price: 0, change: 0, volume: 0, sector: "Crypto"
+}));
 
 const PATTERN_DATA: Record<string, any> = {
 THYAO: { rsi: 38, macd: 0.42, fibLevel: "0.618", patternScore: 78, pattern: "Düşen Kama Kırılımı", potential: 42 },
@@ -161,8 +210,8 @@ useEffect(() => {
       const allSymbols = [...stockSymbols, ...cryptoSymbols, ...indexSymbols];
       
       // Yahoo Finance spark endpoint limits the number of symbols per request.
-      // Split into batches of 10.
-      const batchSize = 10;
+      // Split into batches of 20 for better performance with 250+ coins.
+      const batchSize = 20;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
