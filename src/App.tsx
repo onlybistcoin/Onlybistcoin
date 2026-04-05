@@ -68,22 +68,22 @@ const CRYPTO_COINS = [
   ["BTC-USDT", "Bitcoin"], ["ETH-USDT", "Ethereum"], ["SOL-USDT", "Solana"], ["BNB-USDT", "Binance Coin"],
   ["XRP-USDT", "XRP"], ["ADA-USDT", "Cardano"], ["AVAX-USDT", "Avalanche"], ["DOGE-USDT", "Dogecoin"],
   ["DOT-USDT", "Polkadot"], ["LINK-USDT", "Chainlink"], ["MATIC-USDT", "Polygon"], ["NEAR-USDT", "Near Protocol"],
-  ["PEPE-USDT", "Pepe"], ["FET-USDT", "Fetch.ai"], ["RNDR-USDT", "Render"], ["SHIB-USDT", "Shiba Inu"],
+  ["1000PEPE-USDT", "1000 Pepe"], ["FET-USDT", "Fetch.ai"], ["RNDR-USDT", "Render"], ["1000SHIB-USDT", "1000 Shiba Inu"],
   ["LTC-USDT", "Litecoin"], ["BCH-USDT", "Bitcoin Cash"], ["UNI-USDT", "Uniswap"], ["ARB-USDT", "Arbitrum"],
   ["TIA-USDT", "Celestia"], ["OP-USDT", "Optimism"], ["INJ-USDT", "Injective"], ["SUI-USDT", "Sui"],
   ["APT-USDT", "Aptos"], ["STX-USDT", "Stacks"], ["FIL-USDT", "Filecoin"], ["ATOM-USDT", "Cosmos"],
   ["IMX-USDT", "Immutable"], ["KAS-USDT", "Kaspa"], ["HBAR-USDT", "Hedera"], ["ETC-USDT", "Ethereum Classic"],
   ["ICP-USDT", "Internet Computer"], ["RUNE-USDT", "THORChain"], ["LDO-USDT", "Lido DAO"], ["TAO-USDT", "Bittensor"],
-  ["SEI-USDT", "Sei"], ["JUP-USDT", "Jupiter"], ["WIF-USDT", "dogwifhat"], ["FLOKI-USDT", "Floki"],
-  ["BONK-USDT", "Bonk"], ["ORDI-USDT", "Ordi"], ["GALA-USDT", "Gala"], ["VET-USDT", "VeChain"],
+  ["SEI-USDT", "Sei"], ["JUP-USDT", "Jupiter"], ["WIF-USDT", "dogwifhat"], ["1000FLOKI-USDT", "1000 Floki"],
+  ["1000BONK-USDT", "1000 Bonk"], ["ORDI-USDT", "Ordi"], ["GALA-USDT", "Gala"], ["VET-USDT", "VeChain"],
   ["MKR-USDT", "Maker"], ["GRT-USDT", "The Graph"], ["AAVE-USDT", "Aave"], ["ALGO-USDT", "Algorand"],
   ["EGLD-USDT", "MultiversX"], ["FLOW-USDT", "Flow"], ["QNT-USDT", "Quant"], ["AXS-USDT", "Axie Infinity"],
   ["SAND-USDT", "The Sandbox"], ["MANA-USDT", "Decentraland"], ["THETA-USDT", "Theta Network"], ["CHZ-USDT", "Chiliz"],
   ["EOS-USDT", "EOS"], ["NEO-USDT", "Neo"], ["IOTA-USDT", "IOTA"], ["XMR-USDT", "Monero"],
   ["ZEC-USDT", "Zcash"], ["DASH-USDT", "Dash"], ["CRV-USDT", "Curve DAO"], ["DYDX-USDT", "dYdX"],
   ["SNX-USDT", "Synthetix"], ["GMX-USDT", "GMX"], ["PENDLE-USDT", "Pendle"], ["ARKM-USDT", "Arkham"],
-  ["W-USDT", "Wormhole"], ["ENA-USDT", "Ethena"], ["SATS-USDT", "Sats"], ["BOME-USDT", "Book of Meme"],
-  ["MEW-USDT", "cat in a dogs world"], ["NOT-USDT", "Notcoin"], ["STRK-USDT", "Starknet"], ["PYTH-USDT", "Pyth Network"],
+  ["W-USDT", "Wormhole"], ["ENA-USDT", "Ethena"], ["1000SATS-USDT", "1000 Sats"], ["1000BOME-USDT", "1000 Book of Meme"],
+  ["1000MEW-USDT", "1000 MEW"], ["NOT-USDT", "Notcoin"], ["STRK-USDT", "Starknet"], ["PYTH-USDT", "Pyth Network"],
   ["JTO-USDT", "Jito"], ["ALT-USDT", "AltLayer"], ["MANTA-USDT", "Manta Network"], ["BEAM-USDT", "Beam"],
   ["RON-USDT", "Ronin"], ["PIXEL-USDT", "Pixels"], ["PORTAL-USDT", "Portal"], ["XAI-USDT", "Xai"],
   ["ACE-USDT", "Fusionist"], ["ZETA-USDT", "ZetaChain"], ["DYM-USDT", "Dymension"], ["MAVIA-USDT", "Heroes of Mavia"],
@@ -95,9 +95,9 @@ const CRYPTO_COINS = [
   ["GRASS-USDT", "Grass"], ["DRIFT-USDT", "Drift"], ["MOODENG-USDT", "Moo Deng"], ["GOAT-USDT", "Goatseus Maximus"],
   ["PNUT-USDT", "Peanut the Squirrel"], ["ACT-USDT", "AI Prophecy"], ["HYPE-USDT", "Hyperliquid"], ["VIRTUAL-USDT", "Virtuals Protocol"],
   ["AI16Z-USDT", "ai16z"], ["FARTCOIN-USDT", "Fartcoin"], ["TRUMP-USDT", "Official Trump"], ["MELANIA-USDT", "Melania Trump"],
-  ["SPX-USDT", "SPX6900"], ["MOG-USDT", "Mog Coin"], ["POPCAT-USDT", "Popcat"], ["BRETT-USDT", "Brett"],
-  ["TURBO-USDT", "Turbo"], ["BABYDOGE-USDT", "Baby Doge Coin"], ["1CAT-USDT", "Bitcoin Cats"], ["MYRO-USDT", "Myro"],
-  ["COQ-USDT", "Coq Inu"], ["WEN-USDT", "Wen"], ["ZIG-USDT", "Zignaly"], ["GNS-USDT", "Gains Network"],
+  ["SPX-USDT", "SPX6900"], ["1000MOG-USDT", "1000 Mog Coin"], ["POPCAT-USDT", "Popcat"], ["BRETT-USDT", "Brett"],
+  ["TURBO-USDT", "Turbo"], ["1000BABYDOGE-USDT", "1000 Baby Doge"], ["10001CAT-USDT", "1000 Bitcoin Cats"], ["MYRO-USDT", "Myro"],
+  ["1000COQ-USDT", "1000 Coq Inu"], ["1000WEN-USDT", "1000 Wen"], ["ZIG-USDT", "Zignaly"], ["GNS-USDT", "Gains Network"],
   ["JOE-USDT", "Trader Joe"], ["PANGOLIN-USDT", "Pangolin"], ["BENQI-USDT", "Benqi"], ["STEEM-USDT", "Steem"],
   ["HIVE-USDT", "Hive"], ["WAXP-USDT", "WAX"], ["LOOM-USDT", "Loom Network"], ["MTL-USDT", "Metal DAO"],
   ["STPT-USDT", "STP"], ["RAD-USDT", "Radicle"], ["UMA-USDT", "UMA"], ["BAND-USDT", "Band Protocol"],
@@ -178,14 +178,16 @@ CANTE: { rsi: 32, macd: 0.98, fibLevel: "0.786", patternScore: 92, pattern: "Kı
 "LINK-USDT": { rsi: 39, macd: 0.9, fibLevel: "0.618", patternScore: 82, pattern: "Channel Breakout", potential: 48 },
 "MATIC-USDT": { rsi: 48, macd: 0.1, fibLevel: "0.382", patternScore: 52, pattern: "Symmetrical Triangle", potential: 22 },
 "NEAR-USDT": { rsi: 29, macd: 1.5, fibLevel: "0.786", patternScore: 92, pattern: "Parabolic Move Potential", potential: 75 },
-"PEPE-USDT": { rsi: 22, macd: 3.2, fibLevel: "0.886", patternScore: 98, pattern: "Extreme Oversold 🐸", potential: 250 },
+"1000PEPE-USDT": { rsi: 22, macd: 3.2, fibLevel: "0.886", patternScore: 98, pattern: "Extreme Oversold 🐸", potential: 250 },
 "FET-USDT": { rsi: 34, macd: 1.4, fibLevel: "0.618", patternScore: 91, pattern: "AI Narrative Hype", potential: 85 },
 "RNDR-USDT": { rsi: 36, macd: 1.2, fibLevel: "0.618", patternScore: 87, pattern: "Bull Flag", potential: 58 },
+"1000SHIB-USDT": { rsi: 25, macd: 2.8, fibLevel: "0.786", patternScore: 92, pattern: "Accumulation Breakout", potential: 180 },
 };
 
 function generateCandleData(basePrice: number, periods = 60) {
   const data = [];
   const validBasePrice = Number.isFinite(basePrice) ? basePrice : 100; // Fallback to 100 if invalid
+  const precision = validBasePrice < 0.1 ? 6 : (validBasePrice < 1 ? 4 : 2);
   let price = validBasePrice * 0.82;
   for (let i = 0; i < periods; i++) {
     const isDown = i < 35;
@@ -197,10 +199,10 @@ function generateCandleData(basePrice: number, periods = 60) {
     const open = price * (1 + (Math.random() - 0.5) * 0.008);
     data.push({
       i,
-      price: +price.toFixed(2),
-      high: +high.toFixed(2),
-      low: +low.toFixed(2),
-      open: +open.toFixed(2),
+      price: +price.toFixed(precision),
+      high: +high.toFixed(precision),
+      low: +low.toFixed(precision),
+      open: +open.toFixed(precision),
       volume: Math.floor(Math.random() * 1000000 + 200000),
       rsi: i < 30 ? 65 - i * 0.8 + Math.random() * 5 : 30 + (i - 30) * 1.2 + Math.random() * 5,
       macd: i < 35 ? -0.5 + i * 0.01 : (i - 35) * 0.05,
@@ -253,7 +255,7 @@ useEffect(() => {
   const fetchLivePrices = async () => {
     try {
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
-      const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("-USDT", "-USD"));
+      const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("1000", "").replace("-USDT", "-USD"));
       const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
       const allSymbols = [...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols];
@@ -293,14 +295,23 @@ useEffect(() => {
             const stockData = (allData as any)[key];
             
             if (stockData && stockData.price !== undefined && stockData.price !== null) {
-              const precision = sym.includes("PEPE") ? 8 : (sym.includes("-USDT") ? 4 : 2);
-              next[sym] = +stockData.price.toFixed(precision);
+              let finalPrice = stockData.price;
+              let finalSym = sym;
+              
+              // Handle 1000x coins
+              if (CRYPTO_COINS.some(c => c.symbol === `1000${sym}`)) {
+                finalSym = `1000${sym}`;
+                finalPrice *= 1000;
+              }
+
+              const precision = finalSym.startsWith("1000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
+              next[finalSym] = +finalPrice.toFixed(precision);
               
               if (stockData.change !== undefined && stockData.change !== null) {
-                next[`${sym}_change`] = +stockData.change.toFixed(2);
+                next[`${finalSym}_change`] = +stockData.change.toFixed(2);
               } else if (stockData.previousClose) {
                 const change = ((stockData.price - stockData.previousClose) / stockData.previousClose) * 100;
-                next[`${sym}_change`] = +change.toFixed(2);
+                next[`${finalSym}_change`] = +change.toFixed(2);
               }
             }
           });
@@ -631,7 +642,7 @@ const up = currentChange >= 0;
 const isCrypto = stock.symbol.includes("-USDT");
 const isCommodity = stock.sector === "Emtia";
 const currency = isCrypto ? "USDT" : (isCommodity && !stock.name.includes("(TL)") ? "$" : "₺");
-const precision = stock.symbol.includes("PEPE") ? 8 : (isCrypto || isCommodity ? 4 : 2);
+const precision = stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto || isCommodity ? 4 : 2));
 
 return (
 <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#21262d", borderRadius: 14, padding: "12px 14px", border: "1px solid #30363d" }}>
@@ -697,8 +708,8 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
           const isCrypto = stock.symbol.includes("-USDT");
           const currency = isCrypto ? " USDT" : " ₺";
           
-          const scalpTp = +(price * 1.025).toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2);
-          const scalpSl = +(price * 0.985).toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2);
+          const scalpTp = +(price * 1.025).toFixed(stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)));
+          const scalpSl = +(price * 0.985).toFixed(stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)));
 
           return (
             <button
@@ -713,7 +724,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
                   <div style={{ color: "#8b949e", fontSize: 11 }}>{stock.name}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}{currency}</div>
+                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}{currency}</div>
                   <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
                 </div>
               </div>
@@ -721,7 +732,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "8px", textAlign: "center" }}>
                   <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>GİRİŞ</div>
-                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}</div>
+                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{price.toFixed(stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}</div>
                 </div>
                 <div style={{ background: "rgba(48,209,88,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: "1px solid rgba(48,209,88,0.2)" }}>
                   <div style={{ color: "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF</div>
@@ -795,7 +806,7 @@ return (
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}{currency}</div>
+              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}{currency}</div>
               <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 600 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
             </div>
           </div>
@@ -847,7 +858,7 @@ const isCrypto = stock.symbol.includes("-USDT");
 const currency = isCrypto ? " USDT" : " ₺";
 const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]);
 
-const pricePrecision = isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2;
+const pricePrecision = stock.symbol.startsWith("1000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
 
 const tp1 = +(price * 1.15).toFixed(pricePrecision);
 const tp2 = +(price * 1.28).toFixed(pricePrecision);
