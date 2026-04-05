@@ -32,28 +32,28 @@ const BIST_STOCKS = [
 ];
 
 const CRYPTO_COINS = [
-  { symbol: "BTC-USD", name: "Bitcoin", price: 65000, change: 1.2, volume: 35000000000, sector: "Crypto" },
-  { symbol: "ETH-USD", name: "Ethereum", price: 3500, change: 0.8, volume: 15000000000, sector: "Crypto" },
-  { symbol: "SOL-USD", name: "Solana", price: 145, change: 4.5, volume: 4000000000, sector: "Crypto" },
-  { symbol: "BNB-USD", name: "Binance Coin", price: 580, change: -0.5, volume: 1200000000, sector: "Crypto" },
-  { symbol: "XRP-USD", name: "XRP", price: 0.62, change: 2.1, volume: 2000000000, sector: "Crypto" },
-  { symbol: "ADA-USD", name: "Cardano", price: 0.58, change: -1.2, volume: 500000000, sector: "Crypto" },
-  { symbol: "AVAX-USD", name: "Avalanche", price: 54, change: 3.8, volume: 800000000, sector: "Crypto" },
-  { symbol: "DOGE-USD", name: "Dogecoin", price: 0.18, change: 8.5, volume: 3000000000, sector: "Crypto" },
-  { symbol: "DOT-USD", name: "Polkadot", price: 9.2, change: 0.4, volume: 300000000, sector: "Crypto" },
-  { symbol: "LINK-USD", name: "Chainlink", price: 18.5, change: 2.3, volume: 600000000, sector: "Crypto" },
-  { symbol: "MATIC-USD", name: "Polygon", price: 0.98, change: -0.2, volume: 400000000, sector: "Crypto" },
-  { symbol: "NEAR-USD", name: "Near Protocol", price: 7.4, change: 5.6, volume: 700000000, sector: "Crypto" },
-  { symbol: "PEPE-USD", name: "Pepe", price: 0.000008, change: 12.4, volume: 1200000000, sector: "Crypto" },
-  { symbol: "FET-USD", name: "Fetch.ai", price: 2.8, change: 6.2, volume: 400000000, sector: "Crypto" },
-  { symbol: "RNDR-USD", name: "Render", price: 11.2, change: 4.8, volume: 500000000, sector: "Crypto" },
+  { symbol: "BTC-USDT", name: "Bitcoin", price: 65000, change: 1.2, volume: 35000000000, sector: "Crypto" },
+  { symbol: "ETH-USDT", name: "Ethereum", price: 3500, change: 0.8, volume: 15000000000, sector: "Crypto" },
+  { symbol: "SOL-USDT", name: "Solana", price: 145, change: 4.5, volume: 4000000000, sector: "Crypto" },
+  { symbol: "BNB-USDT", name: "Binance Coin", price: 580, change: -0.5, volume: 1200000000, sector: "Crypto" },
+  { symbol: "XRP-USDT", name: "XRP", price: 0.62, change: 2.1, volume: 2000000000, sector: "Crypto" },
+  { symbol: "ADA-USDT", name: "Cardano", price: 0.58, change: -1.2, volume: 500000000, sector: "Crypto" },
+  { symbol: "AVAX-USDT", name: "Avalanche", price: 54, change: 3.8, volume: 800000000, sector: "Crypto" },
+  { symbol: "DOGE-USDT", name: "Dogecoin", price: 0.18, change: 8.5, volume: 3000000000, sector: "Crypto" },
+  { symbol: "DOT-USDT", name: "Polkadot", price: 9.2, change: 0.4, volume: 300000000, sector: "Crypto" },
+  { symbol: "LINK-USDT", name: "Chainlink", price: 18.5, change: 2.3, volume: 600000000, sector: "Crypto" },
+  { symbol: "MATIC-USDT", name: "Polygon", price: 0.98, change: -0.2, volume: 400000000, sector: "Crypto" },
+  { symbol: "NEAR-USDT", name: "Near Protocol", price: 7.4, change: 5.6, volume: 700000000, sector: "Crypto" },
+  { symbol: "PEPE-USDT", name: "Pepe", price: 0.000008, change: 12.4, volume: 1200000000, sector: "Crypto" },
+  { symbol: "FET-USDT", name: "Fetch.ai", price: 2.8, change: 6.2, volume: 400000000, sector: "Crypto" },
+  { symbol: "RNDR-USDT", name: "Render", price: 11.2, change: 4.8, volume: 500000000, sector: "Crypto" },
 ];
 
 const PATTERN_DATA: Record<string, any> = {
 THYAO: { rsi: 38, macd: 0.42, fibLevel: "0.618", patternScore: 78, pattern: "Düşen Kama Kırılımı", potential: 42 },
 GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 18 },
 AKBNK: { rsi: 41, macd: 0.28, fibLevel: "0.5", patternScore: 62, pattern: "Bayrак Formasyonu", potential: 35 },
-EREGL: { rsi: 36, macd: 0.65, fibLevel: "0.618", patternScore: 85, pattern: "Düşen Kama Kırılımı ✦", potential: 58 },
+EREGL: { rsi: 36, macd: 0.65, fibLevel: "0.618", patternScore: 85, pattern: "Düşen Kama Kırılımı", potential: 58 },
 KCHOL: { rsi: 52, macd: 0.05, fibLevel: "0.236", patternScore: 38, pattern: "Güçlü Yukarı Trend", potential: 22 },
 SAHOL: { rsi: 44, macd: 0.31, fibLevel: "0.5", patternScore: 71, pattern: "Çift Dip", potential: 48 },
 BIMAS: { rsi: 62, macd: -0.22, fibLevel: "0.382", patternScore: 29, pattern: "Direnç Bölgesi", potential: 12 },
@@ -75,21 +75,21 @@ VESTL: { rsi: 33, macd: 0.87, fibLevel: "0.786", patternScore: 90, pattern: "RSI
 ODAS: { rsi: 30, macd: 1.15, fibLevel: "0.786", patternScore: 97, pattern: "MACD + Hacim Patlaması ✦✦", potential: 90 },
 SMRTG: { rsi: 29, macd: 1.18, fibLevel: "0.786", patternScore: 95, pattern: "Düşen Kama + Tüm Sinyaller ✦✦", potential: 88 },
 CANTE: { rsi: 32, macd: 0.98, fibLevel: "0.786", patternScore: 92, pattern: "Kırılım + Hacim Artışı ✦", potential: 76 },
-"BTC-USD": { rsi: 32, macd: 1.2, fibLevel: "0.618", patternScore: 88, pattern: "Bullish Divergence", potential: 45 },
-"ETH-USD": { rsi: 45, macd: 0.5, fibLevel: "0.5", patternScore: 72, pattern: "Ascending Triangle", potential: 32 },
-"SOL-USD": { rsi: 28, macd: 1.8, fibLevel: "0.786", patternScore: 94, pattern: "Falling Wedge Breakout", potential: 65 },
-"BNB-USD": { rsi: 52, macd: -0.2, fibLevel: "0.382", patternScore: 48, pattern: "Consolidation", potential: 15 },
-"XRP-USD": { rsi: 38, macd: 0.8, fibLevel: "0.618", patternScore: 79, pattern: "Double Bottom", potential: 38 },
-"ADA-USD": { rsi: 35, macd: 0.4, fibLevel: "0.5", patternScore: 65, pattern: "Rounding Bottom", potential: 28 },
-"AVAX-USD": { rsi: 31, macd: 1.1, fibLevel: "0.786", patternScore: 89, pattern: "Cup and Handle", potential: 52 },
-"DOGE-USD": { rsi: 25, macd: 2.5, fibLevel: "0.886", patternScore: 96, pattern: "Meme Momentum 🚀", potential: 120 },
-"DOT-USD": { rsi: 42, macd: 0.3, fibLevel: "0.5", patternScore: 61, pattern: "Accumulation", potential: 25 },
-"LINK-USD": { rsi: 39, macd: 0.9, fibLevel: "0.618", patternScore: 82, pattern: "Channel Breakout", potential: 48 },
-"MATIC-USD": { rsi: 48, macd: 0.1, fibLevel: "0.382", patternScore: 52, pattern: "Symmetrical Triangle", potential: 22 },
-"NEAR-USD": { rsi: 29, macd: 1.5, fibLevel: "0.786", patternScore: 92, pattern: "Parabolic Move Potential", potential: 75 },
-"PEPE-USD": { rsi: 22, macd: 3.2, fibLevel: "0.886", patternScore: 98, pattern: "Extreme Oversold 🐸", potential: 250 },
-"FET-USD": { rsi: 34, macd: 1.4, fibLevel: "0.618", patternScore: 91, pattern: "AI Narrative Hype", potential: 85 },
-"RNDR-USD": { rsi: 36, macd: 1.2, fibLevel: "0.618", patternScore: 87, pattern: "Bull Flag", potential: 58 },
+"BTC-USDT": { rsi: 32, macd: 1.2, fibLevel: "0.618", patternScore: 88, pattern: "Bullish Divergence", potential: 45 },
+"ETH-USDT": { rsi: 45, macd: 0.5, fibLevel: "0.5", patternScore: 72, pattern: "Ascending Triangle", potential: 32 },
+"SOL-USDT": { rsi: 28, macd: 1.8, fibLevel: "0.786", patternScore: 94, pattern: "Falling Wedge Breakout", potential: 65 },
+"BNB-USDT": { rsi: 52, macd: -0.2, fibLevel: "0.382", patternScore: 48, pattern: "Consolidation", potential: 15 },
+"XRP-USDT": { rsi: 38, macd: 0.8, fibLevel: "0.618", patternScore: 79, pattern: "Double Bottom", potential: 38 },
+"ADA-USDT": { rsi: 35, macd: 0.4, fibLevel: "0.5", patternScore: 65, pattern: "Rounding Bottom", potential: 28 },
+"AVAX-USDT": { rsi: 31, macd: 1.1, fibLevel: "0.786", patternScore: 89, pattern: "Cup and Handle", potential: 52 },
+"DOGE-USDT": { rsi: 25, macd: 2.5, fibLevel: "0.886", patternScore: 96, pattern: "Meme Momentum 🚀", potential: 120 },
+"DOT-USDT": { rsi: 42, macd: 0.3, fibLevel: "0.5", patternScore: 61, pattern: "Accumulation", potential: 25 },
+"LINK-USDT": { rsi: 39, macd: 0.9, fibLevel: "0.618", patternScore: 82, pattern: "Channel Breakout", potential: 48 },
+"MATIC-USDT": { rsi: 48, macd: 0.1, fibLevel: "0.382", patternScore: 52, pattern: "Symmetrical Triangle", potential: 22 },
+"NEAR-USDT": { rsi: 29, macd: 1.5, fibLevel: "0.786", patternScore: 92, pattern: "Parabolic Move Potential", potential: 75 },
+"PEPE-USDT": { rsi: 22, macd: 3.2, fibLevel: "0.886", patternScore: 98, pattern: "Extreme Oversold 🐸", potential: 250 },
+"FET-USDT": { rsi: 34, macd: 1.4, fibLevel: "0.618", patternScore: 91, pattern: "AI Narrative Hype", potential: 85 },
+"RNDR-USDT": { rsi: 36, macd: 1.2, fibLevel: "0.618", patternScore: 87, pattern: "Bull Flag", potential: 58 },
 };
 
 function generateCandleData(basePrice: number, periods = 60) {
@@ -156,7 +156,7 @@ useEffect(() => {
   const fetchLivePrices = async () => {
     try {
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
-      const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol);
+      const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("-USDT", "-USD"));
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
       const allSymbols = [...stockSymbols, ...cryptoSymbols, ...indexSymbols];
       
@@ -188,11 +188,15 @@ useEffect(() => {
         setPrices(prev => {
           const next = { ...prev };
           Object.keys(allData).forEach(key => {
-            const sym = key.replace(".IS", "");
+            let sym = key.replace(".IS", "");
+            if (sym.includes("-USD") && !sym.includes("TRY")) {
+              sym = sym.replace("-USD", "-USDT");
+            }
             const stockData = (allData as any)[key];
             
             if (stockData && stockData.price !== undefined && stockData.price !== null) {
-              next[sym] = +stockData.price.toFixed(sym.includes("-USD") ? 4 : 2);
+              const precision = sym.includes("PEPE") ? 8 : (sym.includes("-USDT") ? 4 : 2);
+              next[sym] = +stockData.price.toFixed(precision);
               
               if (stockData.change !== undefined && stockData.change !== null) {
                 next[`${sym}_change`] = +stockData.change.toFixed(2);
@@ -260,28 +264,23 @@ const openDetail = useCallback(async (stock: any) => {
   const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
   
   // Generate more realistic dynamic news based on stock/coin
-  const isCrypto = stock.symbol.includes("-USD");
-  const news = [
-    { 
-      date: "Bugün", 
-      title: isCrypto ? `${stock.name} ağ güncellemesi başarıyla tamamlandı.` : `${stock.name} yeni ihracat sözleşmesi imzaladığını duyurdu.`, 
-      source: isCrypto ? "CryptoNews" : "KAP", 
-      type: "pozitif" 
-    },
-    { 
-      date: "Dün", 
-      title: `${stock.symbol} teknik göstergeleri ${pd.pattern} formasyonunu teyit ediyor.`, 
-      source: "Analiz", 
-      type: "pozitif" 
-    },
-    { 
-      date: "2 gün önce", 
-      title: `${stock.name} için haftalık hacim artışı dikkat çekiyor.`, 
-      source: "Borsa Gündem", 
-      type: "nötr" 
-    },
+  const isCrypto = stock.symbol.includes("-USDT");
+  const newsTemplates = [
+    { title: isCrypto ? "Ağ güncellemesi başarıyla tamamlandı." : "Yeni ihracat sözleşmesi imzalandı.", source: isCrypto ? "CryptoNews" : "KAP", type: "pozitif" },
+    { title: `Teknik göstergeler ${pd.pattern} formasyonunu teyit ediyor.`, source: "Analiz", type: "pozitif" },
+    { title: "Haftalık hacim artışı dikkat çekiyor.", source: "Borsa Gündem", type: "nötr" },
+    { title: "Analist hedef fiyat revizesi gerçekleşti.", source: "Finans", type: "pozitif" },
+    { title: "Sektörel büyüme beklentileri aşıldı.", source: "Ekonomi", type: "pozitif" }
   ];
-  setKapNews(news);
+  
+  // Pick 3 random news but keep them consistent for the session
+  const seed = stock.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  const selectedNews = [
+    { date: "Bugün", ...newsTemplates[seed % newsTemplates.length] },
+    { date: "Dün", ...newsTemplates[(seed + 1) % newsTemplates.length] },
+    { date: "2 gün önce", ...newsTemplates[(seed + 2) % newsTemplates.length] }
+  ];
+  setKapNews(selectedNews);
 
   try {
     const promptPrice = Number.isFinite(Number(prices[stock.symbol] ?? stock.price)) ? Number(prices[stock.symbol] ?? stock.price) : 0;
@@ -291,11 +290,11 @@ const openDetail = useCallback(async (stock: any) => {
 Veri: Fiyat ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
 
 Talimat: Çok kısa, teknik ve net ol. 
-1. 🎯 FORMASYON: ${pd.pattern} durumunu yorumla.
-2. 📊 TEKNİK: RSI ve MACD'ye göre yön neresi?
-3. ⚡ SCALP: Giriş ve TP seviyesi ver.
-4. 🎰 RİSK: Stop seviyesi.
-5. 💎 KARAR: Al/Sat/Bekle ve neden.`;
+1. 🎯 FORMASYON: ${pd.pattern} yorumu.
+2. 📊 TEKNİK: RSI/MACD yönü.
+3. ⚡ SCALP: Giriş/TP.
+4. 🎰 RİSK: Stop.
+5. 💎 KARAR: Al/Sat/Bekle (neden).`;
 
     // Moving AI Analysis to frontend using process.env.GEMINI_API_KEY
     // Robust API key retrieval for Vite/Vercel
@@ -428,7 +427,7 @@ return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
       {[
         { label: "BIST 100", val: prices["XU100"] ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "...", chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
-        { label: "BTC/USD", val: prices["BTC-USD"] ? prices["BTC-USD"].toLocaleString("en-US", { style: "currency", currency: "USD" }) : "...", chg: prices["BTC-USD_change"] ? `${prices["BTC-USD_change"] > 0 ? "+" : ""}${prices["BTC-USD_change"]}%` : "", up: prices["BTC-USD_change"] >= 0 },
+        { label: "BTC/USDT", val: prices["BTC-USDT"] ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : "...", chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
         { label: "USD/TRY", val: prices["TRY=X"] ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "...", chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#131922", borderRadius: 12, padding: "10px 10px" }}>
@@ -591,11 +590,11 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
           let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
           if (!Number.isFinite(currentChange)) currentChange = 0;
           const up = currentChange >= 0;
-          const isCrypto = stock.symbol.includes("-USD");
-          const currency = isCrypto ? "$" : "₺";
+          const isCrypto = stock.symbol.includes("-USDT");
+          const currency = isCrypto ? " USDT" : " ₺";
           
-          const scalpTp = +(price * 1.025).toFixed(isCrypto ? 4 : 2);
-          const scalpSl = +(price * 0.985).toFixed(isCrypto ? 4 : 2);
+          const scalpTp = +(price * 1.025).toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2);
+          const scalpSl = +(price * 0.985).toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2);
 
           return (
             <button
@@ -610,7 +609,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
                   <div style={{ color: "#4a5568", fontSize: 11 }}>{stock.name}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(isCrypto ? 4 : 2)} {currency}</div>
+                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}{currency}</div>
                   <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
                 </div>
               </div>
@@ -618,7 +617,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px", textAlign: "center" }}>
                   <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700 }}>GİRİŞ</div>
-                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{price.toFixed(isCrypto ? 4 : 2)}</div>
+                  <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{price.toFixed(isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2)}</div>
                 </div>
                 <div style={{ background: "rgba(48,209,88,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: "1px solid rgba(48,209,88,0.2)" }}>
                   <div style={{ color: "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF</div>
@@ -737,23 +736,25 @@ if (!Number.isFinite(price)) price = 0;
 let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
 if (!Number.isFinite(currentChange)) currentChange = 0;
 const up = currentChange >= 0;
-const isCrypto = stock.symbol.includes("-USD");
-const currency = isCrypto ? "$" : "₺";
+const isCrypto = stock.symbol.includes("-USDT");
+const currency = isCrypto ? " USDT" : " ₺";
 const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]);
 
-const tp1 = +(price * 1.15).toFixed(isCrypto ? 4 : 2);
-const tp2 = +(price * 1.28).toFixed(isCrypto ? 4 : 2);
+const pricePrecision = isCrypto ? (stock.symbol.includes("PEPE") ? 8 : 4) : 2;
+
+const tp1 = +(price * 1.15).toFixed(pricePrecision);
+const tp2 = +(price * 1.28).toFixed(pricePrecision);
 let potential = Number(stock.dynamicPotential ?? pd.potential ?? 0);
 if (!Number.isFinite(potential)) potential = 0;
-const tp3 = +(price * (1 + potential / 100)).toFixed(isCrypto ? 4 : 2);
-const sl = +(price * 0.92).toFixed(isCrypto ? 4 : 2);
-const support = +(price * 0.95).toFixed(isCrypto ? 4 : 2);
-const resist = +(price * 1.08).toFixed(isCrypto ? 4 : 2);
+const tp3 = +(price * (1 + potential / 100)).toFixed(pricePrecision);
+const sl = +(price * 0.92).toFixed(pricePrecision);
+const support = +(price * 0.95).toFixed(pricePrecision);
+const resist = +(price * 1.08).toFixed(pricePrecision);
 
 // Scalp Levels (Short Term)
-const scalpTp1 = +(price * 1.02).toFixed(isCrypto ? 4 : 2);
-const scalpTp2 = +(price * 1.04).toFixed(isCrypto ? 4 : 2);
-const scalpSl = +(price * 0.985).toFixed(isCrypto ? 4 : 2);
+const scalpTp1 = +(price * 1.02).toFixed(pricePrecision);
+const scalpTp2 = +(price * 1.04).toFixed(pricePrecision);
+const scalpSl = +(price * 0.985).toFixed(pricePrecision);
 
 return (
 <>
@@ -766,7 +767,7 @@ return (
 <div style={{ color: "#4a5568", fontSize: 12 }}>{stock.name}</div>
 </div>
 <div style={{ textAlign: "right" }}>
-<div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>{price.toFixed(isCrypto ? 4 : 2)} {currency}</div>
+<div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>{price.toFixed(pricePrecision)}{currency}</div>
 <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 700 }}>
 {up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toFixed(2)}%
 </div>
@@ -914,11 +915,12 @@ return (
         </div>
       </div>
       {aiLoading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ color: "#00d4aa", fontSize: 12, fontWeight: 700, animation: "pulse 1.5s infinite" }}>⚡ Hızlı AI Analiz Hazırlanıyor...</div>
           {[100, 85, 92, 70].map((w, i) => (
-            <div key={i} style={{ background: "#1a1f2e", borderRadius: 6, height: 12, width: `${w}%`, animation: "pulse 1.5s infinite" }} />
+            <div key={i} style={{ background: "#1a1f2e", borderRadius: 6, height: 10, width: `${w}%`, animation: "pulse 1.5s infinite" }} />
           ))}
-          <style>{`@keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }`}</style>
+          <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
         </div>
       ) : (
         <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiAnalysis}</div>
