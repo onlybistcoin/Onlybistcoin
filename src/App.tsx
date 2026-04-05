@@ -298,7 +298,7 @@ useEffect(() => {
   };
 
   fetchLivePrices(); 
-  const interval = setInterval(fetchLivePrices, 20000);
+  const interval = setInterval(fetchLivePrices, 5000);
   return () => clearInterval(interval);
 }, []);
 
