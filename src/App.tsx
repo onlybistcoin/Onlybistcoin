@@ -234,6 +234,7 @@ const [candidates, setCandidates] = useState<any[]>([]);
     return p;
   });
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>("");
 const [aiAnalysis, setAiAnalysis] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
@@ -263,6 +264,7 @@ useEffect(() => {
   // CORS hatasını çözen Proxy'li gerçek zamanlı API isteği
   const fetchLivePrices = useCallback(async () => {
     try {
+      setFetchError(null);
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
       const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("10000", "").replace("-USDT", "-USD"));
       const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
@@ -290,6 +292,7 @@ useEffect(() => {
             }
           } else {
             console.error(`API error for batch: ${res.status}`);
+            if (res.status === 429) setFetchError("Aşırı istek: 2dk bekleyiniz");
           }
           // 2 second delay between batches to be safe
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -331,10 +334,14 @@ useEffect(() => {
           return next;
         });
         setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-        setLoading(false);
+      } else {
+        setFetchError("Veri alınamadı");
       }
     } catch (err) {
       console.error("Veri çekilirken hata oluştu:", err);
+      setFetchError("Bağlantı hatası");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -519,6 +526,7 @@ border: "1px solid #30363d"
         onViewScalp={() => setScreen("scalp")}
         onRefresh={handleRefresh}
         loading={loading}
+        fetchError={fetchError}
         stocks={stocks}
         market={market} setMarket={setMarket}
       />}
@@ -551,7 +559,7 @@ border: "1px solid #30363d"
 );
 }
 
-function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onRefresh, loading, stocks, market, setMarket }: any) {
+function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
 const topMovers = [...stocks].sort((a, b) => {
   let changeA = Number(prices[`${a.symbol}_change`] ?? a.change ?? 0);
   if (!Number.isFinite(changeA)) changeA = 0;
@@ -592,6 +600,7 @@ return (
 </button>
 <div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
 <div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"}</div>
+{fetchError && <div style={{ color: "#ff453a", fontSize: 9, fontWeight: 700, marginTop: 4 }}>{fetchError}</div>}
 </div>
 </div>
 
@@ -607,15 +616,15 @@ return (
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 14 }}>
       {[
-        { label: "BIST 100", val: prices["XU100"] ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "...", chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
-        { label: "BTC/USDT", val: prices["BTC-USDT"] ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : "...", chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
-        { label: "USD/TRY", val: prices["TRY=X"] ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "...", chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
-        { label: "GÜMÜŞ/TL", val: prices["GAG=X"] ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : "...", chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
+        { label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
+        { label: "BTC/USDT", val: prices["BTC-USDT"] > 0 ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : (loading ? "..." : "---"), chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
+        { label: "USD/TRY", val: prices["TRY=X"] > 0 ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : (loading ? "..." : "---"), chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
+        { label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
           <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
-        {m.val === "..." ? (
-          <div style={{ color: "#4a5568", fontSize: 13, fontWeight: 700, marginTop: 2 }}>Yükleniyor...</div>
+        {(m.val === "..." || m.val === "---") ? (
+          <div style={{ color: "#4a5568", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val === "..." ? "Yükleniyor..." : "Veri Yok"}</div>
         ) : (
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val}</div>
         )}

@@ -39,8 +39,9 @@ async function startServer() {
       }
       lastRequestTime = Date.now();
       
-      const url = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${encodeURIComponent(symbols)}&range=1d&interval=5m&_=${Date.now()}`;
-      console.log(`Fetching Yahoo data: ${symbols.substring(0, 20)}...`);
+      // Use the 'quote' endpoint which is more reliable for current prices than 'spark'
+      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&_=${Date.now()}`;
+      console.log(`Fetching Yahoo Quote: ${symbols.substring(0, 30)}...`);
       
       const response = await fetch(url, {
         headers: {
@@ -57,7 +58,6 @@ async function startServer() {
         const errorText = await response.text();
         console.error(`Yahoo API Error (${response.status}): ${errorText}`);
         
-        // If we have stale cache, serve it on error
         if (cached) {
           console.log("Serving stale cache due to API error");
           return res.json(cached.data);
@@ -69,46 +69,25 @@ async function startServer() {
       const data = await response.json();
       const result: Record<string, any> = {};
       
-      if (data.spark && data.spark.result) {
-        data.spark.result.forEach((item: any) => {
-          if (item && item.symbol && item.response && item.response[0]) {
-            const resp = item.response[0];
-            const meta = resp.meta;
-            const indicators = resp.indicators && resp.indicators.quote && resp.indicators.quote[0];
-            const close = indicators && indicators.close;
-            
-            if (close && Array.isArray(close)) {
-              let price = null;
-              for (let i = close.length - 1; i >= 0; i--) {
-                if (close[i] !== null && close[i] !== undefined) {
-                  price = close[i];
-                  break;
-                }
-              }
-              
-              if (price === null && meta && meta.regularMarketPrice) {
-                price = meta.regularMarketPrice;
-              }
-              
-              const prevClose = meta && meta.previousClose;
-              let change = 0;
-              if (price !== null && prevClose) {
-                change = ((price - prevClose) / prevClose) * 100;
-              }
+      if (data.quoteResponse && data.quoteResponse.result) {
+        data.quoteResponse.result.forEach((item: any) => {
+          if (item && item.symbol) {
+            const price = item.regularMarketPrice;
+            const change = item.regularMarketChangePercent;
+            const prevClose = item.regularMarketPreviousClose || (price / (1 + change / 100));
 
-              result[item.symbol] = {
-                price: price,
-                change: change,
-                previousClose: prevClose,
-                symbol: item.symbol
-              };
-            }
+            result[item.symbol] = {
+              price: price,
+              change: change,
+              previousClose: prevClose,
+              symbol: item.symbol
+            };
           }
         });
-      } else if (data.spark && data.spark.error) {
-        console.error("Yahoo Spark Error:", data.spark.error);
+      } else if (data.quoteResponse && data.quoteResponse.error) {
+        console.error("Yahoo Quote Error:", data.quoteResponse.error);
         if (cached) return res.json(cached.data);
-        throw new Error(`Yahoo Spark Error: ${JSON.stringify(data.spark.error)}`);
+        throw new Error(`Yahoo Quote Error: ${JSON.stringify(data.quoteResponse.error)}`);
       }
       
       // Update cache
@@ -116,6 +95,7 @@ async function startServer() {
         cache[cacheKey] = { data: result, timestamp: Date.now() };
       }
       
+      console.log(`Successfully fetched ${Object.keys(result).length} symbols`);
       res.json(result);
     } catch (error) {
       console.error("Proxy error:", error);
