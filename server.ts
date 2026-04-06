@@ -39,156 +39,179 @@ async function startServer() {
       }
       lastRequestTime = Date.now();
       
-      // Use v7 which is the standard stable endpoint
-      let url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
-      console.log(`[Yahoo Proxy] Fetching (v7): ${symbols.substring(0, 40)}...`);
-      
       const commonHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
+        'Origin': 'https://finance.yahoo.com',
         'Referer': 'https://finance.yahoo.com/',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1'
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       };
 
-      let response = await fetch(url, { headers: commonHeaders });
-      
-      // If v7 fails with 401 or 404, try v6 quote endpoint as a fallback
-      if (response.status === 401 || response.status === 404) {
-        console.warn(`[Yahoo Proxy] v7 returned ${response.status}, trying v6 fallback...`);
-        url = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${encodeURIComponent(symbols)}`;
-        response = await fetch(url, { headers: commonHeaders });
-      }
+      const bases = ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"];
+      const symbolList = symbols.split(",");
+      let finalResult: Record<string, any> = {};
+      let success = false;
 
-      let sparkResult: Record<string, any> = {};
-
-      // If v6 also fails, try v8 spark endpoint as a last resort (one by one to avoid 400)
-      if (response.status === 401 || response.status === 404) {
-        console.warn(`[Yahoo Proxy] v6 returned ${response.status}, trying v8 spark fallback (individual)...`);
-        const symbolList = symbols.split(",");
-        for (const sym of symbolList) {
+      // Stage 1: Try batch quote (v7 then v6)
+      for (const base of bases) {
+        for (const endpoint of ["/v7/finance/quote", "/v6/finance/quote"]) {
           try {
-            const sparkUrl = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${encodeURIComponent(sym)}&range=1d&interval=5m`;
-            const sparkRes = await fetch(sparkUrl, { headers: commonHeaders });
-            if (sparkRes.ok) {
-              const sparkData = await sparkRes.json();
-              if (sparkData.spark && sparkData.spark.result && sparkData.spark.result[0]) {
-                const item = sparkData.spark.result[0];
-                if (item.response && item.response[0]) {
-                  const resp = item.response[0];
-                  const meta = resp.meta;
-                  const price = meta.regularMarketPrice;
-                  const prevClose = meta.previousClose;
-                  let change = 0;
-                  if (price !== null && prevClose) {
-                    change = ((price - prevClose) / prevClose) * 100;
-                  }
-                  sparkResult[item.symbol] = {
-                    price: price,
-                    change: change,
-                    previousClose: prevClose,
-                    symbol: item.symbol
+            const url = `${base}${endpoint}?symbols=${encodeURIComponent(symbols)}`;
+            const res = await fetch(url, { headers: commonHeaders });
+            if (res.ok) {
+              const data = await res.json();
+              const quotes = data.quoteResponse?.result || [];
+              if (quotes.length > 0) {
+                quotes.forEach((q: any) => {
+                  finalResult[q.symbol] = {
+                    price: q.regularMarketPrice,
+                    change: q.regularMarketChangePercent || 0,
+                    previousClose: q.regularMarketPreviousClose,
+                    symbol: q.symbol
                   };
+                });
+                if (Object.keys(finalResult).length >= symbolList.length) {
+                  success = true;
+                  break;
                 }
               }
             }
-            // Small delay to avoid rate limiting
-            await new Promise(r => setTimeout(r, 100));
-          } catch (e) {
-            console.error(`Spark fetch error for ${sym}:`, e);
-          }
+          } catch (e) { /* silent fail for batch */ }
         }
-        
-        if (Object.keys(sparkResult).length > 0) {
-          // We already populated sparkResult, so we can skip the rest of the parsing
-          if (cached) {
-             // Merge with cache if some failed
-             const merged = { ...cached.data, ...sparkResult };
-             cache[cacheKey] = { data: merged, timestamp: Date.now() };
-             return res.json(merged);
-          }
-          cache[cacheKey] = { data: sparkResult, timestamp: Date.now() };
-          return res.json(sparkResult);
-        }
+        if (success) break;
       }
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Yahoo Proxy] API Error (${response.status}): ${errorText.substring(0, 100)}`);
-        
-        if (cached) {
-          console.log("[Yahoo Proxy] Serving stale cache due to API error");
-          return res.json(cached.data);
-        }
-        
-        // Return 200 with empty object instead of 404 to prevent frontend "Load failed"
-        return res.json({});
-      }
-      
-      const data = await response.json();
-      const result: Record<string, any> = {};
-      
-      // Handle v6/v7 quote response
-      if (data.quoteResponse && data.quoteResponse.result && Array.isArray(data.quoteResponse.result)) {
-        data.quoteResponse.result.forEach((item: any) => {
-          if (item && item.symbol) {
-            const price = item.regularMarketPrice;
-            const change = item.regularMarketChangePercent;
-            const prevClose = item.regularMarketPreviousClose || (price / (1 + (change || 0) / 100));
 
-            result[item.symbol] = {
-              price: price,
-              change: change || 0,
-              previousClose: prevClose,
-              symbol: item.symbol
-            };
-          }
-        });
-      } 
-      // Handle v8 spark response (fallback)
-      else if (data.spark && data.spark.result) {
-        data.spark.result.forEach((item: any) => {
-          if (item && item.symbol && item.response && item.response[0]) {
-            const resp = item.response[0];
-            const meta = resp.meta;
-            const price = meta.regularMarketPrice;
-            const prevClose = meta.previousClose;
-            let change = 0;
-            if (price !== null && prevClose) {
-              change = ((price - prevClose) / prevClose) * 100;
+      // Stage 2: If symbols are still missing, try individual strategies
+      if (Object.keys(finalResult).length < symbolList.length) {
+        for (const sym of symbolList) {
+          if (finalResult[sym]) continue;
+
+          let symSuccess = false;
+          // Strategies in order of preference
+          const strategies = [
+            { type: 'quote', path: '/v7/finance/quote?symbols=' },
+            { type: 'quote', path: '/v6/finance/quote?symbols=' },
+            { type: 'spark', path: '/v8/finance/spark?symbols=' },
+            { type: 'chart', path: '/v8/finance/chart/' }
+          ];
+
+          for (const strategy of strategies) {
+            for (const base of bases) {
+              try {
+                const url = strategy.type === 'chart' 
+                  ? `${base}${strategy.path}${encodeURIComponent(sym)}?range=1d&interval=5m`
+                  : `${base}${strategy.path}${encodeURIComponent(sym)}&range=1d&interval=5m`;
+                
+                const res = await fetch(url, { headers: commonHeaders });
+                if (res.ok) {
+                  const data = await res.json();
+                  
+                  if (strategy.type === 'quote') {
+                    const q = data.quoteResponse?.result?.[0];
+                    if (q) {
+                      finalResult[sym] = {
+                        price: q.regularMarketPrice,
+                        change: q.regularMarketChangePercent || 0,
+                        previousClose: q.regularMarketPreviousClose,
+                        symbol: q.symbol
+                      };
+                      symSuccess = true;
+                    }
+                  } else if (strategy.type === 'spark') {
+                    const item = data.spark?.result?.[0];
+                    if (item?.response?.[0]) {
+                      const meta = item.response[0].meta;
+                      const price = meta.regularMarketPrice;
+                      const prevClose = meta.previousClose;
+                      finalResult[sym] = {
+                        price: price,
+                        change: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
+                        previousClose: prevClose,
+                        symbol: sym
+                      };
+                      symSuccess = true;
+                    }
+                  } else if (strategy.type === 'chart') {
+                    const result = data.chart?.result?.[0];
+                    if (result?.meta) {
+                      const meta = result.meta;
+                      const price = meta.regularMarketPrice;
+                      const prevClose = meta.previousClose;
+                      finalResult[sym] = {
+                        price: price,
+                        change: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
+                        previousClose: prevClose,
+                        symbol: sym
+                      };
+                      symSuccess = true;
+                    }
+                  }
+                }
+                if (symSuccess) break;
+              } catch (e) { /* ignore */ }
             }
-
-            result[item.symbol] = {
-              price: price,
-              change: change,
-              previousClose: prevClose,
-              symbol: item.symbol
-            };
+            if (symSuccess) break;
           }
-        });
+          
+          if (!symSuccess) {
+            // Last ditch effort: Try to search for the symbol to see if it has a different suffix
+            try {
+              const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym.split('.')[0])}`;
+              const searchRes = await fetch(searchUrl, { headers: commonHeaders });
+              if (searchRes.ok) {
+                const searchData = await searchRes.json();
+                const firstResult = searchData.quotes?.[0];
+                if (firstResult && firstResult.symbol !== sym) {
+                  console.log(`[Yahoo Proxy] Found alternative symbol for ${sym}: ${firstResult.symbol}`);
+                  // Try to fetch the alternative symbol
+                  for (const base of bases) {
+                    const altUrl = `${base}/v7/finance/quote?symbols=${encodeURIComponent(firstResult.symbol)}`;
+                    const altRes = await fetch(altUrl, { headers: commonHeaders });
+                    if (altRes.ok) {
+                      const altData = await altRes.json();
+                      const q = altData.quoteResponse?.result?.[0];
+                      if (q) {
+                        finalResult[sym] = {
+                          price: q.regularMarketPrice,
+                          change: q.regularMarketChangePercent || 0,
+                          previousClose: q.regularMarketPreviousClose,
+                          symbol: sym // Map it back to the requested symbol
+                        };
+                        symSuccess = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (e) { /* ignore search errors */ }
+          }
+          
+          if (!symSuccess) {
+            console.warn(`[Yahoo Proxy] Failed to fetch data for: ${sym}`);
+          }
+          await new Promise(r => setTimeout(r, 50));
+        }
+        if (Object.keys(finalResult).length > 0) success = true;
       }
-      else {
-        console.warn("[Yahoo Proxy] Unexpected response structure:", JSON.stringify(data).substring(0, 200));
+
+      if (success) {
+        cache[cacheKey] = { data: finalResult, timestamp: Date.now() };
+        return res.json(finalResult);
+      }
+
+      // Final fallback: Stale cache
+      if (cached) {
+        console.log(`[Yahoo Proxy] Serving stale data for ${symbols.substring(0, 20)}...`);
+        return res.json(cached.data);
       }
       
-      // Update cache even if result is empty (to prevent immediate retries)
-      if (Object.keys(result).length > 0) {
-        cache[cacheKey] = { data: result, timestamp: Date.now() };
-        console.log(`[Yahoo Proxy] Successfully fetched ${Object.keys(result).length} symbols`);
-      } else {
-        console.warn("[Yahoo Proxy] No symbols found in response");
-      }
-      
-      res.json(result);
+      return res.json({});
     } catch (error) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: "Failed to fetch data from Yahoo", details: String(error) });
+      console.error("[Yahoo Proxy] Fatal Error:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

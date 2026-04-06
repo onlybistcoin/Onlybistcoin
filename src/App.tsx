@@ -55,7 +55,6 @@ const BIST_STOCKS = [
   ["KOTON", "Koton Mağazacılık"], ["LILA", "Lila Kağıt"], ["HRKET", "Hareket Proje Taşımacılığı"], ["YIGIT", "Yiğit Akü"],
   ["DCTTR", "DCT TR Trading"], ["BAHEV", "Bahadır Kimya"], ["ONUR", "Onur Yüksek Teknoloji"], ["OZATD", "Özata Denizcilik"],
   ["CEMZY", "Cem Zeytin"], ["KARYE", "Kartal Yenilenebilir"], ["GIPTA", "Gıpta Ofis Kırtasiye"],
-
 ].map(([symbol, name]) => ({
   symbol, name, price: 0, change: 0, volume: 0, sector: "BIST"
 }));
@@ -84,7 +83,7 @@ const CRYPTO_COINS = [
   ["RON-USDT", "Ronin"], ["PIXEL-USDT", "Pixels"], ["PORTAL-USDT", "Portal"], ["XAI-USDT", "Xai"],
   ["ACE-USDT", "Fusionist"], ["ZETA-USDT", "ZetaChain"], ["DYM-USDT", "Dymension"], ["MAVIA-USDT", "Heroes of Mavia"],
   ["AEVO-USDT", "Aevo"], ["ETHFI-USDT", "ether.fi"], ["METIS-USDT", "Metis"], ["VANRY-USDT", "Vanar Chain"],
-  ["OM-USDT", "Mantra"], ["ONDO-USDT", "Ondo"], ["PENDLE-USDT", "Pendle"], ["CORE-USDT", "Core"],
+  ["OM-USDT", "Mantra"], ["ONDO-USDT", "Ondo"], ["CORE-USDT", "Core"],
   ["TNSR-USDT", "Tensor"], ["SAGA-USDT", "Saga"], ["TAIKO-USDT", "Taiko"], ["ZK-USDT", "ZKsync"],
   ["IO-USDT", "IO.NET"], ["ATH-USDT", "Aethir"], ["ZRO-USDT", "LayerZero"], ["LISTA-USDT", "Lista DAO"],
   ["HMSTR-USDT", "Hamster Kombat"], ["CATI-USDT", "Catizen"], ["EIGEN-USDT", "EigenLayer"], ["SCR-USDT", "Scroll"],
@@ -104,25 +103,10 @@ const CRYPTO_COINS = [
   ["GAL-USDT", "Galxe"], ["HOOK-USDT", "Hooked Protocol"], ["HFT-USDT", "Hashflow"], ["GMT-USDT", "STEPN"],
   ["GST-USDT", "Green Satoshi Token"], ["SWEAT-USDT", "Sweat Economy"], ["FITFI-USDT", "Step App"], ["SLP-USDT", "Smooth Love Potion"],
   ["ILV-USDT", "Illuvium"], ["YGG-USDT", "Yield Guild Games"], ["MC-USDT", "Merit Circle"], ["MAGIC-USDT", "Magic"],
-  ["GALA-USDT", "Gala Games"], ["ENJ-USDT", "Enjin Coin"], ["CHZ-USDT", "Chiliz"], ["OG-USDT", "OG Fan Token"],
+  ["ENJ-USDT", "Enjin Coin"], ["OG-USDT", "OG Fan Token"],
   ["CITY-USDT", "Manchester City Fan Token"], ["BAR-USDT", "FC Barcelona Fan Token"], ["PSG-USDT", "Paris Saint-Germain Fan Token"], ["JUV-USDT", "Juventus Fan Token"],
   ["ACM-USDT", "AC Milan Fan Token"], ["ASR-USDT", "AS Roma Fan Token"], ["ATM-USDT", "Atletico Madrid Fan Token"], ["INTER-USDT", "Inter Milan Fan Token"],
   ["LAZIO-USDT", "S.S. Lazio Fan Token"], ["PORTO-USDT", "FC Porto Fan Token"], ["SANTOS-USDT", "Santos FC Fan Token"], ["ALPINE-USDT", "BWT Alpine F1 Team Fan Token"],
-  ["FLOW-USDT", "Flow"], ["IMX-USDT", "Immutable"], ["RON-USDT", "Ronin"], ["BEAM-USDT", "Beam"],
-  ["PIXEL-USDT", "Pixels"], ["PORTAL-USDT", "Portal"], ["XAI-USDT", "Xai"], ["ACE-USDT", "Fusionist"],
-  ["ZETA-USDT", "ZetaChain"], ["DYM-USDT", "Dymension"], ["MAVIA-USDT", "Heroes of Mavia"], ["AEVO-USDT", "Aevo"],
-  ["ETHFI-USDT", "ether.fi"], ["METIS-USDT", "Metis"], ["VANRY-USDT", "Vanar Chain"], ["OM-USDT", "Mantra"],
-  ["ONDO-USDT", "Ondo"], ["CORE-USDT", "Core"], ["TNSR-USDT", "Tensor"], ["SAGA-USDT", "Saga"],
-  ["TAIKO-USDT", "Taiko"], ["ZK-USDT", "ZKsync"], ["IO-USDT", "IO.NET"], ["ATH-USDT", "Aethir"],
-  ["ZRO-USDT", "LayerZero"], ["LISTA-USDT", "Lista DAO"], ["HMSTR-USDT", "Hamster Kombat"], ["CATI-USDT", "Catizen"],
-  ["EIGEN-USDT", "EigenLayer"], ["SCR-USDT", "Scroll"], ["GRASS-USDT", "Grass"], ["DRIFT-USDT", "Drift"],
-  ["MOODENG-USDT", "Moo Deng"], ["GOAT-USDT", "Goatseus Maximus"], ["PNUT-USDT", "Peanut the Squirrel"], ["ACT-USDT", "AI Prophecy"],
-  ["HYPE-USDT", "Hyperliquid"], ["VIRTUAL-USDT", "Virtuals Protocol"], ["AI16Z-USDT", "ai16z"], ["FARTCOIN-USDT", "Fartcoin"],
-  ["TRUMP-USDT", "Official Trump"], ["MELANIA-USDT", "Melania Trump"], ["SPX-USDT", "SPX6900"], ["MOG-USDT", "Mog Coin"],
-  ["POPCAT-USDT", "Popcat"], ["BRETT-USDT", "Brett"], ["TURBO-USDT", "Turbo"], ["BABYDOGE-USDT", "Baby Doge Coin"],
-  ["1CAT-USDT", "Bitcoin Cats"], ["MYRO-USDT", "Myro"], ["COQ-USDT", "Coq Inu"], ["WEN-USDT", "Wen"],
-  ["ZIG-USDT", "Zignaly"], ["GNS-USDT", "Gains Network"], ["JOE-USDT", "Trader Joe"], ["PANGOLIN-USDT", "Pangolin"],
-  ["BENQI-USDT", "Benqi"], ["STEEM-USDT", "Steem"], ["HIVE-USDT", "Hive"], ["WAXP-USDT", "WAX"],
 ].map(([symbol, name]) => ({
   symbol, name, price: 0, change: 0, volume: 0, sector: "Crypto"
 }));
@@ -291,15 +275,19 @@ useEffect(() => {
                 anySuccess = true;
                 batchSuccess = true;
               } else {
-                // Empty data might mean rate limited or invalid symbols
-                retryCount++;
-                if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 1000));
+                // Empty data from proxy means it tried all fallbacks and failed for this batch
+                // No point in retrying immediately
+                batchSuccess = true; 
               }
             } else {
               console.error(`API error for batch: ${res.status}`);
-              if (res.status === 429) setFetchError("Aşırı istek: 2dk bekleyiniz");
-              retryCount++;
-              if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 2000));
+              if (res.status === 429) {
+                setFetchError("Aşırı istek: 2dk bekleyiniz");
+                retryCount = maxRetries; // Stop retrying on 429
+              } else {
+                retryCount++;
+                if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 2000));
+              }
             }
           } catch (e) {
             console.error(`Batch fetch error:`, e);
