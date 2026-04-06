@@ -100,9 +100,14 @@ async function startServer() {
           for (const strategy of strategies) {
             for (const base of bases) {
               try {
-                const url = strategy.type === 'chart' 
-                  ? `${base}${strategy.path}${encodeURIComponent(sym)}?range=1d&interval=5m`
-                  : `${base}${strategy.path}${encodeURIComponent(sym)}&range=1d&interval=5m`;
+                let url = "";
+                if (strategy.type === 'chart') {
+                  url = `${base}${strategy.path}${encodeURIComponent(sym)}?range=1d&interval=5m`;
+                } else if (strategy.type === 'quote') {
+                  url = `${base}${strategy.path}${encodeURIComponent(sym)}`;
+                } else {
+                  url = `${base}${strategy.path}${encodeURIComponent(sym)}&range=1d&interval=5m`;
+                }
                 
                 const res = await fetch(url, { headers: commonHeaders });
                 if (res.ok) {
@@ -198,10 +203,12 @@ async function startServer() {
       }
 
       if (success) {
+        console.log(`[Yahoo Proxy] Successfully fetched ${Object.keys(finalResult).length} symbols: ${Object.keys(finalResult).join(", ")}`);
         cache[cacheKey] = { data: finalResult, timestamp: Date.now() };
         return res.json(finalResult);
       }
 
+      console.warn(`[Yahoo Proxy] All strategies failed for ${symbols}`);
       // Final fallback: Stale cache
       if (cached) {
         console.log(`[Yahoo Proxy] Serving stale data for ${symbols.substring(0, 20)}...`);

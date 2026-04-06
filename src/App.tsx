@@ -250,13 +250,12 @@ useEffect(() => {
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
       const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
       
-      const batchSize = 5;
+      const batchSize = 20;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
       }
 
-      let allData = {};
       let anySuccess = false;
 
       // Fetch batches sequentially with a significant delay to avoid 429 errors
@@ -271,12 +270,44 @@ useEffect(() => {
             if (res.ok) {
               const data = await res.json();
               if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-                allData = { ...allData, ...data };
                 anySuccess = true;
                 batchSuccess = true;
+                
+                // Update prices incrementally as batches arrive
+                setPrices(prev => {
+                  const next = { ...prev };
+                  Object.keys(data).forEach(key => {
+                    let sym = key.replace(".IS", "");
+                    if (sym.includes("-USD") && !sym.includes("TRY")) {
+                      sym = sym.replace("-USD", "-USDT");
+                    }
+                    const stockData = (data as any)[key];
+                    
+                    if (stockData && stockData.price !== undefined && stockData.price !== null && !isNaN(stockData.price)) {
+                      let finalPrice = stockData.price;
+                      let finalSym = sym;
+                      
+                      if (CRYPTO_COINS.some(c => c.symbol === `10000${sym}`)) {
+                        finalSym = `10000${sym}`;
+                        finalPrice *= 10000;
+                      }
+
+                      const precision = finalSym.startsWith("10000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
+                      next[finalSym] = +finalPrice.toFixed(precision);
+                      
+                      if (stockData.change !== undefined && stockData.change !== null) {
+                        next[`${finalSym}_change`] = +stockData.change.toFixed(2);
+                      } else if (stockData.previousClose) {
+                        const change = ((stockData.price - stockData.previousClose) / stockData.previousClose) * 100;
+                        next[`${finalSym}_change`] = +change.toFixed(2);
+                      }
+                    }
+                  });
+                  return next;
+                });
+                setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
               } else {
                 // Empty data from proxy means it tried all fallbacks and failed for this batch
-                // No point in retrying immediately
                 batchSuccess = true; 
               }
             } else {
@@ -295,43 +326,10 @@ useEffect(() => {
           }
         }
         // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      if (anySuccess) {
-        setPrices(prev => {
-          const next = { ...prev };
-          Object.keys(allData).forEach(key => {
-            let sym = key.replace(".IS", "");
-            if (sym.includes("-USD") && !sym.includes("TRY")) {
-              sym = sym.replace("-USD", "-USDT");
-            }
-            const stockData = (allData as any)[key];
-            
-            if (stockData && stockData.price !== undefined && stockData.price !== null && !isNaN(stockData.price)) {
-              let finalPrice = stockData.price;
-              let finalSym = sym;
-              
-              if (CRYPTO_COINS.some(c => c.symbol === `10000${sym}`)) {
-                finalSym = `10000${sym}`;
-                finalPrice *= 10000;
-              }
-
-              const precision = finalSym.startsWith("10000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
-              next[finalSym] = +finalPrice.toFixed(precision);
-              
-              if (stockData.change !== undefined && stockData.change !== null) {
-                next[`${finalSym}_change`] = +stockData.change.toFixed(2);
-              } else if (stockData.previousClose) {
-                const change = ((stockData.price - stockData.previousClose) / stockData.previousClose) * 100;
-                next[`${finalSym}_change`] = +change.toFixed(2);
-              }
-            }
-          });
-          return next;
-        });
-        setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      } else {
+      if (!anySuccess) {
         setFetchError("Veri alınamadı");
       }
     } catch (err) {
