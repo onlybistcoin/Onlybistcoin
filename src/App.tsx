@@ -262,8 +262,8 @@ useEffect(() => {
       const allSymbols = [...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols];
       
       // Yahoo Finance spark endpoint limits the number of symbols per request.
-      // Split into batches of 20 for better performance with 250+ coins.
-      const batchSize = 20;
+      // Split into batches of 50 for better performance.
+      const batchSize = 50;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -272,18 +272,23 @@ useEffect(() => {
       let allData = {};
       let anySuccess = false;
 
-      for (const batchSymbols of batches) {
+      // Parallelize batch fetches for better performance and freshness
+      const results = await Promise.all(batches.map(async (batchSymbols) => {
         try {
           const res = await fetch(`/api/yahoo?symbols=${batchSymbols}`);
-          if (res.ok) {
-            const batchData = await res.json();
-            allData = { ...allData, ...batchData };
-            anySuccess = true;
-          }
+          if (res.ok) return await res.json();
         } catch (e) {
           console.warn(`Batch fetch error:`, e);
         }
-      }
+        return null;
+      }));
+
+      results.forEach(batchData => {
+        if (batchData) {
+          allData = { ...allData, ...batchData };
+          anySuccess = true;
+        }
+      });
       
       if (anySuccess) {
         setPrices(prev => {
@@ -504,11 +509,13 @@ border: "1px solid #30363d"
         candidates={candidates} prices={prices} lastUpdated={lastUpdated}
         onBack={() => setScreen("scanner")}
         onSelect={openDetail}
+        market={market}
       />}
       {screen === "scalp" && <ScalpScreen
         candidates={candidates} prices={prices} lastUpdated={lastUpdated}
         onBack={() => setScreen("scanner")}
         onSelect={(s: any) => { setTimeframe("1S"); openDetail(s); }}
+        market={market}
       />}
       {screen === "detail" && selectedStock && <DetailScreen
         stock={selectedStock} prices={prices}
@@ -560,11 +567,12 @@ return (
       ))}
     </div>
 
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 14 }}>
       {[
         { label: "BIST 100", val: prices["XU100"] ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "...", chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
         { label: "BTC/USDT", val: prices["BTC-USDT"] ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : "...", chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
         { label: "USD/TRY", val: prices["TRY=X"] ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "...", chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
+        { label: "GÜMÜŞ/TL", val: prices["GAG=X"] ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : "...", chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
           <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
@@ -648,9 +656,16 @@ return (
   </div>
 
   <div style={{ padding: "0 20px" }}>
-    <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>
-      {market === "BIST" ? "BİST Öne Çıkanlar" : market === "CRYPTO" ? "KRİPTO Öne Çıkanlar" : "EMTİA Öne Çıkanlar"}
-    </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>
+            {market === "BIST" ? "BİST Öne Çıkanlar" : market === "CRYPTO" ? "KRİPTO Öne Çıkanlar" : "EMTİA Öne Çıkanlar"}
+          </div>
+          {market === "BIST" && (
+            <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>
+              ⏱ 15 Dk Gecikmeli
+            </div>
+          )}
+        </div>
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {topMovers.map(s => (
         <MoverRow key={s.symbol} stock={s} prices={prices} />
@@ -705,7 +720,7 @@ return (
 );
 }
 
-function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any) {
+function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
   // Filter for stocks with high RSI or specific scalp patterns if needed
   // For now, we'll use the same candidates but with a scalp-focused UI
   return (
@@ -722,7 +737,10 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
             </div>
             <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>Anlık giriş ve kısa vade kar al noktaları</div>
           </div>
-          {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10, marginBottom: 4 }}>{lastUpdated}</div>}
+          <div style={{ textAlign: "right" }}>
+            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+            {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>{lastUpdated}</div>}
+          </div>
         </div>
       </div>
       <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -787,7 +805,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any)
   );
 }
 
-function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any) {
+function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
 return (
 <div style={{ padding: "0 0 20px" }}>
 <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e" }}>
@@ -799,7 +817,10 @@ return (
 <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>Adaylar</div>
 <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>%50+ potansiyel • {candidates.length} hisse</div>
 </div>
-{lastUpdated && <div style={{ color: "#4a5568", fontSize: 10, marginBottom: 4 }}>Güncelleme: {lastUpdated}</div>}
+<div style={{ textAlign: "right" }}>
+{market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+{lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>Güncelleme: {lastUpdated}</div>}
+</div>
 </div>
 </div>
   <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
@@ -814,6 +835,13 @@ return (
       const isCrypto = stock.symbol.includes("-USDT");
       const isCommodity = stock.sector === "Emtia";
       const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
+      const precision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
+      
+      let potential = Number(stock.dynamicPotential ?? pd.potential ?? 0);
+      if (!Number.isFinite(potential)) potential = 0;
+      const tp = +(price * (1 + potential / 100)).toFixed(precision);
+      const resist = +(price * 1.08).toFixed(precision);
+
       return (
         <button
           key={stock.symbol}
@@ -834,8 +862,19 @@ return (
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}{currency}</div>
+              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(precision)}{currency}</div>
               <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 600 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <div style={{ flex: 1, background: "rgba(48,209,88,0.08)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(48,209,88,0.2)" }}>
+              <div style={{ color: "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF (TP)</div>
+              <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{tp}{currency}</div>
+            </div>
+            <div style={{ flex: 1, background: "rgba(255,214,10,0.08)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(255,214,10,0.2)" }}>
+              <div style={{ color: "#ffd60a", fontSize: 9, fontWeight: 700 }}>DİRENÇ</div>
+              <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{resist}{currency}</div>
             </div>
           </div>
 
@@ -883,7 +922,8 @@ let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0
 if (!Number.isFinite(currentChange)) currentChange = 0;
 const up = currentChange >= 0;
 const isCrypto = stock.symbol.includes("-USDT");
-const currency = isCrypto ? " USDT" : " ₺";
+const isCommodity = stock.sector === "Emtia";
+const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
 const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]);
 
 const pricePrecision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
@@ -913,6 +953,7 @@ return (
 <div style={{ color: "#4a5568", fontSize: 12 }}>{stock.name}</div>
 </div>
 <div style={{ textAlign: "right" }}>
+{!isCrypto && !isCommodity && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
 <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>{price.toFixed(pricePrecision)}{currency}</div>
 <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 700 }}>
 {up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toFixed(2)}%
