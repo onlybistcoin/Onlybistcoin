@@ -39,63 +39,66 @@ async function startServer() {
       }
       lastRequestTime = Date.now();
       
-      // Use the 'quote' endpoint which is more reliable for current prices than 'spark'
-      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&_=${Date.now()}`;
-      console.log(`Fetching Yahoo Quote: ${symbols.substring(0, 30)}...`);
+      // Use query2 which is often less rate-limited than query1
+      const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&_=${Date.now()}`;
+      console.log(`[Yahoo Proxy] Fetching: ${symbols.substring(0, 40)}...`);
       
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache',
-          'Origin': 'https://finance.yahoo.com',
           'Referer': 'https://finance.yahoo.com/'
         }
       });
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Yahoo API Error (${response.status}): ${errorText}`);
+        console.error(`[Yahoo Proxy] API Error (${response.status}): ${errorText.substring(0, 100)}`);
         
         if (cached) {
-          console.log("Serving stale cache due to API error");
+          console.log("[Yahoo Proxy] Serving stale cache due to API error");
           return res.json(cached.data);
         }
         
-        return res.status(response.status).json({ error: `Yahoo API responded with status: ${response.status}`, details: errorText });
+        return res.status(response.status).json({ 
+          error: `Yahoo API responded with status: ${response.status}`,
+          details: errorText.substring(0, 100)
+        });
       }
       
       const data = await response.json();
       const result: Record<string, any> = {};
       
-      if (data.quoteResponse && data.quoteResponse.result) {
+      if (data.quoteResponse && data.quoteResponse.result && Array.isArray(data.quoteResponse.result)) {
         data.quoteResponse.result.forEach((item: any) => {
           if (item && item.symbol) {
             const price = item.regularMarketPrice;
             const change = item.regularMarketChangePercent;
-            const prevClose = item.regularMarketPreviousClose || (price / (1 + change / 100));
+            const prevClose = item.regularMarketPreviousClose || (price / (1 + (change || 0) / 100));
 
             result[item.symbol] = {
               price: price,
-              change: change,
+              change: change || 0,
               previousClose: prevClose,
               symbol: item.symbol
             };
           }
         });
-      } else if (data.quoteResponse && data.quoteResponse.error) {
-        console.error("Yahoo Quote Error:", data.quoteResponse.error);
-        if (cached) return res.json(cached.data);
-        throw new Error(`Yahoo Quote Error: ${JSON.stringify(data.quoteResponse.error)}`);
+      } else {
+        console.warn("[Yahoo Proxy] Unexpected response structure:", JSON.stringify(data).substring(0, 200));
       }
       
-      // Update cache
+      // Update cache even if result is empty (to prevent immediate retries)
       if (Object.keys(result).length > 0) {
         cache[cacheKey] = { data: result, timestamp: Date.now() };
+        console.log(`[Yahoo Proxy] Successfully fetched ${Object.keys(result).length} symbols`);
+      } else {
+        console.warn("[Yahoo Proxy] No symbols found in response");
       }
       
-      console.log(`Successfully fetched ${Object.keys(result).length} symbols`);
       res.json(result);
     } catch (error) {
       console.error("Proxy error:", error);

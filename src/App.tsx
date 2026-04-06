@@ -271,7 +271,7 @@ useEffect(() => {
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
       const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
       
-      const batchSize = 100;
+      const batchSize = 40;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -282,23 +282,37 @@ useEffect(() => {
 
       // Fetch batches sequentially with a significant delay to avoid 429 errors
       for (const batchSymbols of batches) {
-        try {
-          const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-              allData = { ...allData, ...data };
-              anySuccess = true;
+        let retryCount = 0;
+        const maxRetries = 2;
+        let batchSuccess = false;
+
+        while (retryCount < maxRetries && !batchSuccess) {
+          try {
+            const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                allData = { ...allData, ...data };
+                anySuccess = true;
+                batchSuccess = true;
+              } else {
+                // Empty data might mean rate limited or invalid symbols
+                retryCount++;
+                if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 1000));
+              }
+            } else {
+              console.error(`API error for batch: ${res.status}`);
+              if (res.status === 429) setFetchError("Aşırı istek: 2dk bekleyiniz");
+              retryCount++;
+              if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 2000));
             }
-          } else {
-            console.error(`API error for batch: ${res.status}`);
-            if (res.status === 429) setFetchError("Aşırı istek: 2dk bekleyiniz");
+          } catch (e) {
+            console.error(`Batch fetch error:`, e);
+            retryCount++;
           }
-          // 2 second delay between batches to be safe
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch (e) {
-          console.error(`Batch fetch error:`, e);
         }
+        // Delay between batches
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
       
       if (anySuccess) {
