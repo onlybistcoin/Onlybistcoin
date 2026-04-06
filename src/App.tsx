@@ -228,6 +228,7 @@ const [candidates, setCandidates] = useState<any[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string>("");
 const [aiAnalysis, setAiAnalysis] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
+const [aiCache, setAiCache] = useState<Record<string, string>>({});
 const [timeframe, setTimeframe] = useState("1S");
 const [tab, setTab] = useState("teknik"); 
 const [kapNews, setKapNews] = useState<any[]>([]);
@@ -364,32 +365,21 @@ const startScan = useCallback(() => {
   }, 80);
 }, [prices, stocks]);
 
-const openDetail = useCallback(async (stock: any) => {
-  setSelectedStock(stock);
-  setScreen("detail");
-  setAiAnalysis("");
-  setAiLoading(true);
-  const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
+const fetchAiAnalysis = useCallback(async (stock: any) => {
+  if (!stock) return;
   
-  // Generate more realistic dynamic news based on stock/coin
-  const isCrypto = stock.symbol.includes("-USDT");
-  const newsTemplates = [
-    { title: isCrypto ? "Ağ güncellemesi başarıyla tamamlandı." : "Yeni ihracat sözleşmesi imzalandı.", source: isCrypto ? "CryptoNews" : "KAP", type: "pozitif" },
-    { title: `Teknik göstergeler ${pd.pattern} formasyonunu teyit ediyor.`, source: "Analiz", type: "pozitif" },
-    { title: "Haftalık hacim artışı dikkat çekiyor.", source: "Borsa Gündem", type: "nötr" },
-    { title: "Analist hedef fiyat revizesi gerçekleşti.", source: "Finans", type: "pozitif" },
-    { title: "Sektörel büyüme beklentileri aşıldı.", source: "Ekonomi", type: "pozitif" }
-  ];
-  
-  // Pick 3 random news but keep them consistent for the session
-  const seed = stock.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-  const selectedNews = [
-    { date: "Bugün", ...newsTemplates[seed % newsTemplates.length] },
-    { date: "Dün", ...newsTemplates[(seed + 1) % newsTemplates.length] },
-    { date: "2 gün önce", ...newsTemplates[(seed + 2) % newsTemplates.length] }
-  ];
-  setKapNews(selectedNews);
+  // Check cache first
+  if (aiCache[stock.symbol]) {
+    setAiAnalysis(aiCache[stock.symbol]);
+    return;
+  }
 
+  setAiLoading(true);
+  setAiAnalysis("");
+  
+  const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
+  const isCrypto = stock.symbol.includes("-USDT");
+  
   try {
     const promptPrice = Number.isFinite(Number(prices[stock.symbol] ?? stock.price)) ? Number(prices[stock.symbol] ?? stock.price) : 0;
     const promptChange = Number.isFinite(Number(prices[`${stock.symbol}_change`] ?? stock.change)) ? Number(prices[`${stock.symbol}_change`] ?? stock.change) : 0;
@@ -404,13 +394,10 @@ Talimat: Çok kısa, teknik ve net ol.
 4. 🎰 RİSK: Stop.
 5. 💎 KARAR: Al/Sat/Bekle (neden).`;
 
-    // Moving AI Analysis to frontend using process.env.GEMINI_API_KEY
-    // Robust API key retrieval for Vite/Vercel
     let apiKey = "";
     try {
       // @ts-ignore
       apiKey = import.meta.env?.VITE_GEMINI_API_KEY || "";
-      // If still empty, check process.env (for AI Studio preview)
       if (!apiKey) {
         apiKey = process.env.GEMINI_API_KEY || "";
       }
@@ -419,8 +406,9 @@ Talimat: Çok kısa, teknik ve net ol.
     }
 
     if (!apiKey || apiKey.length < 10) {
-      throw new Error(`Gemini API anahtarı bulunamadı veya çok kısa. Lütfen Vercel ayarlarından VITE_GEMINI_API_KEY eklediğinizden ve 'Redeploy' yaptığınızdan emin olun. (Bulunan: ${apiKey ? apiKey.substring(0, 4) + "..." : "BOŞ"})`);
+      throw new Error("Gemini API anahtarı bulunamadı. Lütfen ayarları kontrol edin.");
     }
+    
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -429,12 +417,51 @@ Talimat: Çok kısa, teknik ve net ol.
     
     const text = response.text || "Analiz yüklenemedi.";
     setAiAnalysis(text);
+    setAiCache(prev => ({ ...prev, [stock.symbol]: text }));
   } catch (err: any) {
     console.error("AI Analysis Error:", err);
-    setAiAnalysis(`⚠️ Analiz şu an yüklenemiyor. Hata: ${err.message}`);
+    let errorMsg = `⚠️ Analiz şu an yüklenemiyor. Hata: ${err.message}`;
+    
+    if (err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("RESOURCE_EXHAUSTED")) {
+      errorMsg = "⚠️ Günlük AI analiz limitine ulaşıldı (Free Tier). Lütfen yarın tekrar deneyin veya kendi API anahtarınızı kullanın.";
+    }
+    
+    setAiAnalysis(errorMsg);
   }
   setAiLoading(false);
-}, [prices]);
+}, [prices, aiCache]);
+
+const openDetail = useCallback(async (stock: any) => {
+  setSelectedStock(stock);
+  setScreen("detail");
+  
+  // Set analysis from cache if exists
+  if (aiCache[stock.symbol]) {
+    setAiAnalysis(aiCache[stock.symbol]);
+  } else {
+    setAiAnalysis("");
+  }
+  
+  const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
+  
+  // Generate more realistic dynamic news based on stock/coin
+  const isCrypto = stock.symbol.includes("-USDT");
+  const newsTemplates = [
+    { title: isCrypto ? "Ağ güncellemesi başarıyla tamamlandı." : "Yeni ihracat sözleşmesi imzalandı.", source: isCrypto ? "CryptoNews" : "KAP", type: "pozitif" },
+    { title: `Teknik göstergeler ${pd.pattern} formasyonunu teyit ediyor.`, source: "Analiz", type: "pozitif" },
+    { title: "Haftalık hacim artışı dikkat çekiyor.", source: "Borsa Gündem", type: "nötr" },
+    { title: "Analist hedef fiyat revizesi gerçekleşti.", source: "Finans", type: "pozitif" },
+    { title: "Sektörel büyüme beklentileri aşıldı.", source: "Ekonomi", type: "pozitif" }
+  ];
+  
+  const seed = stock.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  const selectedNews = [
+    { date: "Bugün", ...newsTemplates[seed % newsTemplates.length] },
+    { date: "Dün", ...newsTemplates[(seed + 1) % newsTemplates.length] },
+    { date: "2 gün önce", ...newsTemplates[(seed + 2) % newsTemplates.length] }
+  ];
+  setKapNews(selectedNews);
+}, [aiCache]);
 
 return (
 <div style={{
@@ -487,6 +514,7 @@ border: "1px solid #30363d"
         stock={selectedStock} prices={prices}
         patternData={PATTERN_DATA[selectedStock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 }}
         aiAnalysis={aiAnalysis} aiLoading={aiLoading}
+        onFetchAi={() => fetchAiAnalysis(selectedStock)}
         kapNews={kapNews} tab={tab} setTab={setTab}
         timeframe={timeframe} setTimeframe={setTimeframe}
         onBack={() => setScreen("candidates")}
@@ -848,7 +876,7 @@ return (
 );
 }
 
-function DetailScreen({ stock, prices, patternData: pd, aiAnalysis, aiLoading, kapNews, tab, setTab, timeframe, setTimeframe, onBack }: any) {
+function DetailScreen({ stock, prices, patternData: pd, aiAnalysis, aiLoading, onFetchAi, kapNews, tab, setTab, timeframe, setTimeframe, onBack }: any) {
 let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
 if (!Number.isFinite(price)) price = 0;
 let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
@@ -1040,8 +1068,28 @@ return (
           ))}
           <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
         </div>
-      ) : (
+      ) : aiAnalysis ? (
         <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiAnalysis}</div>
+      ) : (
+        <div style={{ textAlign: "center", padding: "10px 0" }}>
+          <button 
+            onClick={onFetchAi}
+            style={{ 
+              background: "linear-gradient(135deg, #00d4aa, #00b8ff)", 
+              color: "#000", 
+              border: "none", 
+              padding: "10px 20px", 
+              borderRadius: 12, 
+              fontSize: 13, 
+              fontWeight: 700, 
+              cursor: "pointer",
+              boxShadow: "0 4px 15px rgba(0,212,170,0.3)"
+            }}
+          >
+            🤖 AI Analizini Başlat
+          </button>
+          <div style={{ color: "#4a5568", fontSize: 10, marginTop: 8 }}>Gemini 3 Flash ile anlık teknik yorum</div>
+        </div>
       )}
     </div>
   )}
