@@ -11,107 +11,111 @@ async function startServer() {
   app.use(express.json());
 
   // API route to proxy Yahoo Finance requests for real-time quotes
+  // Simple in-memory cache to prevent 429 errors
+  const cache: Record<string, { data: any, timestamp: number }> = {};
+  const CACHE_TTL = 300000; // 5 minutes cache
+  let lastRequestTime = 0;
+  const MIN_REQUEST_GAP = 2000; // Minimum 2 seconds between outgoing requests to Yahoo
+
   app.get("/api/yahoo", async (req, res) => {
     try {
-      const symbols = req.query.symbols;
+      const symbols = req.query.symbols as string;
       if (!symbols) {
         return res.status(400).json({ error: "Symbols parameter is required" });
       }
       
-      // Switching back to v8/finance/spark as v7/finance/quote is returning 401
-      const url = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${symbols}&range=1d&interval=5m&_=${Date.now()}`;
-      console.log(`Fetching Yahoo data: ${url}`);
+      // Check cache first
+      const cacheKey = symbols;
+      const cached = cache[cacheKey];
+      if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        return res.json(cached.data);
+      }
+      
+      // Rate limit outgoing requests
+      const now = Date.now();
+      const timeSinceLastRequest = now - lastRequestTime;
+      if (timeSinceLastRequest < MIN_REQUEST_GAP) {
+        await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_GAP - timeSinceLastRequest));
+      }
+      lastRequestTime = Date.now();
+      
+      const url = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${encodeURIComponent(symbols)}&range=1d&interval=5m&_=${Date.now()}`;
+      console.log(`Fetching Yahoo data: ${symbols.substring(0, 20)}...`);
       
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+          'Origin': 'https://finance.yahoo.com',
+          'Referer': 'https://finance.yahoo.com/'
         }
       });
       
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Yahoo API Error (${response.status}): ${errorText}`);
-        throw new Error(`Yahoo API responded with status: ${response.status}`);
+        
+        // If we have stale cache, serve it on error
+        if (cached) {
+          console.log("Serving stale cache due to API error");
+          return res.json(cached.data);
+        }
+        
+        return res.status(response.status).json({ error: `Yahoo API responded with status: ${response.status}`, details: errorText });
       }
       
       const data = await response.json();
-      
-      // Transform v8 spark response into a flat object that App.tsx expects
       const result: Record<string, any> = {};
       
-      // Handle both direct object and { spark: { result: [...] } } structures
-      const sparkData = data.spark && data.spark.result ? data.spark.result : data;
-      
-      if (sparkData) {
-        // If it's an array (from spark.result), convert to object
-        const items = Array.isArray(sparkData) ? sparkData : [sparkData];
-        
-        // If it's an object (direct response), it might be { symbol: data }
-        if (!Array.isArray(sparkData)) {
-          Object.keys(sparkData).forEach(symbol => {
-            const item = sparkData[symbol];
-            if (item && item.close && Array.isArray(item.close)) {
+      if (data.spark && data.spark.result) {
+        data.spark.result.forEach((item: any) => {
+          if (item && item.symbol && item.response && item.response[0]) {
+            const resp = item.response[0];
+            const meta = resp.meta;
+            const indicators = resp.indicators && resp.indicators.quote && resp.indicators.quote[0];
+            const close = indicators && indicators.close;
+            
+            if (close && Array.isArray(close)) {
               let price = null;
-              for (let i = item.close.length - 1; i >= 0; i--) {
-                if (item.close[i] !== null && item.close[i] !== undefined) {
-                  price = item.close[i];
+              for (let i = close.length - 1; i >= 0; i--) {
+                if (close[i] !== null && close[i] !== undefined) {
+                  price = close[i];
                   break;
                 }
               }
               
-              const prevClose = item.previousClose;
+              if (price === null && meta && meta.regularMarketPrice) {
+                price = meta.regularMarketPrice;
+              }
+              
+              const prevClose = meta && meta.previousClose;
               let change = 0;
               if (price !== null && prevClose) {
                 change = ((price - prevClose) / prevClose) * 100;
               }
 
-              result[symbol] = {
+              result[item.symbol] = {
                 price: price,
                 change: change,
                 previousClose: prevClose,
-                symbol: symbol
+                symbol: item.symbol
               };
             }
-          });
-        } else {
-          // If it's an array
-          sparkData.forEach((item: any) => {
-            if (item && item.symbol && item.response && item.response[0]) {
-              const resp = item.response[0];
-              const indicators = resp.indicators && resp.indicators.quote && resp.indicators.quote[0];
-              const close = indicators && indicators.close;
-              
-              if (close && Array.isArray(close)) {
-                let price = null;
-                for (let i = close.length - 1; i >= 0; i--) {
-                  if (close[i] !== null && close[i] !== undefined) {
-                    price = close[i];
-                    break;
-                  }
-                }
-                
-                const meta = resp.meta;
-                const prevClose = meta && meta.previousClose;
-                let change = 0;
-                if (price !== null && prevClose) {
-                  change = ((price - prevClose) / prevClose) * 100;
-                }
-
-                result[item.symbol] = {
-                  price: price,
-                  change: change,
-                  previousClose: prevClose,
-                  symbol: item.symbol
-                };
-              }
-            }
-          });
-        }
+          }
+        });
+      } else if (data.spark && data.spark.error) {
+        console.error("Yahoo Spark Error:", data.spark.error);
+        if (cached) return res.json(cached.data);
+        throw new Error(`Yahoo Spark Error: ${JSON.stringify(data.spark.error)}`);
       }
       
-      console.log(`Transformed data keys:`, Object.keys(result));
+      // Update cache
+      if (Object.keys(result).length > 0) {
+        cache[cacheKey] = { data: result, timestamp: Date.now() };
+      }
+      
       res.json(result);
     } catch (error) {
       console.error("Proxy error:", error);

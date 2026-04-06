@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { GoogleGenAI } from "@google/genai";
+import { RefreshCw } from "lucide-react";
 
 // ─── MOCK DATA ───────────────────────────────────────────────────────────────
 const BIST_STOCKS = [
@@ -222,9 +223,17 @@ const [scanned, setScanned] = useState(false);
 const [candidates, setCandidates] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
-    [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { p[s.symbol] = s.price; p[`${s.symbol}_change`] = s.change; });
+    [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
+      if (s && s.symbol) {
+        p[s.symbol] = s.price || 0; 
+        p[`${s.symbol}_change`] = s.change || 0; 
+      }
+    });
+    // Add indices
+    ["XU100", "XU030", "TRY=X"].forEach(s => { p[s] = 0; p[`${s}_change`] = 0; });
     return p;
   });
+  const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
 const [aiAnalysis, setAiAnalysis] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
@@ -251,19 +260,16 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, []);
 
-// CORS hatasını çözen Proxy'li gerçek zamanlı API isteği
-useEffect(() => {
-  const fetchLivePrices = async () => {
+  // CORS hatasını çözen Proxy'li gerçek zamanlı API isteği
+  const fetchLivePrices = useCallback(async () => {
     try {
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
       const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("10000", "").replace("-USDT", "-USD"));
       const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
-      const allSymbols = [...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols];
+      const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
       
-      // Yahoo Finance spark endpoint limits the number of symbols per request.
-      // Split into batches of 50 for better performance.
-      const batchSize = 50;
+      const batchSize = 100;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -272,23 +278,25 @@ useEffect(() => {
       let allData = {};
       let anySuccess = false;
 
-      // Parallelize batch fetches for better performance and freshness
-      const results = await Promise.all(batches.map(async (batchSymbols) => {
+      // Fetch batches sequentially with a significant delay to avoid 429 errors
+      for (const batchSymbols of batches) {
         try {
-          const res = await fetch(`/api/yahoo?symbols=${batchSymbols}`);
-          if (res.ok) return await res.json();
+          const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+              allData = { ...allData, ...data };
+              anySuccess = true;
+            }
+          } else {
+            console.error(`API error for batch: ${res.status}`);
+          }
+          // 2 second delay between batches to be safe
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (e) {
-          console.warn(`Batch fetch error:`, e);
+          console.error(`Batch fetch error:`, e);
         }
-        return null;
-      }));
-
-      results.forEach(batchData => {
-        if (batchData) {
-          allData = { ...allData, ...batchData };
-          anySuccess = true;
-        }
-      });
+      }
       
       if (anySuccess) {
         setPrices(prev => {
@@ -300,11 +308,10 @@ useEffect(() => {
             }
             const stockData = (allData as any)[key];
             
-            if (stockData && stockData.price !== undefined && stockData.price !== null) {
+            if (stockData && stockData.price !== undefined && stockData.price !== null && !isNaN(stockData.price)) {
               let finalPrice = stockData.price;
               let finalSym = sym;
               
-              // Handle 10000x coins
               if (CRYPTO_COINS.some(c => c.symbol === `10000${sym}`)) {
                 finalSym = `10000${sym}`;
                 finalPrice *= 10000;
@@ -324,16 +331,24 @@ useEffect(() => {
           return next;
         });
         setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+        setLoading(false);
       }
     } catch (err) {
       console.error("Veri çekilirken hata oluştu:", err);
     }
-  };
+  }, []);
 
-  fetchLivePrices(); 
-  const interval = setInterval(fetchLivePrices, 5000);
-  return () => clearInterval(interval);
-}, []);
+  useEffect(() => {
+    fetchLivePrices(); 
+    // Update every 2 minutes to stay under rate limits
+    const interval = setInterval(fetchLivePrices, 120000);
+    return () => clearInterval(interval);
+  }, [fetchLivePrices]);
+
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchLivePrices();
+  };
 
 const startScan = useCallback(() => {
   setScanning(true);
@@ -502,6 +517,8 @@ border: "1px solid #30363d"
         onScan={startScan}
         onViewCandidates={() => setScreen("candidates")}
         onViewScalp={() => setScreen("scalp")}
+        onRefresh={handleRefresh}
+        loading={loading}
         stocks={stocks}
         market={market} setMarket={setMarket}
       />}
@@ -534,7 +551,7 @@ border: "1px solid #30363d"
 );
 }
 
-function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, stocks, market, setMarket }: any) {
+function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onRefresh, loading, stocks, market, setMarket }: any) {
 const topMovers = [...stocks].sort((a, b) => {
   let changeA = Number(prices[`${a.symbol}_change`] ?? a.change ?? 0);
   if (!Number.isFinite(changeA)) changeA = 0;
@@ -552,6 +569,27 @@ return (
 {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10, marginTop: 2 }}>Güncelleme: {lastUpdated}</div>}
 </div>
 <div style={{ textAlign: "right" }}>
+<button 
+  onClick={onRefresh}
+  disabled={loading}
+  style={{ 
+    background: "rgba(0,212,170,0.1)", 
+    border: "1px solid rgba(0,212,170,0.3)", 
+    borderRadius: 6, 
+    padding: "4px 8px", 
+    color: "#00d4aa", 
+    fontSize: 10, 
+    fontWeight: 600,
+    cursor: loading ? "not-allowed" : "pointer",
+    marginBottom: 6,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4
+  }}
+>
+  <RefreshCw size={10} className={loading ? "animate-spin" : ""} />
+  {loading ? "..." : "YENİLE"}
+</button>
 <div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
 <div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"}</div>
 </div>
@@ -576,7 +614,11 @@ return (
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
           <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
+        {m.val === "..." ? (
+          <div style={{ color: "#4a5568", fontSize: 13, fontWeight: 700, marginTop: 2 }}>Yükleniyor...</div>
+        ) : (
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val}</div>
+        )}
           <div style={{ color: m.up ? "#30d158" : "#ff453a", fontSize: 10, fontWeight: 600 }}>{m.chg}</div>
         </div>
       ))}
