@@ -13,9 +13,9 @@ const BIST_STOCKS = [
   ["EKGYO", "Emlak Konut GYO"], ["VESTL", "Vestel"], ["ODAS", "Odaş Elektrik"], ["SMRTG", "Smart Güneş"],
   ["CANTE", "Çan2 Termik"], ["ISCTR", "İş Bankası (C)"], ["HALKB", "Halkbank"], ["VAKBN", "Vakıfbank"],
   ["TSKB", "TSKB"], ["ALARK", "Alarko Holding"], ["ENKAI", "Enka İnşaat"], ["TKFEN", "Tekfen Holding"],
-  ["GUBRF", "Gübre Fabrikaları"], ["HEKTS", "Hektaş"], ["SASA", "Sasa Polyester"], ["KONTROL", "Kontrolmatik"],
+  ["GUBRF", "Gübre Fabrikaları"], ["HEKTS", "Hektaş"], ["SASA", "Sasa Polyester"], ["KONTR", "Kontrolmatik"],
   ["GESAN", "Girişim Elektrik"], ["YEOTK", "Yeo Teknoloji"], ["ASTOR", "Astor Enerji"], ["EUPWR", "Europower Enerji"],
-  ["CWENE", "Cw Enerji"], ["ALFAS", "Alfa Solar"], ["KONTR", "Kontrolmatik"], ["MIATK", "Mia Teknoloji"],
+  ["CWENE", "Cw Enerji"], ["ALFAS", "Alfa Solar"], ["MIATK", "Mia Teknoloji"],
   ["REEDR", "Reeder Teknoloji"], ["TABGD", "Tab Gıda"], ["TARKM", "Tarkim Bitki Koruma"], ["EBEBK", "Ebebek Mağazacılık"],
   ["KAYSE", "Kayseri Şeker"], ["BIENY", "Bien Yapı Ürünleri"], ["SDTTR", "SDT Uzay ve Savunma"], ["ONCSM", "Oncosem Onkolojik"],
   ["SOKE", "Söke Değirmencilik"], ["EYGYO", "Eyüp Yapı GYO"], ["GOKNR", "Göknur Gıda"], ["CVKMD", "CVK Maden"],
@@ -26,7 +26,7 @@ const BIST_STOCKS = [
   ["ULKER", "Ülker Bisküvi"], ["AEFES", "Anadolu Efes"], ["CCOLA", "Coca-Cola İçecek"], ["TATGD", "Tat Gıda"],
   ["KERVT", "Kerevitaş"], ["SOKM", "Şok Marketler"], ["TKNSA", "Teknosa"], ["MAVI", "Mavi Giyim"],
   ["VAKKO", "Vakko"], ["YATAS", "Yataş"], ["BRISA", "Brisa"], ["GOODY", "Goodyear"],
-  ["KORD", "Kordsa Teknik Tekstil"], ["AKSA", "Aksa"], ["SASA", "Sasa Polyester"], ["KORDS", "Kordsa"],
+  ["KORD", "Kordsa Teknik Tekstil"], ["AKSA", "Aksa"], ["KORDS", "Kordsa"],
   ["BAGFS", "Bagfaş Gübre"], ["EGEEN", "Ege Endüstri"], ["BFREN", "Bosch Fren"], ["FMIZP", "Federal-Mogul İzmit"],
   ["PARSN", "Parsan"], ["JANTS", "Jantsa Jant"], ["ALCAR", "Alarko Carrier"], ["ALGYO", "Alarko GYO"],
   ["TRGYO", "Torunlar GYO"], ["OZKGY", "Özak GYO"], ["MSGYO", "Mistral GYO"], ["HLGYO", "Halk GYO"],
@@ -40,7 +40,7 @@ const BIST_STOCKS = [
   ["AVOD", "Avod Gıda"], ["OYYAT", "Oyak Yatırım"], ["ISMEN", "İş Yatırım"], ["GSDHO", "GSD Holding"],
   ["INFO", "İnfo Yatırım"], ["OSMEN", "Osmanlı Yatırım"], ["GLBMD", "Global Menkul Değerler"], ["GEDIK", "Gedik Yatırım"],
   ["TUKAS", "Tukaş"], ["SELGD", "Selçuk Gıda"], ["KNFRT", "Konfrut Gıda"], ["FRIGO", "Frigo Pak Gıda"],
-  ["ELITE", "Elite Naturel"], ["ULUUN", "Ulusoy Un"], ["SOKE", "Söke Değirmencilik"], ["VANGD", "Vanet Gıda"],
+  ["ELITE", "Elite Naturel"], ["ULUUN", "Ulusoy Un"], ["VANGD", "Vanet Gıda"],
   ["MERKO", "Merko Gıda"], ["PETUN", "Pınar Et ve Un"], ["PNSUT", "Pınar Süt"], ["SELVA", "Selva Gıda"],
   ["BRKSN", "Berikosan Yalıtım"], ["PRZMA", "Prizma Press Matbaacılık"], ["IHLAS", "İhlas Holding"], ["IHEVA", "İhlas Ev Aletleri"],
   ["IHYAY", "İhlas Yayın Holding"], ["IHTAS", "İhlas Haber Ajansı"], ["IHGZT", "İhlas Gazetecilik"], ["METRO", "Metro Holding"],
@@ -54,13 +54,8 @@ const BIST_STOCKS = [
   ["ODINE", "Odine Teknoloji"], ["ENTRA", "IC Enterra Yenilenebilir"], ["HOROZ", "Horoz Lojistik"], ["ALTNY", "Altınay Savunma"],
   ["KOTON", "Koton Mağazacılık"], ["LILA", "Lila Kağıt"], ["HRKET", "Hareket Proje Taşımacılığı"], ["YIGIT", "Yiğit Akü"],
   ["DCTTR", "DCT TR Trading"], ["BAHEV", "Bahadır Kimya"], ["ONUR", "Onur Yüksek Teknoloji"], ["OZATD", "Özata Denizcilik"],
-  ["CEMZY", "Cem Zeytin"], ["KARYE", "Kartal Yenilenebilir"], ["GIPTA", "Gıpta Ofis Kırtasiye"], ["REEDR", "Reeder Teknoloji"],
-  ["TARKM", "Tarkim Bitki Koruma"], ["EBEBK", "Ebebek Mağazacılık"], ["KAYSE", "Kayseri Şeker"], ["BIENY", "Bien Yapı Ürünleri"],
-  ["SDTTR", "SDT Uzay ve Savunma"], ["ONCSM", "Oncosem Onkolojik"], ["SOKE", "Söke Değirmencilik"], ["EYGYO", "Eyüp Yapı GYO"],
-  ["GOKNR", "Göknur Gıda"], ["CVKMD", "CVK Maden"], ["KOPOL", "Koza Polyester"], ["PASEU", "Pasifik Eurasia"],
-  ["KATMR", "Katmerciler Ekipman"], ["TMSN", "Tümosan Motor"], ["OTKAR", "Otokar"], ["TTRAK", "Türk Traktör"],
-  ["DOAS", "Doğuş Otomotiv"], ["ASUZU", "Anadolu Isuzu"], ["KMPUR", "Kimteks Poliüretan"], ["SAYAS", "Say Yenilenebilir"],
-  ["HUNER", "Hun Enerji"], ["ZEDUR", "Zedur Enerji"], ["ALMAD", "Altınyağ Madencilik"], ["PRKME", "Park Elek.Madencilik"],
+  ["CEMZY", "Cem Zeytin"], ["KARYE", "Kartal Yenilenebilir"], ["GIPTA", "Gıpta Ofis Kırtasiye"],
+
 ].map(([symbol, name]) => ({
   symbol, name, price: 0, change: 0, volume: 0, sector: "BIST"
 }));
@@ -271,7 +266,7 @@ useEffect(() => {
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
       const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
       
-      const batchSize = 40;
+      const batchSize = 5;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));

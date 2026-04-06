@@ -39,20 +39,84 @@ async function startServer() {
       }
       lastRequestTime = Date.now();
       
-      // Use query2 which is often less rate-limited than query1
-      const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&_=${Date.now()}`;
-      console.log(`[Yahoo Proxy] Fetching: ${symbols.substring(0, 40)}...`);
+      // Use v7 which is the standard stable endpoint
+      let url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
+      console.log(`[Yahoo Proxy] Fetching (v7): ${symbols.substring(0, 40)}...`);
       
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-          'Accept': '*/*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Referer': 'https://finance.yahoo.com/'
+      const commonHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Referer': 'https://finance.yahoo.com/',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
+      };
+
+      let response = await fetch(url, { headers: commonHeaders });
+      
+      // If v7 fails with 401 or 404, try v6 quote endpoint as a fallback
+      if (response.status === 401 || response.status === 404) {
+        console.warn(`[Yahoo Proxy] v7 returned ${response.status}, trying v6 fallback...`);
+        url = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${encodeURIComponent(symbols)}`;
+        response = await fetch(url, { headers: commonHeaders });
+      }
+
+      let sparkResult: Record<string, any> = {};
+
+      // If v6 also fails, try v8 spark endpoint as a last resort (one by one to avoid 400)
+      if (response.status === 401 || response.status === 404) {
+        console.warn(`[Yahoo Proxy] v6 returned ${response.status}, trying v8 spark fallback (individual)...`);
+        const symbolList = symbols.split(",");
+        for (const sym of symbolList) {
+          try {
+            const sparkUrl = `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${encodeURIComponent(sym)}&range=1d&interval=5m`;
+            const sparkRes = await fetch(sparkUrl, { headers: commonHeaders });
+            if (sparkRes.ok) {
+              const sparkData = await sparkRes.json();
+              if (sparkData.spark && sparkData.spark.result && sparkData.spark.result[0]) {
+                const item = sparkData.spark.result[0];
+                if (item.response && item.response[0]) {
+                  const resp = item.response[0];
+                  const meta = resp.meta;
+                  const price = meta.regularMarketPrice;
+                  const prevClose = meta.previousClose;
+                  let change = 0;
+                  if (price !== null && prevClose) {
+                    change = ((price - prevClose) / prevClose) * 100;
+                  }
+                  sparkResult[item.symbol] = {
+                    price: price,
+                    change: change,
+                    previousClose: prevClose,
+                    symbol: item.symbol
+                  };
+                }
+              }
+            }
+            // Small delay to avoid rate limiting
+            await new Promise(r => setTimeout(r, 100));
+          } catch (e) {
+            console.error(`Spark fetch error for ${sym}:`, e);
+          }
         }
-      });
+        
+        if (Object.keys(sparkResult).length > 0) {
+          // We already populated sparkResult, so we can skip the rest of the parsing
+          if (cached) {
+             // Merge with cache if some failed
+             const merged = { ...cached.data, ...sparkResult };
+             cache[cacheKey] = { data: merged, timestamp: Date.now() };
+             return res.json(merged);
+          }
+          cache[cacheKey] = { data: sparkResult, timestamp: Date.now() };
+          return res.json(sparkResult);
+        }
+      }
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -63,15 +127,14 @@ async function startServer() {
           return res.json(cached.data);
         }
         
-        return res.status(response.status).json({ 
-          error: `Yahoo API responded with status: ${response.status}`,
-          details: errorText.substring(0, 100)
-        });
+        // Return 200 with empty object instead of 404 to prevent frontend "Load failed"
+        return res.json({});
       }
       
       const data = await response.json();
       const result: Record<string, any> = {};
       
+      // Handle v6/v7 quote response
       if (data.quoteResponse && data.quoteResponse.result && Array.isArray(data.quoteResponse.result)) {
         data.quoteResponse.result.forEach((item: any) => {
           if (item && item.symbol) {
@@ -87,7 +150,30 @@ async function startServer() {
             };
           }
         });
-      } else {
+      } 
+      // Handle v8 spark response (fallback)
+      else if (data.spark && data.spark.result) {
+        data.spark.result.forEach((item: any) => {
+          if (item && item.symbol && item.response && item.response[0]) {
+            const resp = item.response[0];
+            const meta = resp.meta;
+            const price = meta.regularMarketPrice;
+            const prevClose = meta.previousClose;
+            let change = 0;
+            if (price !== null && prevClose) {
+              change = ((price - prevClose) / prevClose) * 100;
+            }
+
+            result[item.symbol] = {
+              price: price,
+              change: change,
+              previousClose: prevClose,
+              symbol: item.symbol
+            };
+          }
+        });
+      }
+      else {
         console.warn("[Yahoo Proxy] Unexpected response structure:", JSON.stringify(data).substring(0, 200));
       }
       
