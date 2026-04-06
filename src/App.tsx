@@ -8,7 +8,7 @@ const BIST_STOCKS = [
   ["THYAO", "Türk Hava Yolları"], ["GARAN", "Garanti BBVA"], ["AKBNK", "Akbank"], ["EREGL", "Ereğli Demir Çelik"],
   ["KCHOL", "Koç Holding"], ["SAHOL", "Sabancı Holding"], ["BIMAS", "BİM Mağazalar"], ["TOASO", "Tofaş Oto"],
   ["ARCLK", "Arçelik"], ["TUPRS", "Tüpraş"], ["SISE", "Şişe Cam"], ["DOHOL", "Doğan Holding"],
-  ["PETKM", "Petkim"], ["FROTO", "Ford Otosan"], ["ASELS", "Aselsan"], ["KOZAL", "Koza Altın"],
+  ["PETKM", "Petkim"], ["FROTO", "Ford Otosan"], ["ASELS", "Aselsan"],
   ["MGROS", "Migros"], ["PGSUS", "Pegasus"], ["TAVHL", "TAV Havalimanları"], ["YKBNK", "Yapı Kredi"],
   ["EKGYO", "Emlak Konut GYO"], ["VESTL", "Vestel"], ["ODAS", "Odaş Elektrik"], ["SMRTG", "Smart Güneş"],
   ["CANTE", "Çan2 Termik"], ["ISCTR", "İş Bankası (C)"], ["HALKB", "Halkbank"], ["VAKBN", "Vakıfbank"],
@@ -22,28 +22,28 @@ const BIST_STOCKS = [
   ["KOPOL", "Koza Polyester"], ["PASEU", "Pasifik Eurasia"], ["KATMR", "Katmerciler Ekipman"], ["TMSN", "Tümosan Motor"],
   ["OTKAR", "Otokar"], ["TTRAK", "Türk Traktör"], ["DOAS", "Doğuş Otomotiv"], ["ASUZU", "Anadolu Isuzu"],
   ["KMPUR", "Kimteks Poliüretan"], ["SAYAS", "Say Yenilenebilir"], ["HUNER", "Hun Enerji"], ["ZEDUR", "Zedur Enerji"],
-  ["ALMAD", "Altınyağ Madencilik"], ["PRKME", "Park Elek.Madencilik"], ["KOZAA", "Koza Anadolu Metal"], ["IPEKE", "İpek Doğal Enerji"],
+  ["PRKME", "Park Elek.Madencilik"],
   ["ULKER", "Ülker Bisküvi"], ["AEFES", "Anadolu Efes"], ["CCOLA", "Coca-Cola İçecek"], ["TATGD", "Tat Gıda"],
-  ["KERVT", "Kerevitaş"], ["SOKM", "Şok Marketler"], ["TKNSA", "Teknosa"], ["MAVI", "Mavi Giyim"],
+  ["SOKM", "Şok Marketler"], ["TKNSA", "Teknosa"], ["MAVI", "Mavi Giyim"],
   ["VAKKO", "Vakko"], ["YATAS", "Yataş"], ["BRISA", "Brisa"], ["GOODY", "Goodyear"],
-  ["KORD", "Kordsa Teknik Tekstil"], ["AKSA", "Aksa"], ["KORDS", "Kordsa"],
+  ["AKSA", "Aksa"], ["KORDS", "Kordsa"],
   ["BAGFS", "Bagfaş Gübre"], ["EGEEN", "Ege Endüstri"], ["BFREN", "Bosch Fren"], ["FMIZP", "Federal-Mogul İzmit"],
   ["PARSN", "Parsan"], ["JANTS", "Jantsa Jant"], ["ALCAR", "Alarko Carrier"], ["ALGYO", "Alarko GYO"],
   ["TRGYO", "Torunlar GYO"], ["OZKGY", "Özak GYO"], ["MSGYO", "Mistral GYO"], ["HLGYO", "Halk GYO"],
   ["VKGYO", "Vakıf GYO"], ["SNGYO", "Sinpaş GYO"], ["KLGYO", "Kiler GYO"], ["AKFGY", "Akfen GYO"],
   ["ISGYO", "İş GYO"], ["KGYO", "Koray GYO"], ["IDGYO", "İdealist GYO"], ["PAGYO", "Panora GYO"],
-  ["PEGYO", "Pera GYO"], ["DZGYO", "Deniz GYO"], ["SRVGY", "Servet GYO"], ["RYGYO", "Reysaş GYO"],
+  ["DZGYO", "Deniz GYO"], ["SRVGY", "Servet GYO"], ["RYGYO", "Reysaş GYO"],
   ["RYSAS", "Reysaş Lojistik"], ["GLYHO", "Global Yatırım Holding"], ["NETAS", "Netaş Telekom"], ["ALCTL", "Alcatel Lucent"],
   ["ARENA", "Arena Bilgisayar"], ["INDES", "İndeks Bilgisayar"], ["DESPC", "Despec Bilgisayar"], ["DGATE", "Datagate Bilgisayar"],
-  ["ARMDA", "Armada Bilgisayar"], ["LINK", "Link Bilgisayar"], ["LOGO", "Logo Yazılım"], ["KFEIN", "Kafein Yazılım"],
+  ["LINK", "Link Bilgisayar"], ["LOGO", "Logo Yazılım"], ["KFEIN", "Kafein Yazılım"],
   ["ARDYZ", "Ard Bilişim"], ["ESCOM", "Escort Teknoloji"], ["FONET", "Fonet Bilgi Teknolojileri"], ["KRVGD", "Kervan Gıda"],
   ["AVOD", "Avod Gıda"], ["OYYAT", "Oyak Yatırım"], ["ISMEN", "İş Yatırım"], ["GSDHO", "GSD Holding"],
   ["INFO", "İnfo Yatırım"], ["OSMEN", "Osmanlı Yatırım"], ["GLBMD", "Global Menkul Değerler"], ["GEDIK", "Gedik Yatırım"],
-  ["TUKAS", "Tukaş"], ["SELGD", "Selçuk Gıda"], ["KNFRT", "Konfrut Gıda"], ["FRIGO", "Frigo Pak Gıda"],
+  ["TUKAS", "Tukaş"], ["KNFRT", "Konfrut Gıda"], ["FRIGO", "Frigo Pak Gıda"],
   ["ELITE", "Elite Naturel"], ["ULUUN", "Ulusoy Un"], ["VANGD", "Vanet Gıda"],
   ["MERKO", "Merko Gıda"], ["PETUN", "Pınar Et ve Un"], ["PNSUT", "Pınar Süt"], ["SELVA", "Selva Gıda"],
   ["BRKSN", "Berikosan Yalıtım"], ["PRZMA", "Prizma Press Matbaacılık"], ["IHLAS", "İhlas Holding"], ["IHEVA", "İhlas Ev Aletleri"],
-  ["IHYAY", "İhlas Yayın Holding"], ["IHTAS", "İhlas Haber Ajansı"], ["IHGZT", "İhlas Gazetecilik"], ["METRO", "Metro Holding"],
+  ["IHYAY", "İhlas Yayın Holding"], ["IHGZT", "İhlas Gazetecilik"], ["METRO", "Metro Holding"],
   ["AVGYO", "Avrasya GYO"], ["ATLAS", "Atlas Yatırım Ortaklığı"], ["ETYAT", "Euro Trend Yatırım"], ["EUYO", "Euro Menkul Kıymet"],
   ["EUKYO", "Euro Kapital Yatırım"], ["MZHLD", "Mazhar Zorlu Holding"], ["EPLAS", "Egeplast"], ["DERIM", "Derimod"],
   ["DESA", "Desa Deri"], ["HATEK", "Hatay Tekstil"], ["MNDRS", "Menderes Tekstil"], ["ARSAN", "Arsan Tekstil"],
@@ -136,7 +136,6 @@ DOHOL: { rsi: 33, macd: 0.91, fibLevel: "0.786", patternScore: 93, pattern: "Dü
 PETKM: { rsi: 37, macd: 0.61, fibLevel: "0.618", patternScore: 82, pattern: "Düşen Kama Kırılımı ✦", potential: 55 },
 FROTO: { rsi: 58, macd: 0.12, fibLevel: "0.236", patternScore: 42, pattern: "Yükseliş Kanalı", potential: 20 },
 ASELS: { rsi: 34, macd: 0.95, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 85 },
-KOZAL: { rsi: 40, macd: 0.72, fibLevel: "0.618", patternScore: 83, pattern: "RSI Dipten Kalkış + Fib", potential: 62 },
 MGROS: { rsi: 55, macd: -0.08, fibLevel: "0.5", patternScore: 32, pattern: "Konsolidasyon", potential: 15 },
 PGSUS: { rsi: 36, macd: 0.88, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Kama Kırılımı ✦", potential: 68 },
 TAVHL: { rsi: 43, macd: 0.48, fibLevel: "0.618", patternScore: 74, pattern: "Çift Dip + MACD Kesişim", potential: 45 },
@@ -215,6 +214,7 @@ const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const isFetchingRef = useRef(false);
 const [aiAnalysis, setAiAnalysis] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
 const [aiCache, setAiCache] = useState<Record<string, string>>({});
@@ -242,6 +242,8 @@ useEffect(() => {
 
   // CORS hatasını çözen Proxy'li gerçek zamanlı API isteği
   const fetchLivePrices = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       setFetchError(null);
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
@@ -268,7 +270,16 @@ useEffect(() => {
           try {
             const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`);
             if (res.ok) {
-              const data = await res.json();
+              const text = await res.text();
+              let data;
+              try {
+                data = JSON.parse(text);
+              } catch (parseError) {
+                console.error(`JSON parse error for batch ${batchSymbols}:`, parseError);
+                console.error(`Response text was:`, text.substring(0, 200));
+                // Treat as a failed request so it retries
+                throw new Error("Invalid JSON response from server");
+              }
               if (data && typeof data === 'object' && Object.keys(data).length > 0) {
                 anySuccess = true;
                 batchSuccess = true;
@@ -337,6 +348,7 @@ useEffect(() => {
       setFetchError("Bağlantı hatası");
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 

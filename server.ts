@@ -14,7 +14,7 @@ async function startServer() {
   // Simple in-memory cache to prevent 429 errors
   const cache: Record<string, { data: any, timestamp: number }> = {};
   const CACHE_TTL = 300000; // 5 minutes cache
-  let lastRequestTime = 0;
+  let requestQueue = Promise.resolve();
   const MIN_REQUEST_GAP = 2000; // Minimum 2 seconds between outgoing requests to Yahoo
 
   app.get("/api/yahoo", async (req, res) => {
@@ -31,13 +31,13 @@ async function startServer() {
         return res.json(cached.data);
       }
       
-      // Rate limit outgoing requests
-      const now = Date.now();
-      const timeSinceLastRequest = now - lastRequestTime;
-      if (timeSinceLastRequest < MIN_REQUEST_GAP) {
-        await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_GAP - timeSinceLastRequest));
-      }
-      lastRequestTime = Date.now();
+      // Rate limit outgoing requests using a queue
+      await new Promise<void>((resolve) => {
+        requestQueue = requestQueue.then(async () => {
+          resolve();
+          await new Promise(r => setTimeout(r, MIN_REQUEST_GAP));
+        });
+      });
       
       const commonHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -125,11 +125,19 @@ async function startServer() {
                       symSuccess = true;
                     }
                   } else if (strategy.type === 'spark') {
-                    const item = data.spark?.result?.[0];
-                    if (item?.response?.[0]) {
-                      const meta = item.response[0].meta;
-                      const price = meta.regularMarketPrice;
-                      const prevClose = meta.previousClose;
+                    // Spark endpoint can return data[sym] directly or data.spark.result
+                    let item = data[sym];
+                    if (!item && data.spark?.result?.[0]?.response?.[0]) {
+                       const meta = data.spark.result[0].response[0].meta;
+                       item = {
+                         close: [meta.regularMarketPrice],
+                         previousClose: meta.previousClose
+                       };
+                    }
+                    
+                    if (item && item.close && item.close.length > 0) {
+                      const price = item.close[item.close.length - 1];
+                      const prevClose = item.previousClose;
                       finalResult[sym] = {
                         price: price,
                         change: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
