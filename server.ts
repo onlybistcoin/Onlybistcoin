@@ -13,9 +13,9 @@ async function startServer() {
   // API route to proxy Yahoo Finance requests for real-time quotes
   // Simple in-memory cache to prevent 429 errors
   const cache: Record<string, { data: any, timestamp: number }> = {};
-  const CACHE_TTL = 5000; // 5 seconds cache
+  const CACHE_TTL = 1000; // 1 second cache for ultra-fast updates
   let requestQueue = Promise.resolve();
-  const MIN_REQUEST_GAP = 200; // Minimum 0.2 seconds between outgoing requests to Yahoo
+  const MIN_REQUEST_GAP = 100; // 0.1 seconds between outgoing requests
 
   app.get("/api/yahoo", async (req, res) => {
     try {
@@ -64,6 +64,13 @@ async function startServer() {
             
             console.log(`[Yahoo Proxy] Fetching batch: ${url}`);
             const res = await fetch(url, { headers: commonHeaders });
+            if (res.status === 429) {
+              console.warn(`[Yahoo Proxy] Rate limited (429) for ${endpoint}`);
+              if (cached) {
+                console.log(`[Yahoo Proxy] Serving cached data due to rate limit`);
+                return res.json(cached.data);
+              }
+            }
             if (res.ok) {
               const data = await res.json();
               
@@ -131,6 +138,10 @@ async function startServer() {
                 
                 console.log(`[Yahoo Proxy] Stage 2 Fetching ${sym} via ${strategy.type}: ${url}`);
                 const res = await fetch(url, { headers: commonHeaders });
+                if (res.status === 429) {
+                  console.warn(`[Yahoo Proxy] Rate limited (429) for ${sym}`);
+                  break; // Stop trying strategies for this symbol
+                }
                 console.log(`[Yahoo Proxy] Stage 2 Status: ${res.status} for ${sym}`);
                 if (res.ok) {
                   const data = await res.json();

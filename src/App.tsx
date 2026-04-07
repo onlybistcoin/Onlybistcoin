@@ -254,7 +254,7 @@ useEffect(() => {
       const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
       console.log(`[App] Fetching ${allSymbols.length} symbols in batches...`);
       
-      const batchSize = 100;
+      const batchSize = 50; // Reduced from 100 for better reliability
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -270,7 +270,12 @@ useEffect(() => {
 
         while (retryCount < maxRetries && !batchSuccess) {
           try {
-            const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+            
+            const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
             console.log(`[App] Batch ${batchSymbols.substring(0, 30)}... status: ${res.status}`);
             if (res.ok) {
               const text = await res.text();
@@ -362,11 +367,17 @@ useEffect(() => {
           }
         }
         // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
       
       if (!anySuccess) {
-        setFetchError("Veri alınamadı");
+        // Only show error if we have NO data at all yet
+        setPrices(prev => {
+          if (Object.keys(prev).length === 0) {
+            setFetchError("Veri alınamadı");
+          }
+          return prev;
+        });
       }
     } catch (err) {
       console.error("Veri çekilirken hata oluştu:", err);
@@ -379,8 +390,8 @@ useEffect(() => {
 
   useEffect(() => {
     fetchLivePrices(); 
-    // Update every 5 seconds as requested
-    const interval = setInterval(fetchLivePrices, 5000);
+    // Update every 1.5 seconds for ultra-fast updates as requested
+    const interval = setInterval(fetchLivePrices, 1500);
     return () => clearInterval(interval);
   }, [fetchLivePrices]);
 
