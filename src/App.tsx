@@ -248,13 +248,21 @@ useEffect(() => {
     try {
       setFetchError(null);
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
-      const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("10000", "").replace("-USDT", "-USD"));
+      const cryptoSymbols = CRYPTO_COINS.map(s => {
+        let sym = s.symbol.replace("-USDT", "-USD");
+        if (sym === "10000SATS-USD") return "1000SATS-USD";
+        if (sym.startsWith("10000")) return sym.replace("10000", "");
+        return sym;
+      });
       const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
       const indexSymbols = ["XU100.IS", "XU030.IS", "^XU100", "^XU030", "TRY=X"];
-      const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
-      console.log(`[App] Fetching ${allSymbols.length} symbols in batches...`);
+      const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]))
+        .filter(s => s && typeof s === 'string' && s.length > 0);
       
-      const batchSize = 50; // Reduced from 100 for better reliability
+      console.log(`[App] Fetching ${allSymbols.length} symbols in batches...`);
+      console.log(`[App] Current prices count: ${Object.keys(prices).length}`);
+      
+      const batchSize = 30; // Smaller batches for better reliability
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -263,7 +271,8 @@ useEffect(() => {
       let anySuccess = false;
 
       // Fetch batches sequentially with a significant delay to avoid 429 errors
-      for (const batchSymbols of batches) {
+      for (let i = 0; i < batches.length; i++) {
+        const batchSymbols = batches[i];
         let retryCount = 0;
         const maxRetries = 2;
         let batchSuccess = false;
@@ -271,12 +280,12 @@ useEffect(() => {
         while (retryCount < maxRetries && !batchSuccess) {
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
             
             const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`, { signal: controller.signal });
             clearTimeout(timeoutId);
             
-            console.log(`[App] Batch ${batchSymbols.substring(0, 30)}... status: ${res.status}`);
+            console.log(`[App] Batch ${i} status: ${res.status}`);
             if (res.ok) {
               const text = await res.text();
               let data;
@@ -284,67 +293,77 @@ useEffect(() => {
                 data = JSON.parse(text);
               } catch (parseError) {
                 console.error(`JSON parse error for batch ${batchSymbols}:`, parseError);
-                console.error(`Response text was:`, text.substring(0, 200));
-                // Treat as a failed request so it retries
                 throw new Error("Invalid JSON response from server");
               }
               if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-                console.log(`[App] Received ${Object.keys(data).length} prices`);
                 anySuccess = true;
                 batchSuccess = true;
                 
                 // Update prices incrementally as batches arrive
-                setPrices(prev => {
-                  const next = { ...prev };
-                  Object.keys(data).forEach(key => {
-                    let sym = key.replace(".IS", "").replace("^", "");
-                    if (sym.includes("-USD") && !sym.includes("TRY")) {
-                      sym = sym.replace("-USD", "-USDT");
-                    }
-                    const stockData = (data as any)[key];
+                try {
+                  setPrices(prev => {
+                    const next = { ...prev };
+                    Object.keys(data).forEach(key => {
+                      let sym = key.replace(".IS", "").replace("^", "");
+                      if (sym.includes("-USD") && !sym.includes("TRY")) {
+                        sym = sym.replace("-USD", "-USDT");
+                      }
+                      
+                      // Special reverse mapping for SATS
+                      if (sym === "1000SATS-USDT") sym = "10000SATS-USDT";
+
+                      const stockData = (data as any)[key];
+                      
+                      if (stockData && stockData.price !== undefined && stockData.price !== null && !isNaN(stockData.price)) {
+                        let finalPrice = stockData.price;
+                        let finalSym = sym;
+                        
+                        if (CRYPTO_COINS.some(c => c.symbol === `10000${sym}`) && !sym.startsWith("10000")) {
+                          finalSym = `10000${sym}`;
+                          finalPrice *= 10000;
+                        }
+
+                        // If we mapped 1000SATS-USD back to 10000SATS-USDT, we need to adjust price
+                        if (sym === "10000SATS-USDT" && key === "1000SATS-USD") {
+                           finalPrice = stockData.price / 10; // 1000SATS price is 10x 10000SATS price? No, 1000SATS = 1000 sats. 10000SATS = 10000 sats. So 10000SATS price = 10 * 1000SATS price.
+                           // Actually 1000SATS is the ticker for 1000 sats. 10000SATS is 10000 sats.
+                           // So price of 10000SATS = 10 * price of 1000SATS.
+                           finalPrice = stockData.price * 10;
+                        }
+
+                        const precision = finalSym.startsWith("10000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
+                        next[finalSym] = +finalPrice.toFixed(precision);
+                        
+                        if (stockData.volume) {
+                          next[`${finalSym}_volume`] = stockData.volume;
+                        }
+                        
+                        if (stockData.change !== undefined && stockData.change !== null) {
+                          next[`${finalSym}_change`] = +stockData.change.toFixed(2);
+                        } else if (stockData.previousClose) {
+                          const change = ((stockData.price - stockData.previousClose) / stockData.previousClose) * 100;
+                          next[`${finalSym}_change`] = +change.toFixed(2);
+                        }
+                      }
+                    });
+
+                    // Manual calculations for Gram Gold/Silver if needed
+                    const usdTry = next["TRY=X"];
+                    const goldOns = next["GC=F"];
+                    const silverOns = next["SI=F"];
                     
-                    if (stockData && stockData.price !== undefined && stockData.price !== null && !isNaN(stockData.price)) {
-                      let finalPrice = stockData.price;
-                      let finalSym = sym;
-                      
-                      if (CRYPTO_COINS.some(c => c.symbol === `10000${sym}`)) {
-                        finalSym = `10000${sym}`;
-                        finalPrice *= 10000;
-                      }
-
-                      const precision = finalSym.startsWith("10000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
-                      next[finalSym] = +finalPrice.toFixed(precision);
-                      
-                      if (stockData.volume) {
-                        next[`${finalSym}_volume`] = stockData.volume;
-                      }
-                      
-                      if (stockData.change !== undefined && stockData.change !== null) {
-                        next[`${finalSym}_change`] = +stockData.change.toFixed(2);
-                      } else if (stockData.previousClose) {
-                        const change = ((stockData.price - stockData.previousClose) / stockData.previousClose) * 100;
-                        next[`${finalSym}_change`] = +change.toFixed(2);
-                      }
+                    if (usdTry && goldOns && !next["GAU=X"]) {
+                      next["GAU=X"] = +((goldOns / 31.1035) * usdTry).toFixed(2);
                     }
-                  });
-                  return next;
-                });
+                    if (usdTry && silverOns && !next["GAG=X"]) {
+                      next["GAG=X"] = +((silverOns / 31.1035) * usdTry).toFixed(2);
+                    }
 
-                // Manual calculations for Gram Gold/Silver if needed
-                setPrices(prev => {
-                  const next = { ...prev };
-                  const usdTry = next["TRY=X"];
-                  const goldOns = next["GC=F"];
-                  const silverOns = next["SI=F"];
-                  
-                  if (usdTry && goldOns && !next["GAU=X"]) {
-                    next["GAU=X"] = +((goldOns / 31.1035) * usdTry).toFixed(2);
-                  }
-                  if (usdTry && silverOns && !next["GAG=X"]) {
-                    next["GAG=X"] = +((silverOns / 31.1035) * usdTry).toFixed(2);
-                  }
-                  return next;
-                });
+                    return next;
+                  });
+                } catch (updateErr) {
+                  console.error("Error updating prices state:", updateErr);
+                }
 
                 setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
               } else {
@@ -367,7 +386,9 @@ useEffect(() => {
           }
         }
         // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 10));
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
       }
       
       if (!anySuccess) {
@@ -390,8 +411,8 @@ useEffect(() => {
 
   useEffect(() => {
     fetchLivePrices(); 
-    // Update every 1.5 seconds for ultra-fast updates as requested
-    const interval = setInterval(fetchLivePrices, 1500);
+    // Update every 3 seconds - 1.5s was too aggressive and causing issues
+    const interval = setInterval(fetchLivePrices, 3000);
     return () => clearInterval(interval);
   }, [fetchLivePrices]);
 
