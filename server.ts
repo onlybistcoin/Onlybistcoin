@@ -2,7 +2,53 @@ import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import { GoogleGenAI } from "@google/genai";
+import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
+import firebaseConfig from "./firebase-applet-config.json" with { type: "json" };
+import ccxt from "ccxt";
+import * as finnhub from "finnhub";
+
+// Initialize Firebase Admin
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+    console.log(`[Firebase] Initialized with Project ID: ${firebaseConfig.projectId}`);
+  }
+} catch (err) {
+  console.error("[Firebase] Initialization error:", err);
+}
+const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
+console.log(`[Firebase] Firestore Database ID: ${firebaseConfig.firestoreDatabaseId}`);
+
+// Finnhub Setup
+const finnhubKey = process.env.VITE_FINNHUB_API_KEY || "";
+let finnhubClient: any = null;
+
+if (finnhubKey) {
+  try {
+    // Handle potential ESM/CJS interop issues
+    const finnhubModule: any = (finnhub as any).default || finnhub;
+    const ApiClient = finnhubModule.ApiClient;
+    const DefaultApi = finnhubModule.DefaultApi;
+
+    if (ApiClient && ApiClient.instance) {
+      const api_key = ApiClient.instance.authentications['api_key'];
+      api_key.apiKey = finnhubKey;
+      finnhubClient = new DefaultApi();
+      console.log("[Finnhub] Client initialized successfully");
+    } else {
+      console.warn("[Finnhub] ApiClient.instance not found, attempting alternative initialization");
+      // Fallback if the structure is different
+      const client = new ApiClient();
+      client.authentications['api_key'].apiKey = finnhubKey;
+      finnhubClient = new DefaultApi(client);
+    }
+  } catch (err) {
+    console.error("[Finnhub] Initialization error:", err);
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -10,347 +56,238 @@ async function startServer() {
   
   app.use(express.json());
 
-  // API route to proxy Yahoo Finance requests for real-time quotes
-  // Simple in-memory cache to prevent 429 errors
-  const cache: Record<string, { data: any, timestamp: number }> = {};
-  const CACHE_TTL = 3000; // 3 seconds cache
-  let requestQueue = Promise.resolve();
-  const MIN_REQUEST_GAP = 150; // 0.15 seconds between outgoing requests
+  // --- Symbols ---
+  const BIST_SYMBOLS = [
+    "THYAO", "GARAN", "AKBNK", "EREGL", "KCHOL", "SAHOL", "BIMAS", "TOASO", "ARCLK", "TUPRS", "SISE", "DOHOL",
+    "PETKM", "FROTO", "ASELS", "MGROS", "PGSUS", "TAVHL", "YKBNK", "EKGYO", "VESTL", "ODAS", "SMRTG", "CANTE",
+    "ISCTR", "HALKB", "VAKBN", "TSKB", "ALARK", "ENKAI", "TKFEN", "GUBRF", "HEKTS", "SASA", "KONTR", "GESAN",
+    "YEOTK", "ASTOR", "EUPWR", "CWENE", "ALFAS", "MIATK", "REEDR", "TABGD", "TARKM", "EBEBK", "KAYSE", "BIENY",
+    "SDTTR", "ONCSM", "SOKE", "EYGYO", "GOKNR", "CVKMD", "KOPOL", "PASEU", "KATMR", "TMSN", "OTKAR", "TTRAK",
+    "DOAS", "ASUZU", "KMPUR", "SAYAS", "HUNER", "ZEDUR", "PRKME", "ULKER", "AEFES", "CCOLA", "TATGD", "SOKM",
+    "TKNSA", "MAVI", "VAKKO", "YATAS", "BRISA", "GOODY", "AKSA", "KORDS", "BAGFS", "EGEEN", "BFREN", "FMIZP",
+    "PARSN", "JANTS", "ALCAR", "ALGYO", "TRGYO", "OZKGY", "MSGYO", "HLGYO", "VKGYO", "SNGYO", "KLGYO", "AKFGY",
+    "ISGYO", "KGYO", "IDGYO", "PAGYO", "DZGYO", "SRVGY", "RYGYO", "RYSAS", "GLYHO", "NETAS", "ALCTL", "ARENA",
+    "INDES", "DESPC", "DGATE", "LINK", "LOGO", "KFEIN", "ARDYZ", "ESCOM", "FONET", "KRVGD", "AVOD", "OYYAT",
+    "ISMEN", "GSDHO", "INFO", "OSMEN", "GLBMD", "GEDIK", "TUKAS", "KNFRT", "FRIGO", "ELITE", "ULUUN", "VANGD",
+    "MERKO", "PETUN", "PNSUT", "SELVA", "BRKSN", "PRZMA", "IHLAS", "IHEVA", "IHYAY", "IHGZT", "METRO", "AVGYO",
+    "ATLAS", "ETYAT", "EUYO", "EUKYO", "MZHLD", "EPLAS", "DERIM", "DESA", "HATEK", "MNDRS", "ARSAN", "LUKSK",
+    "KRTEK", "SKTAS", "SNPAM", "SONME", "DAGI", "KRONT", "EDATA", "VBTYZ", "PKART", "SMART", "HTTBT", "OBASL",
+    "ALVES", "ARTMS", "MOGAN", "ODINE", "ENTRA", "HOROZ", "ALTNY", "KOTON", "LILA", "HRKET", "YIGIT", "DCTTR",
+    "BAHEV", "ONUR", "OZATD", "CEMZY", "KARYE", "GIPTA"
+  ];
 
-  app.get("/api/yahoo", async (req, res) => {
+  const CRYPTO_SYMBOLS = [
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "AVAX/USDT", "DOGE/USDT", "DOT/USDT", "LINK/USDT",
+    "PEPE/USDT", "FET/USDT", "RENDER/USDT", "SHIB/USDT", "LTC/USDT", "BCH/USDT", "UNI/USDT", "ARB/USDT", "TIA/USDT", "OP/USDT",
+    "INJ/USDT", "SUI/USDT", "APT/USDT", "STX/USDT", "FIL/USDT", "ATOM/USDT", "IMX/USDT", "HBAR/USDT", "ETC/USDT",
+    "ICP/USDT", "RUNE/USDT", "LDO/USDT", "TAO/USDT", "SEI/USDT", "JUP/USDT", "WIF/USDT", "FLOKI/USDT", "BONK/USDT", "ORDI/USDT",
+    "GALA/USDT", "VET/USDT", "MKR/USDT", "GRT/USDT", "AAVE/USDT", "ALGO/USDT", "EGLD/USDT", "FLOW/USDT", "QNT/USDT", "AXS/USDT",
+    "SAND/USDT", "MANA/USDT", "THETA/USDT", "CHZ/USDT", "EOS/USDT", "NEO/USDT", "IOTA/USDT", "XMR/USDT", "ZEC/USDT", "DASH/USDT",
+    "CRV/USDT", "DYDX/USDT", "SNX/USDT", "GMX/USDT", "PENDLE/USDT", "ARKM/USDT", "W/USDT", "ENA/USDT", "1000SATS/USDT", "BOME/USDT",
+    "NOT/USDT", "STRK/USDT", "PYTH/USDT", "JTO/USDT", "ALT/USDT", "MANTA/USDT", "BEAM/USDT", "PIXEL/USDT",
+    "PORTAL/USDT", "XAI/USDT", "ACE/USDT", "DYM/USDT", "MAVIA/USDT", "AEVO/USDT", "ETHFI/USDT", "METIS/USDT", "VANRY/USDT",
+    "OM/USDT", "ONDO/USDT", "CORE/USDT", "TNSR/USDT", "SAGA/USDT", "TAIKO/USDT", "ZK/USDT", "IO/USDT", "ATH/USDT", "ZRO/USDT",
+    "LISTA/USDT", "HMSTR/USDT", "CATI/USDT", "EIGEN/USDT", "SCR/USDT", "GRASS/USDT", "DRIFT/USDT", "MOODENG/USDT", "GOAT/USDT",
+    "PNUT/USDT", "ACT/USDT", "HYPE/USDT", "VIRTUAL/USDT", "AI16Z/USDT", "FARTCOIN/USDT", "TRUMP/USDT", "MELANIA/USDT", "SPX/USDT",
+    "MOG/USDT", "POPCAT/USDT", "BRETT/USDT", "TURBO/USDT", "BABYDOGE/USDT", "1CAT/USDT", "MYRO/USDT", "COQ/USDT", "WEN/USDT",
+    "ZIG/USDT", "GNS/USDT", "JOE/USDT", "PANGOLIN/USDT", "BENQI/USDT", "STEEM/USDT", "HIVE/USDT", "WAXP/USDT", "LOOM/USDT",
+    "MTL/USDT", "STPT/USDT", "RAD/USDT", "UMA/USDT", "BAND/USDT", "NMR/USDT", "TRB/USDT", "API3/USDT", "DIA/USDT", "ANKR/USDT",
+    "OCEAN/USDT", "AGIX/USDT", "RLC/USDT", "GLM/USDT", "STORJ/USDT", "SC/USDT", "AR/USDT", "LPT/USDT", "AUDIO/USDT", "ENS/USDT",
+    "ID/USDT", "GAL/USDT", "HOOK/USDT", "HFT/USDT", "GMT/USDT", "GST/USDT", "SWEAT/USDT", "FITFI/USDT", "SLP/USDT", "ILV/USDT",
+    "YGG/USDT", "MC/USDT", "MAGIC/USDT", "ENJ/USDT", "OG/USDT", "CITY/USDT", "BAR/USDT", "PSG/USDT", "JUV/USDT", "ACM/USDT",
+    "ASR/USDT", "ATM/USDT", "INTER/USDT", "LAZIO/USDT", "PORTO/USDT", "SANTOS/USDT", "ALPINE/USDT"
+  ];
+
+  const COMMODITIES = ["GC=F", "SI=F", "BZ=F", "HG=F", "TRY=X", "XU100.IS", "XU030.IS", "^XU100", "^XU030"];
+
+  // --- CCXT Crypto Worker ---
+  const binance = new ccxt.binance({ enableRateLimit: true });
+  async function updateCryptoPrices() {
     try {
-      const symbols = req.query.symbols as string;
-      if (!symbols) {
-        return res.status(400).json({ error: "Symbols parameter is required" });
-      }
-      
-      const userAgents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15"
-      ];
+      const tickers = await binance.fetchTickers(CRYPTO_SYMBOLS);
+      const batch = db.batch();
+      let count = 0;
 
-      const getHeaders = () => ({
-        'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': 'https://finance.yahoo.com',
-        'Referer': 'https://finance.yahoo.com/',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-site'
-      });
-
-      // Check cache first
-      const cacheKey = symbols;
-      const cached = cache[cacheKey];
-      if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-        return res.json(cached.data);
-      }
-      
-      // Rate limit outgoing requests using a queue
-      await new Promise<void>((resolve) => {
-        requestQueue = requestQueue.then(async () => {
-          resolve();
-          await new Promise(r => setTimeout(r, MIN_REQUEST_GAP));
-        });
-      });
-      
-      const bases = ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"];
-      const symbolList = symbols.split(",");
-      let finalResult: Record<string, any> = {};
-      let success = false;
-
-      // Stage 1: Try batch quote (v7 then v6)
-      for (const base of bases) {
-        for (const endpoint of ["/v7/finance/quote", "/v6/finance/quote", "/v8/finance/spark"]) {
-          try {
-            const url = `${base}${endpoint}?symbols=${encodeURIComponent(symbols)}`;
-            
-            console.log(`[Yahoo Proxy] Fetching batch: ${url}`);
-            const fetchRes = await fetch(url, { headers: getHeaders() });
-            if (fetchRes.status === 429) {
-              console.warn(`[Yahoo Proxy] Rate limited (429) for ${endpoint}`);
-              if (cached) {
-                console.log(`[Yahoo Proxy] Serving cached data due to rate limit`);
-                return res.json(cached.data);
-              }
-            }
-            if (fetchRes.ok) {
-              let data;
-              try {
-                data = await fetchRes.json();
-              } catch (parseErr) {
-                console.error(`[Yahoo Proxy] JSON parse error for batch: ${url}`);
-                continue;
-              }
-              
-              if (endpoint.includes("spark")) {
-                let sparkData = data;
-                if (data.spark?.result?.[0]?.response) {
-                  // Handle alternative spark format
-                  data.spark.result[0].symbol.forEach((s: string, idx: number) => {
-                    const meta = data.spark.result[0].response[idx]?.meta;
-                    if (meta) {
-                      finalResult[s] = {
-                        price: meta.regularMarketPrice,
-                        change: meta.previousClose ? ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100 : 0,
-                        previousClose: meta.previousClose,
-                        symbol: s
-                      };
-                    }
-                  });
-                } else {
-                  Object.keys(sparkData).forEach(s => {
-                    const item = sparkData[s];
-                    if (item && item.close && item.close.length > 0) {
-                      finalResult[s] = {
-                        price: item.close[item.close.length - 1],
-                        change: item.previousClose ? ((item.close[item.close.length - 1] - item.previousClose) / item.previousClose) * 100 : 0,
-                        previousClose: item.previousClose,
-                        symbol: s
-                      };
-                    }
-                  });
-                }
-              } else {
-                const quotes = data.quoteResponse?.result || [];
-                if (quotes.length > 0) {
-                  quotes.forEach((q: any) => {
-                    finalResult[q.symbol] = {
-                      price: q.regularMarketPrice,
-                      change: q.regularMarketChangePercent || 0,
-                      previousClose: q.regularMarketPreviousClose,
-                      volume: q.regularMarketVolume || 0,
-                      symbol: q.symbol
-                    };
-                  });
-                }
-              }
-              
-              if (Object.keys(finalResult).length >= symbolList.length) {
-                success = true;
-                break;
-              }
-            }
-          } catch (e) { /* silent fail for batch */ }
-        }
-        if (success) break;
-      }
-
-      if (Object.keys(finalResult).length < symbolList.length) {
-        const missing = symbolList.filter(s => !finalResult[s]);
-        console.warn(`[Yahoo Proxy] Missing symbols from batch: ${missing.join(", ")}`);
-        for (const sym of symbolList) {
-          if (finalResult[sym]) continue;
-
-          let symSuccess = false;
-          // Strategies in order of preference
-          const strategies = [
-            { type: 'quote', path: '/v7/finance/quote?symbols=' },
-            { type: 'spark', path: '/v8/finance/spark?symbols=' },
-            { type: 'chart', path: '/v8/finance/chart/' },
-            { type: 'summary', path: '/v10/finance/quoteSummary/' },
-            { type: 'options', path: '/v7/finance/options/' }
-          ];
-
-          for (const strategy of strategies) {
-            for (const base of bases) {
-              try {
-                let url = "";
-                if (strategy.type === 'chart') {
-                  url = `${base}${strategy.path}${encodeURIComponent(sym)}?range=1d&interval=5m`;
-                } else if (strategy.type === 'quote') {
-                  url = `${base}${strategy.path}${encodeURIComponent(sym)}`;
-                } else if (strategy.type === 'summary') {
-                  url = `${base}${strategy.path}${encodeURIComponent(sym)}?modules=price`;
-                } else {
-                  url = `${base}${strategy.path}${encodeURIComponent(sym)}&range=1d&interval=5m`;
-                }
-                
-                console.log(`[Yahoo Proxy] Stage 2 Fetching ${sym} via ${strategy.type}: ${url}`);
-                const fetchRes = await fetch(url, { headers: getHeaders() });
-                if (fetchRes.status === 429) {
-                  console.warn(`[Yahoo Proxy] Rate limited (429) for ${sym}`);
-                  await new Promise(r => setTimeout(r, 1000)); // Wait longer on 429
-                  break; // Stop trying strategies for this symbol
-                }
-                console.log(`[Yahoo Proxy] Stage 2 Status: ${fetchRes.status} for ${sym}`);
-                if (fetchRes.ok) {
-                  const data = await fetchRes.json();
-                  
-                  if (strategy.type === 'quote') {
-                    const q = data.quoteResponse?.result?.[0];
-                    if (q) {
-                      finalResult[sym] = {
-                        price: q.regularMarketPrice,
-                        change: q.regularMarketChangePercent || 0,
-                        previousClose: q.regularMarketPreviousClose,
-                        volume: q.regularMarketVolume || 0,
-                        symbol: q.symbol
-                      };
-                      symSuccess = true;
-                      console.log(`[Yahoo Proxy] Stage 2 Success for ${sym} via ${strategy.type}`);
-                    }
-                  } else if (strategy.type === 'spark') {
-                    // Spark endpoint can return data[sym] directly or data.spark.result
-                    let item = data[sym];
-                    if (!item && data.spark?.result?.[0]?.response?.[0]) {
-                       const meta = data.spark.result[0].response[0].meta;
-                       item = {
-                         close: [meta.regularMarketPrice],
-                         previousClose: meta.previousClose
-                       };
-                    }
-                    
-                    if (item && item.close && item.close.length > 0) {
-                      const price = item.close[item.close.length - 1];
-                      const prevClose = item.previousClose;
-                      finalResult[sym] = {
-                        price: price,
-                        change: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
-                        previousClose: prevClose,
-                        symbol: sym
-                      };
-                      symSuccess = true;
-                      console.log(`[Yahoo Proxy] Stage 2 Success for ${sym} via ${strategy.type}`);
-                    }
-                  } else if (strategy.type === 'chart') {
-                    const result = data.chart?.result?.[0];
-                    if (result?.meta) {
-                      const meta = result.meta;
-                      const price = meta.regularMarketPrice;
-                      const prevClose = meta.previousClose;
-                      finalResult[sym] = {
-                        price: price,
-                        change: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
-                        previousClose: prevClose,
-                        symbol: sym
-                      };
-                      symSuccess = true;
-                      console.log(`[Yahoo Proxy] Stage 2 Success for ${sym} via ${strategy.type}`);
-                    }
-                  } else if (strategy.type === 'summary') {
-                    const priceData = data.quoteSummary?.result?.[0]?.price;
-                    if (priceData) {
-                      finalResult[sym] = {
-                        price: priceData.regularMarketPrice?.raw || priceData.regularMarketPrice,
-                        change: priceData.regularMarketChangePercent?.raw * 100 || 0,
-                        previousClose: priceData.regularMarketPreviousClose?.raw,
-                        symbol: sym
-                      };
-                      symSuccess = true;
-                      console.log(`[Yahoo Proxy] Stage 2 Success for ${sym} via ${strategy.type}`);
-                    }
-                  } else if (strategy.type === 'options') {
-                    const q = data.optionChain?.result?.[0]?.quote;
-                    if (q) {
-                      finalResult[sym] = {
-                        price: q.regularMarketPrice,
-                        change: q.regularMarketChangePercent || 0,
-                        previousClose: q.regularMarketPreviousClose,
-                        volume: q.regularMarketVolume || 0,
-                        symbol: q.symbol
-                      };
-                      symSuccess = true;
-                      console.log(`[Yahoo Proxy] Stage 2 Success for ${sym} via ${strategy.type}`);
-                    }
-                  }
-                }
-                if (symSuccess) break;
-              } catch (e) { /* ignore */ }
-            }
-            if (symSuccess) break;
-          }
-          
-          if (!symSuccess) {
-            // Final attempt: Search for the symbol if it's a crypto
-            if (sym.endsWith("-USD")) {
-              try {
-                const searchUrl = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym.split("-")[0])}`;
-                console.log(`[Yahoo Proxy] Stage 3 Searching for ${sym}: ${searchUrl}`);
-                const searchRes = await fetch(searchUrl, { headers: getHeaders() });
-                if (searchRes.ok) {
-                  const searchData = await searchRes.json();
-                  const foundSym = searchData.quotes?.[0]?.symbol;
-                  if (foundSym && foundSym !== sym) {
-                    console.log(`[Yahoo Proxy] Stage 3 Found alternative for ${sym}: ${foundSym}`);
-                    // Try to fetch the found symbol via quote
-                    const quoteUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(foundSym)}`;
-                    const quoteRes = await fetch(quoteUrl, { headers: getHeaders() });
-                    if (quoteRes.ok) {
-                      const qData = await quoteRes.json();
-                      const q = qData.quoteResponse?.result?.[0];
-                      if (q) {
-                        finalResult[sym] = {
-                          price: q.regularMarketPrice,
-                          change: q.regularMarketChangePercent || 0,
-                          previousClose: q.regularMarketPreviousClose,
-                          volume: q.regularMarketVolume || 0,
-                          symbol: q.symbol
-                        };
-                        symSuccess = true;
-                        console.log(`[Yahoo Proxy] Stage 3 Success for ${sym} via alternative ${foundSym}`);
-                      }
-                    }
-                  }
-                }
-              } catch (e) { /* ignore */ }
-            }
-          }
-
-          if (!symSuccess) {
-            console.warn(`[Yahoo Proxy] Failed to fetch data for: ${sym}`);
-          }
-          await new Promise(r => setTimeout(r, 200));
-        }
-        // Manual Gram Gold/Silver calculation
-      if (!finalResult["GAU=X"] || !finalResult["GAG=X"]) {
-        const gold = finalResult["GC=F"]?.price;
-        const silver = finalResult["SI=F"]?.price;
-        const usltry = finalResult["TRY=X"]?.price;
+      for (const symbol in tickers) {
+        const ticker = tickers[symbol];
+        let docId = symbol.replace("/", "-");
+        let price = ticker.last;
         
-        if (usltry) {
-          if (gold && !finalResult["GAU=X"]) {
-            const gramGold = (gold / 31.1035) * usltry;
-            finalResult["GAU=X"] = { price: gramGold, change: finalResult["GC=F"].change, symbol: "GAU=X" };
-          }
-          if (silver && !finalResult["GAG=X"]) {
-            const gramSilver = (silver / 31.1035) * usltry;
-            finalResult["GAG=X"] = { price: gramSilver, change: finalResult["SI=F"].change, symbol: "GAG=X" };
-          }
+        // Handle 10000 prefixes
+        if (docId === "1000SATS-USDT") {
+          docId = "10000SATS-USDT";
+          price *= 10;
+        } else if (["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "BOME-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"].includes(docId)) {
+          docId = "10000" + docId;
+          price *= 10000;
         }
+
+        const priceDoc = db.collection("prices").doc(docId);
+        batch.set(priceDoc, {
+          symbol: docId,
+          price: price,
+          change: ticker.percentage || 0,
+          volume: ticker.quoteVolume || 0,
+          lastUpdated: new Date().toISOString()
+        }, { merge: true });
+        count++;
       }
 
-      if (Object.keys(finalResult).length > 0) success = true;
+      if (count > 0) {
+        await batch.commit();
+        console.log(`[Worker] Updated ${count} crypto prices using CCXT`);
       }
-
-      if (success) {
-        console.log(`[Yahoo Proxy] Successfully fetched ${Object.keys(finalResult).length} symbols: ${Object.keys(finalResult).join(", ")}`);
-        cache[cacheKey] = { data: finalResult, timestamp: Date.now() };
-        return res.json(finalResult);
-      }
-
-      console.warn(`[Yahoo Proxy] All strategies failed for ${symbols}`);
-      // Final fallback: Stale cache
-      if (cached) {
-        console.log(`[Yahoo Proxy] Serving stale data for ${symbols.substring(0, 20)}...`);
-        return res.json(cached.data);
-      }
-      
-      return res.json({});
-    } catch (error) {
-      console.error("[Yahoo Proxy] Fatal Error:", error);
-      res.status(500).json({ error: "Internal server error" });
+    } catch (err) {
+      console.error("[Worker] CCXT Crypto update failed:", err);
     }
-  });
+  }
 
-  // REMOVED: /api/analyze route (AI Analysis moved to frontend per guidelines)
+  // --- BIST/Commodity Worker (Improved Yahoo/TradingView Fetch) ---
+  async function fetchWithRetry(url: string, options: any, retries = 3, delay = 2000) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const res = await fetch(url, options);
+        if (res.ok) return res;
+        if (res.status === 429) {
+          console.log(`[Worker] Rate limited (429), retrying in ${delay * 2}ms...`);
+          await new Promise(r => setTimeout(r, delay * 2));
+          delay *= 2;
+          continue;
+        }
+        console.error(`[Worker] Fetch status ${res.status} for ${url}`);
+        if (i === retries - 1) return res;
+      } catch (err: any) {
+        if (i === retries - 1) throw err;
+        console.log(`[Worker] Fetch failed: ${err.message}, retrying in ${delay}ms... (${i + 1}/${retries})`);
+      }
+      await new Promise(r => setTimeout(r, delay));
+      delay *= 2;
+    }
+    return null;
+  }
+
+  async function updateBistPrices() {
+    try {
+      const allSymbols = BIST_SYMBOLS.map(s => `${s}.IS`).concat(COMMODITIES);
+      const batchSize = 40;
+      
+      for (let i = 0; i < allSymbols.length; i += batchSize) {
+        const batchSymbols = allSymbols.slice(i, i + batchSize).join(",");
+        const url = `https://query2.finance.yahoo.com/v6/finance/quote?symbols=${encodeURIComponent(batchSymbols)}`;
+        
+        const res = await fetchWithRetry(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Origin': 'https://finance.yahoo.com',
+            'Referer': 'https://finance.yahoo.com/'
+          }
+        });
+        
+        if (res && res.ok) {
+          const data = await res.json();
+          const quotes = data.quoteResponse?.result || [];
+          const batch = db.batch();
+          let count = 0;
+          
+          quotes.forEach((q: any) => {
+            let symbol = q.symbol;
+            if (symbol.endsWith(".IS")) symbol = symbol.replace(".IS", "");
+            if (symbol.startsWith("^")) symbol = symbol.replace("^", "");
+            
+            const priceDoc = db.collection("prices").doc(symbol);
+            batch.set(priceDoc, {
+              symbol: symbol,
+              price: q.regularMarketPrice,
+              change: q.regularMarketChangePercent || 0,
+              volume: q.regularMarketVolume || 0,
+              lastUpdated: new Date().toISOString()
+            }, { merge: true });
+            count++;
+          });
+
+          // Manual Gram Gold/Silver
+          const prices: any = {};
+          quotes.forEach((q: any) => prices[q.symbol] = q.regularMarketPrice);
+          const usltry = prices["TRY=X"];
+          const gold = prices["GC=F"];
+          const silver = prices["SI=F"];
+          
+          if (usltry) {
+            if (gold) {
+              const gramGold = (gold / 31.1035) * usltry;
+              batch.set(db.collection("prices").doc("GAU=X"), {
+                symbol: "GAU=X",
+                price: gramGold,
+                lastUpdated: new Date().toISOString()
+              }, { merge: true });
+            }
+            if (silver) {
+              const gramSilver = (silver / 31.1035) * usltry;
+              batch.set(db.collection("prices").doc("GAG=X"), {
+                symbol: "GAG=X",
+                price: gramSilver,
+                lastUpdated: new Date().toISOString()
+              }, { merge: true });
+            }
+          }
+
+          if (count > 0) {
+            await batch.commit();
+            console.log(`[Worker] Updated ${count} BIST/Commodity prices (Batch ${Math.floor(i/batchSize) + 1})`);
+          }
+        } else if (res) {
+          console.error(`[Worker] BIST fetch failed after retries: ${res.status}`);
+        }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    } catch (err) {
+      console.error("[Worker] BIST update failed:", err);
+    }
+  }
+
+  // --- News Worker (Finnhub) ---
+  async function updateNews() {
+    if (!finnhubClient) return;
+    try {
+      finnhubClient.marketNews('general', {}, async (error, data) => {
+        if (error) {
+          console.error("[News] Finnhub error:", error);
+          return;
+        }
+        if (data && Array.isArray(data)) {
+          const batch = db.batch();
+          data.slice(0, 10).forEach((item: any) => {
+            const newsDoc = db.collection("news").doc(String(item.id));
+            batch.set(newsDoc, {
+              id: item.id,
+              title: item.headline,
+              summary: item.summary,
+              url: item.url,
+              source: item.source,
+              timestamp: new Date(item.datetime * 1000).toISOString(),
+              category: item.category
+            }, { merge: true });
+          });
+          await batch.commit();
+          console.log(`[News] Updated ${data.length} news items from Finnhub`);
+        }
+      });
+    } catch (err) {
+      console.error("[News] Update failed:", err);
+    }
+  }
+
+  // Start background loops
+  setInterval(updateCryptoPrices, 10000); 
+  setInterval(updateBistPrices, 30000); 
+  setInterval(updateNews, 60000); // News every minute
+  
+  // Initial run
+  updateCryptoPrices();
+  updateBistPrices();
+  updateNews();
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -368,7 +305,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`[Server] Bulletproof Sync Server running on http://localhost:${PORT}`);
   });
 }
 

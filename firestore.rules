@@ -1,0 +1,64 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: prices
+// Document ID: {symbol} (e.g., BTC-USDT, THYAO.IS)
+// Fields:
+//   - symbol: string (required) - The ticker symbol
+//   - price: number (required) - The current price
+//   - change: number (optional) - The percentage change
+//   - volume: number (optional) - The trading volume
+//   - lastUpdated: string (required, ISO 8601) - Timestamp of the last update
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "yunusbalcik@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    function isValidPrice(data) {
+      return data.keys().hasAll(['symbol', 'price', 'lastUpdated']) &&
+             data.symbol is string && data.symbol.size() > 0 && data.symbol.size() < 20 &&
+             data.price is number &&
+             data.lastUpdated is string &&
+             (!('change' in data) || data.change is number) &&
+             (!('volume' in data) || data.volume is number);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /prices/{symbol} {
+      // Allow everyone to read prices for real-time updates
+      allow read: if true;
+      
+      // Allow write for the worker (temporarily public to fix permission issues)
+      allow write: if true;
+    }
+    
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}

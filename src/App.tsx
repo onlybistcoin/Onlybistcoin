@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { GoogleGenAI } from "@google/genai";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertCircle } from "lucide-react";
+import { db } from "./firebase";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 
 // ─── MOCK DATA ───────────────────────────────────────────────────────────────
 const BIST_STOCKS = [
@@ -118,6 +120,9 @@ const COMMODITY_ITEMS = [
   { symbol: "HG=F", name: "Bakır", price: 0, change: 0, volume: 0, sector: "Emtia" },
   { symbol: "GAU=X", name: "Gram Altın (TL)", price: 0, change: 0, volume: 0, sector: "Emtia" },
   { symbol: "GAG=X", name: "Gram Gümüş (TL)", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "TRY=X", name: "USD/TRY", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "XU100", name: "BIST 100", price: 0, change: 0, volume: 0, sector: "Emtia" },
+  { symbol: "XU030", name: "BIST 30", price: 0, change: 0, volume: 0, sector: "Emtia" },
 ];
 
 const PATTERN_DATA: Record<string, any> = {
@@ -191,6 +196,7 @@ function generateCandleData(basePrice: number, periods = 60) {
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
+// [Cache Bust] v1.0.1 - Real-time Firestore Sync
 export default function BISTAnalyzer() {
 const [screen, setScreen] = useState("scanner"); 
 const [market, setMarket] = useState<"BIST" | "CRYPTO" | "EMTİA">("BIST");
@@ -207,20 +213,18 @@ const [candidates, setCandidates] = useState<any[]>([]);
         p[`${s.symbol}_change`] = s.change || 0; 
       }
     });
-    // Add indices
-    ["XU100", "XU030", "TRY=X"].forEach(s => { p[s] = 0; p[`${s}_change`] = 0; });
     return p;
   });
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>("");
-  const isFetchingRef = useRef(false);
 const [aiAnalysis, setAiAnalysis] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
 const [aiCache, setAiCache] = useState<Record<string, string>>({});
 const [timeframe, setTimeframe] = useState("1S");
 const [tab, setTab] = useState("teknik"); 
 const [kapNews, setKapNews] = useState<any[]>([]);
+const [news, setNews] = useState<any[]>([]);
 const scanIntervalRef = useRef<any>(null);
 const [currentTime, setCurrentTime] = useState("");
 
@@ -240,185 +244,54 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, []);
 
-  // CORS hatasını çözen Proxy'li gerçek zamanlı API isteği
-  const fetchLivePrices = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    console.log("[App] fetchLivePrices started...");
-    isFetchingRef.current = true;
-    try {
-      setFetchError(null);
-      const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
-      const cryptoSymbols = CRYPTO_COINS.map(s => {
-        let sym = s.symbol.replace("-USDT", "-USD");
-        if (sym === "10000SATS-USD") return "1000SATS-USD";
-        if (sym.startsWith("10000")) return sym.replace("10000", "");
-        return sym;
-      });
-      const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
-      const indexSymbols = ["XU100.IS", "XU030.IS", "^XU100", "^XU030", "TRY=X"];
-      const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]))
-        .filter(s => s && typeof s === 'string' && s.length > 0);
-      
-      console.log(`[App] Fetching ${allSymbols.length} symbols in batches...`);
-      console.log(`[App] Current prices count: ${Object.keys(prices).length}`);
-      
-      const batchSize = 30; // Smaller batches for better reliability
-      const batches = [];
-      for (let i = 0; i < allSymbols.length; i += batchSize) {
-        batches.push(allSymbols.slice(i, i + batchSize).join(","));
-      }
-
-      let anySuccess = false;
-
-      // Fetch batches sequentially with a significant delay to avoid 429 errors
-      for (let i = 0; i < batches.length; i++) {
-        const batchSymbols = batches[i];
-        let retryCount = 0;
-        const maxRetries = 2;
-        let batchSuccess = false;
-
-        while (retryCount < maxRetries && !batchSuccess) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-            
-            const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
-            console.log(`[App] Batch ${i} status: ${res.status}`);
-            if (res.ok) {
-              const text = await res.text();
-              let data;
-              try {
-                data = JSON.parse(text);
-              } catch (parseError) {
-                console.error(`JSON parse error for batch ${batchSymbols}:`, parseError);
-                throw new Error("Invalid JSON response from server");
-              }
-              if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-                anySuccess = true;
-                batchSuccess = true;
-                
-                // Update prices incrementally as batches arrive
-                try {
-                  setPrices(prev => {
-                    const next = { ...prev };
-                    Object.keys(data).forEach(key => {
-                      let sym = key.replace(".IS", "").replace("^", "");
-                      if (sym.includes("-USD") && !sym.includes("TRY")) {
-                        sym = sym.replace("-USD", "-USDT");
-                      }
-                      
-                      // Special reverse mapping for SATS
-                      if (sym === "1000SATS-USDT") sym = "10000SATS-USDT";
-
-                      const stockData = (data as any)[key];
-                      
-                      if (stockData && stockData.price !== undefined && stockData.price !== null && !isNaN(stockData.price)) {
-                        let finalPrice = stockData.price;
-                        let finalSym = sym;
-                        
-                        if (CRYPTO_COINS.some(c => c.symbol === `10000${sym}`) && !sym.startsWith("10000")) {
-                          finalSym = `10000${sym}`;
-                          finalPrice *= 10000;
-                        }
-
-                        // If we mapped 1000SATS-USD back to 10000SATS-USDT, we need to adjust price
-                        if (sym === "10000SATS-USDT" && key === "1000SATS-USD") {
-                           finalPrice = stockData.price / 10; // 1000SATS price is 10x 10000SATS price? No, 1000SATS = 1000 sats. 10000SATS = 10000 sats. So 10000SATS price = 10 * 1000SATS price.
-                           // Actually 1000SATS is the ticker for 1000 sats. 10000SATS is 10000 sats.
-                           // So price of 10000SATS = 10 * price of 1000SATS.
-                           finalPrice = stockData.price * 10;
-                        }
-
-                        const precision = finalSym.startsWith("10000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
-                        next[finalSym] = +finalPrice.toFixed(precision);
-                        
-                        if (stockData.volume) {
-                          next[`${finalSym}_volume`] = stockData.volume;
-                        }
-                        
-                        if (stockData.change !== undefined && stockData.change !== null) {
-                          next[`${finalSym}_change`] = +stockData.change.toFixed(2);
-                        } else if (stockData.previousClose) {
-                          const change = ((stockData.price - stockData.previousClose) / stockData.previousClose) * 100;
-                          next[`${finalSym}_change`] = +change.toFixed(2);
-                        }
-                      }
-                    });
-
-                    // Manual calculations for Gram Gold/Silver if needed
-                    const usdTry = next["TRY=X"];
-                    const goldOns = next["GC=F"];
-                    const silverOns = next["SI=F"];
-                    
-                    if (usdTry && goldOns && !next["GAU=X"]) {
-                      next["GAU=X"] = +((goldOns / 31.1035) * usdTry).toFixed(2);
-                    }
-                    if (usdTry && silverOns && !next["GAG=X"]) {
-                      next["GAG=X"] = +((silverOns / 31.1035) * usdTry).toFixed(2);
-                    }
-
-                    return next;
-                  });
-                } catch (updateErr) {
-                  console.error("Error updating prices state:", updateErr);
-                }
-
-                setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-              } else {
-                // Empty data from proxy means it tried all fallbacks and failed for this batch
-                batchSuccess = true; 
-              }
-            } else {
-              console.error(`API error for batch: ${res.status}`);
-              if (res.status === 429) {
-                setFetchError("Aşırı istek: 2dk bekleyiniz");
-                retryCount = maxRetries; // Stop retrying on 429
-              } else {
-                retryCount++;
-                if (retryCount < maxRetries) await new Promise(r => setTimeout(r, 2000));
-              }
-            }
-          } catch (e) {
-            console.error(`Batch fetch error:`, e);
-            retryCount++;
+  useEffect(() => {
+    console.log("[App] Starting real-time Firestore listener...");
+    setLoading(true);
+    
+    const q = query(collection(db, "prices"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPrices(prev => {
+        const next = { ...prev };
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added" || change.type === "modified") {
+            const data = change.doc.data();
+            const symbol = data.symbol;
+            next[symbol] = data.price;
+            if (data.change !== undefined) next[`${symbol}_change`] = data.change;
+            if (data.volume !== undefined) next[`${symbol}_volume`] = data.volume;
           }
-        }
-        // Delay between batches
-        if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 400));
-        }
-      }
-      
-      if (!anySuccess) {
-        // Only show error if we have NO data at all yet
-        setPrices(prev => {
-          if (Object.keys(prev).length === 0) {
-            setFetchError("Veri alınamadı");
-          }
-          return prev;
         });
-      }
-    } catch (err) {
-      console.error("Veri çekilirken hata oluştu:", err);
-      setFetchError("Bağlantı hatası");
-    } finally {
+        return next;
+      });
+      
+      setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       setLoading(false);
-      isFetchingRef.current = false;
-    }
+      setFetchError(null);
+    }, (error) => {
+      console.error("Firestore subscription error:", error);
+      setFetchError("Veri bağlantısı kesildi");
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  // News Listener
   useEffect(() => {
-    fetchLivePrices(); 
-    // Update every 3 seconds - 1.5s was too aggressive and causing issues
-    const interval = setInterval(fetchLivePrices, 3000);
-    return () => clearInterval(interval);
-  }, [fetchLivePrices]);
+    const q = query(collection(db, "news"), orderBy("timestamp", "desc"), limit(20));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setNews(newsList);
+    }, (err) => {
+      console.error("News listener error:", err);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleRefresh = () => {
+    // With Firestore, refresh is automatic, but we can show loading briefly
     setLoading(true);
-    fetchLivePrices();
+    setTimeout(() => setLoading(false), 500);
   };
 
 const startScan = useCallback(() => {
@@ -611,7 +484,7 @@ border: "1px solid #30363d"
         patternData={PATTERN_DATA[selectedStock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 }}
         aiAnalysis={aiAnalysis} aiLoading={aiLoading}
         onFetchAi={() => fetchAiAnalysis(selectedStock)}
-        kapNews={kapNews} tab={tab} setTab={setTab}
+        kapNews={news.length > 0 ? news : kapNews} tab={tab} setTab={setTab}
         timeframe={timeframe} setTimeframe={setTimeframe}
         onBack={() => setScreen("candidates")}
       />}
@@ -1254,18 +1127,21 @@ return (
     <div style={{ margin: "12px 16px 0" }}>
       <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>KAP & X HABERLERI</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {kapNews.map((n: any, i: number) => (
-          <div key={i} style={{ background: "#131922", borderRadius: 14, padding: "12px 14px", border: "1px solid #1a1f2e" }}>
+        {kapNews.length > 0 ? kapNews.map((n: any, i: number) => (
+          <a key={n.id || i} href={n.url} target="_blank" rel="noreferrer" style={{ background: "#131922", borderRadius: 14, padding: "12px 14px", border: "1px solid #1a1f2e", textDecoration: "none", display: "block" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <div style={{ display: "flex", gap: 6 }}>
-                <span style={{ background: n.source === "KAP" ? "rgba(0,184,255,0.15)" : "rgba(191,90,242,0.15)", color: n.source === "KAP" ? "#00b8ff" : "#bf5af2", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 8 }}>{n.source}</span>
-                <span style={{ background: n.type === "pozitif" ? "rgba(48,209,88,0.15)" : "rgba(100,100,100,0.15)", color: n.type === "pozitif" ? "#30d158" : "#6b7280", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 8 }}>{n.type}</span>
+                <span style={{ background: n.source === "KAP" ? "rgba(0,184,255,0.15)" : "rgba(191,90,242,0.15)", color: n.source === "KAP" ? "#00b8ff" : "#bf5af2", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 8 }}>{n.source || "HABER"}</span>
+                <span style={{ background: n.type === "pozitif" ? "rgba(48,209,88,0.15)" : "rgba(100,100,100,0.15)", color: n.type === "pozitif" ? "#30d158" : "#6b7280", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 8 }}>{n.type || "NÖTR"}</span>
               </div>
-              <span style={{ color: "#4a5568", fontSize: 10 }}>{n.date}</span>
+              <span style={{ color: "#4a5568", fontSize: 10 }}>{n.timestamp ? new Date(n.timestamp).toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' }) : n.date}</span>
             </div>
-            <div style={{ color: "#fff", fontSize: 13, lineHeight: 1.4 }}>{n.title}</div>
-          </div>
-        ))}
+            <div style={{ color: "#fff", fontSize: 13, lineHeight: 1.4, fontWeight: 700 }}>{n.title}</div>
+            {n.summary && <div style={{ color: "#8b949e", fontSize: 11, marginTop: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.summary}</div>}
+          </a>
+        )) : (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "#4a5568", fontSize: 12 }}>Henüz haber akışı bulunmuyor.</div>
+        )}
 
         <div style={{ background: "#131922", borderRadius: 14, padding: 14, border: "1px solid #1a1f2e", marginTop: 4 }}>
           <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, marginBottom: 10 }}>TEMEL METRİKLER</div>

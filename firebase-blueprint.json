@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Price": {
+      "title": "Price",
+      "description": "Real-time price information for a financial instrument",
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "The ticker symbol (e.g., BTC-USDT, THYAO.IS)"
+        },
+        "price": {
+          "type": "number",
+          "description": "The current price"
+        },
+        "change": {
+          "type": "number",
+          "description": "The percentage change"
+        },
+        "volume": {
+          "type": "number",
+          "description": "The trading volume"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the last update"
+        }
+      },
+      "required": ["symbol", "price", "lastUpdated"]
+    }
+  },
+  "firestore": {
+    "/prices/{symbol}": {
+      "schema": "Price",
+      "description": "Collection of real-time prices indexed by symbol"
+    }
+  }
+}
