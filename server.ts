@@ -3,24 +3,29 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import { initializeApp as initializeClientApp } from "firebase/app";
+import { getFirestore as getClientFirestore, collection as clientCollection, doc as clientDoc, writeBatch as clientWriteBatch, getDocs as clientGetDocs, limit as clientLimit, query as clientQuery } from "firebase/firestore";
 import firebaseConfig from "./firebase-applet-config.json" with { type: "json" };
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 
-// Initialize Firebase Admin
+// Initialize Firebase Admin (for other things if needed)
 try {
   if (!admin.apps.length) {
     admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
       projectId: firebaseConfig.projectId,
     });
-    console.log(`[Firebase] Initialized with Project ID: ${firebaseConfig.projectId}`);
+    console.log(`[Firebase Admin] Initialized with Project ID: ${firebaseConfig.projectId}`);
   }
 } catch (err) {
-  console.error("[Firebase] Initialization error:", err);
+  console.error("[Firebase Admin] Initialization error:", err);
 }
-const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
-console.log(`[Firebase] Firestore Database ID: ${firebaseConfig.firestoreDatabaseId}`);
+
+// Initialize Firebase Client SDK (Workaround for Firestore permissions)
+const clientApp = initializeClientApp(firebaseConfig);
+const db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
+console.log(`[Firebase Client] Firestore initialized with Database ID: ${firebaseConfig.firestoreDatabaseId}`);
 
 // Finnhub Setup
 const finnhubKey = process.env.VITE_FINNHUB_API_KEY || "";
@@ -85,7 +90,7 @@ async function startServer() {
     "SAND/USDT", "MANA/USDT", "THETA/USDT", "CHZ/USDT", "EOS/USDT", "NEO/USDT", "IOTA/USDT", "XMR/USDT", "ZEC/USDT", "DASH/USDT",
     "CRV/USDT", "DYDX/USDT", "SNX/USDT", "GMX/USDT", "PENDLE/USDT", "ARKM/USDT", "W/USDT", "ENA/USDT", "1000SATS/USDT", "BOME/USDT",
     "NOT/USDT", "STRK/USDT", "PYTH/USDT", "JTO/USDT", "ALT/USDT", "MANTA/USDT", "BEAM/USDT", "PIXEL/USDT",
-    "PORTAL/USDT", "XAI/USDT", "ACE/USDT", "DYM/USDT", "MAVIA/USDT", "AEVO/USDT", "ETHFI/USDT", "METIS/USDT", "VANRY/USDT",
+    "PORTAL/USDT", "XAI/USDT", "ACE/USDT", "DYM/USDT", "AEVO/USDT", "ETHFI/USDT", "METIS/USDT", "VANRY/USDT",
     "OM/USDT", "ONDO/USDT", "CORE/USDT", "TNSR/USDT", "SAGA/USDT", "TAIKO/USDT", "ZK/USDT", "IO/USDT", "ATH/USDT", "ZRO/USDT",
     "LISTA/USDT", "HMSTR/USDT", "CATI/USDT", "EIGEN/USDT", "SCR/USDT", "GRASS/USDT", "DRIFT/USDT", "MOODENG/USDT", "GOAT/USDT",
     "PNUT/USDT", "ACT/USDT", "HYPE/USDT", "VIRTUAL/USDT", "AI16Z/USDT", "FARTCOIN/USDT", "TRUMP/USDT", "MELANIA/USDT", "SPX/USDT",
@@ -104,15 +109,23 @@ async function startServer() {
   const binance = new ccxt.binance({ enableRateLimit: true });
   async function updateCryptoPrices() {
     try {
-      const tickers = await binance.fetchTickers(CRYPTO_SYMBOLS);
-      const batch = db.batch();
+      // Fetching all tickers is safer than passing a list that might contain delisted/invalid symbols
+      const tickers = await binance.fetchTickers();
+      let currentBatch = clientWriteBatch(db);
       let count = 0;
 
+      // Create a set for faster lookup
+      const symbolSet = new Set(CRYPTO_SYMBOLS);
+
       for (const symbol in tickers) {
+        if (!symbolSet.has(symbol)) continue;
+
         const ticker = tickers[symbol];
         let docId = symbol.replace("/", "-");
         let price = ticker.last;
         
+        if (price === undefined || price === null) continue;
+
         // Handle 10000 prefixes
         if (docId === "1000SATS-USDT") {
           docId = "10000SATS-USDT";
@@ -122,8 +135,8 @@ async function startServer() {
           price *= 10000;
         }
 
-        const priceDoc = db.collection("prices").doc(docId);
-        batch.set(priceDoc, {
+        const priceDoc = clientDoc(db, "prices", docId);
+        currentBatch.set(priceDoc, {
           symbol: docId,
           price: price,
           change: ticker.percentage || 0,
@@ -131,117 +144,169 @@ async function startServer() {
           lastUpdated: new Date().toISOString()
         }, { merge: true });
         count++;
+
+        // Firestore batch limit is 500
+        if (count % 400 === 0) {
+          await currentBatch.commit();
+          currentBatch = clientWriteBatch(db);
+        }
       }
 
-      if (count > 0) {
-        await batch.commit();
-        console.log(`[Worker] Updated ${count} crypto prices using CCXT`);
+      if (count % 400 !== 0) {
+        await currentBatch.commit();
       }
+      console.log(`[Worker] Updated ${count} crypto prices using CCXT`);
     } catch (err) {
       console.error("[Worker] CCXT Crypto update failed:", err);
     }
   }
 
-  // --- BIST/Commodity Worker (Improved Yahoo/TradingView Fetch) ---
-  async function fetchWithRetry(url: string, options: any, retries = 3, delay = 2000) {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const res = await fetch(url, options);
-        if (res.ok) return res;
-        if (res.status === 429) {
-          console.log(`[Worker] Rate limited (429), retrying in ${delay * 2}ms...`);
-          await new Promise(r => setTimeout(r, delay * 2));
-          delay *= 2;
-          continue;
+  // --- BIST/Commodity Worker (Alternative Sources) ---
+  async function fetchGoogleFinancePrice(symbol: string) {
+    const url = `https://www.google.com/finance/quote/${symbol}`;
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        console.error(`[Worker] Fetch status ${res.status} for ${url}`);
-        if (i === retries - 1) return res;
-      } catch (err: any) {
-        if (i === retries - 1) throw err;
-        console.log(`[Worker] Fetch failed: ${err.message}, retrying in ${delay}ms... (${i + 1}/${retries})`);
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const match = text.match(/data-last-price="([^"]+)"/);
+        if (match) return parseFloat(match[1].replace(/,/g, ''));
+        
+        const match2 = text.match(/class="YMlS1d"[^>]*>([^<]+)</);
+        if (match2) return parseFloat(match2[1].replace(/,/g, ''));
       }
-      await new Promise(r => setTimeout(r, delay));
-      delay *= 2;
+    } catch (err) {
+      console.error(`[GoogleFinance] Failed for ${symbol}:`, err);
     }
     return null;
   }
 
   async function updateBistPrices() {
     try {
-      const allSymbols = BIST_SYMBOLS.map(s => `${s}.IS`).concat(COMMODITIES);
-      const batchSize = 40;
-      
-      for (let i = 0; i < allSymbols.length; i += batchSize) {
-        const batchSymbols = allSymbols.slice(i, i + batchSize).join(",");
-        const url = `https://query2.finance.yahoo.com/v6/finance/quote?symbols=${encodeURIComponent(batchSymbols)}`;
+      let count = 0;
+
+      // 1. Update BIST Symbols via Google Finance Scraping
+      const chunkSize = 10;
+      for (let i = 0; i < BIST_SYMBOLS.length; i += chunkSize) {
+        const batch = clientWriteBatch(db);
+        const chunk = BIST_SYMBOLS.slice(i, i + chunkSize);
+        let chunkCount = 0;
         
-        const res = await fetchWithRetry(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Origin': 'https://finance.yahoo.com',
-            'Referer': 'https://finance.yahoo.com/'
-          }
-        });
-        
-        if (res && res.ok) {
-          const data = await res.json();
-          const quotes = data.quoteResponse?.result || [];
-          const batch = db.batch();
-          let count = 0;
-          
-          quotes.forEach((q: any) => {
-            let symbol = q.symbol;
-            if (symbol.endsWith(".IS")) symbol = symbol.replace(".IS", "");
-            if (symbol.startsWith("^")) symbol = symbol.replace("^", "");
-            
-            const priceDoc = db.collection("prices").doc(symbol);
+        await Promise.all(chunk.map(async (symbol) => {
+          const price = await fetchGoogleFinancePrice(`${symbol}:IST`);
+          if (price) {
+            const priceDoc = clientDoc(db, "prices", symbol);
             batch.set(priceDoc, {
               symbol: symbol,
-              price: q.regularMarketPrice,
-              change: q.regularMarketChangePercent || 0,
-              volume: q.regularMarketVolume || 0,
+              price: price,
               lastUpdated: new Date().toISOString()
             }, { merge: true });
-            count++;
-          });
-
-          // Manual Gram Gold/Silver
-          const prices: any = {};
-          quotes.forEach((q: any) => prices[q.symbol] = q.regularMarketPrice);
-          const usltry = prices["TRY=X"];
-          const gold = prices["GC=F"];
-          const silver = prices["SI=F"];
-          
-          if (usltry) {
-            if (gold) {
-              const gramGold = (gold / 31.1035) * usltry;
-              batch.set(db.collection("prices").doc("GAU=X"), {
-                symbol: "GAU=X",
-                price: gramGold,
-                lastUpdated: new Date().toISOString()
-              }, { merge: true });
-            }
-            if (silver) {
-              const gramSilver = (silver / 31.1035) * usltry;
-              batch.set(db.collection("prices").doc("GAG=X"), {
-                symbol: "GAG=X",
-                price: gramSilver,
-                lastUpdated: new Date().toISOString()
-              }, { merge: true });
-            }
+            chunkCount++;
           }
+        }));
 
-          if (count > 0) {
-            await batch.commit();
-            console.log(`[Worker] Updated ${count} BIST/Commodity prices (Batch ${Math.floor(i/batchSize) + 1})`);
-          }
-        } else if (res) {
-          console.error(`[Worker] BIST fetch failed after retries: ${res.status}`);
+        if (chunkCount > 0) {
+          await batch.commit();
+          count += chunkCount;
         }
-        await new Promise(r => setTimeout(r, 2000));
+        // Small delay between chunks
+        await new Promise(r => setTimeout(r, 1000));
       }
+
+      // 2. Update FX and Commodities
+      const metaBatch = clientWriteBatch(db);
+      let metaCount = 0;
+
+      try {
+        const fxRes = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+        if (fxRes.ok) {
+          const fxData = await fxRes.json();
+          const usdTry = fxData.rates.TRY;
+          if (usdTry) {
+            metaBatch.set(clientDoc(db, "prices", "TRY=X"), {
+              symbol: "TRY=X",
+              price: usdTry,
+              lastUpdated: new Date().toISOString()
+            }, { merge: true });
+            metaCount++;
+
+            // 3. Update Gold/Silver via Gold-API
+            const goldRes = await fetch("https://api.gold-api.com/price/XAU");
+            const silverRes = await fetch("https://api.gold-api.com/price/XAG");
+            
+            if (goldRes.ok) {
+              const goldData = await goldRes.json();
+              const goldPrice = goldData.price;
+              if (goldPrice) {
+                const gramGold = (goldPrice / 31.1035) * usdTry;
+                metaBatch.set(clientDoc(db, "prices", "GAU=X"), {
+                  symbol: "GAU=X",
+                  price: gramGold,
+                  lastUpdated: new Date().toISOString()
+                }, { merge: true });
+                metaCount++;
+                
+                metaBatch.set(clientDoc(db, "prices", "GC=F"), {
+                  symbol: "GC=F",
+                  price: goldPrice,
+                  lastUpdated: new Date().toISOString()
+                }, { merge: true });
+                metaCount++;
+              }
+            }
+
+            if (silverRes.ok) {
+              const silverData = await silverRes.json();
+              const silverPrice = silverData.price;
+              if (silverPrice) {
+                const gramSilver = (silverPrice / 31.1035) * usdTry;
+                metaBatch.set(clientDoc(db, "prices", "GAG=X"), {
+                  symbol: "GAG=X",
+                  price: gramSilver,
+                  lastUpdated: new Date().toISOString()
+                }, { merge: true });
+                metaCount++;
+
+                metaBatch.set(clientDoc(db, "prices", "SI=F"), {
+                  symbol: "SI=F",
+                  price: silverPrice,
+                  lastUpdated: new Date().toISOString()
+                }, { merge: true });
+                metaCount++;
+              }
+            }
+          }
+        }
+      } catch (fxErr) {
+        console.error("[Worker] FX/Gold update failed:", fxErr);
+      }
+
+      // 4. Indices
+      const indices = [
+        { sym: "XU100", gSym: "XU100:INDEXIST" },
+        { sym: "XU030", gSym: "XU030:INDEXIST" }
+      ];
+      for (const idx of indices) {
+        const price = await fetchGoogleFinancePrice(idx.gSym);
+        if (price) {
+          metaBatch.set(clientDoc(db, "prices", idx.sym), {
+            symbol: idx.sym,
+            price: price,
+            lastUpdated: new Date().toISOString()
+          }, { merge: true });
+          metaCount++;
+        }
+      }
+
+      if (metaCount > 0) {
+        await metaBatch.commit();
+        count += metaCount;
+      }
+
+      console.log(`[Worker] Updated ${count} BIST/FX/Commodity prices using alternative sources`);
     } catch (err) {
       console.error("[Worker] BIST update failed:", err);
     }
@@ -257,9 +322,9 @@ async function startServer() {
           return;
         }
         if (data && Array.isArray(data)) {
-          const batch = db.batch();
+          const batch = clientWriteBatch(db);
           data.slice(0, 10).forEach((item: any) => {
-            const newsDoc = db.collection("news").doc(String(item.id));
+            const newsDoc = clientDoc(db, "news", String(item.id));
             batch.set(newsDoc, {
               id: item.id,
               title: item.headline,
@@ -280,9 +345,9 @@ async function startServer() {
   }
 
   // Start background loops
-  setInterval(updateCryptoPrices, 10000); 
-  setInterval(updateBistPrices, 30000); 
-  setInterval(updateNews, 60000); // News every minute
+  setInterval(updateCryptoPrices, 15000); 
+  setInterval(updateBistPrices, 60000); 
+  setInterval(updateNews, 120000); // News every 2 minutes
   
   // Initial run
   updateCryptoPrices();
