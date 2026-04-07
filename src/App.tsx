@@ -225,9 +225,9 @@ const scanIntervalRef = useRef<any>(null);
 const [currentTime, setCurrentTime] = useState("");
 
 const stocks = useMemo(() => {
-  if (market === "BIST") return BIST_STOCKS;
-  if (market === "CRYPTO") return CRYPTO_COINS;
-  return COMMODITY_ITEMS;
+  const list = market === "BIST" ? BIST_STOCKS : (market === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
+  console.log(`[App] Current market: ${market}, stocks count: ${list.length}`);
+  return list;
 }, [market]);
 
 useEffect(() => {
@@ -243,16 +243,18 @@ useEffect(() => {
   // CORS hatasını çözen Proxy'li gerçek zamanlı API isteği
   const fetchLivePrices = useCallback(async () => {
     if (isFetchingRef.current) return;
+    console.log("[App] fetchLivePrices started...");
     isFetchingRef.current = true;
     try {
       setFetchError(null);
       const stockSymbols = BIST_STOCKS.map(s => `${s.symbol}.IS`);
       const cryptoSymbols = CRYPTO_COINS.map(s => s.symbol.replace("10000", "").replace("-USDT", "-USD"));
       const commoditySymbols = COMMODITY_ITEMS.map(s => s.symbol);
-      const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
+      const indexSymbols = ["XU100.IS", "XU030.IS", "^XU100", "^XU030", "TRY=X"];
       const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
+      console.log(`[App] Fetching ${allSymbols.length} symbols in batches...`);
       
-      const batchSize = 40;
+      const batchSize = 100;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -269,6 +271,7 @@ useEffect(() => {
         while (retryCount < maxRetries && !batchSuccess) {
           try {
             const res = await fetch(`/api/yahoo?symbols=${encodeURIComponent(batchSymbols)}`);
+            console.log(`[App] Batch ${batchSymbols.substring(0, 30)}... status: ${res.status}`);
             if (res.ok) {
               const text = await res.text();
               let data;
@@ -281,6 +284,7 @@ useEffect(() => {
                 throw new Error("Invalid JSON response from server");
               }
               if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                console.log(`[App] Received ${Object.keys(data).length} prices`);
                 anySuccess = true;
                 batchSuccess = true;
                 
@@ -288,7 +292,7 @@ useEffect(() => {
                 setPrices(prev => {
                   const next = { ...prev };
                   Object.keys(data).forEach(key => {
-                    let sym = key.replace(".IS", "");
+                    let sym = key.replace(".IS", "").replace("^", "");
                     if (sym.includes("-USD") && !sym.includes("TRY")) {
                       sym = sym.replace("-USD", "-USDT");
                     }

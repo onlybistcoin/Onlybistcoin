@@ -56,27 +56,47 @@ async function startServer() {
 
       // Stage 1: Try batch quote (v7 then v6)
       for (const base of bases) {
-        for (const endpoint of ["/v7/finance/quote", "/v6/finance/quote"]) {
+        for (const endpoint of ["/v7/finance/quote", "/v6/finance/quote", "/v8/finance/spark"]) {
           try {
-            const url = `${base}${endpoint}?symbols=${encodeURIComponent(symbols)}`;
+            const url = endpoint.includes("spark") 
+              ? `${base}${endpoint}?symbols=${encodeURIComponent(symbols)}`
+              : `${base}${endpoint}?symbols=${encodeURIComponent(symbols)}`;
+            
+            console.log(`[Yahoo Proxy] Fetching batch: ${url}`);
             const res = await fetch(url, { headers: commonHeaders });
             if (res.ok) {
               const data = await res.json();
-              const quotes = data.quoteResponse?.result || [];
-              if (quotes.length > 0) {
-                quotes.forEach((q: any) => {
-                  finalResult[q.symbol] = {
-                    price: q.regularMarketPrice,
-                    change: q.regularMarketChangePercent || 0,
-                    previousClose: q.regularMarketPreviousClose,
-                    volume: q.regularMarketVolume || 0,
-                    symbol: q.symbol
-                  };
+              
+              if (endpoint.includes("spark")) {
+                Object.keys(data).forEach(s => {
+                  const item = data[s];
+                  if (item && item.close && item.close.length > 0) {
+                    finalResult[s] = {
+                      price: item.close[item.close.length - 1],
+                      change: item.previousClose ? ((item.close[item.close.length - 1] - item.previousClose) / item.previousClose) * 100 : 0,
+                      previousClose: item.previousClose,
+                      symbol: s
+                    };
+                  }
                 });
-                if (Object.keys(finalResult).length >= symbolList.length) {
-                  success = true;
-                  break;
+              } else {
+                const quotes = data.quoteResponse?.result || [];
+                if (quotes.length > 0) {
+                  quotes.forEach((q: any) => {
+                    finalResult[q.symbol] = {
+                      price: q.regularMarketPrice,
+                      change: q.regularMarketChangePercent || 0,
+                      previousClose: q.regularMarketPreviousClose,
+                      volume: q.regularMarketVolume || 0,
+                      symbol: q.symbol
+                    };
+                  });
                 }
+              }
+              
+              if (Object.keys(finalResult).length >= symbolList.length) {
+                success = true;
+                break;
               }
             }
           } catch (e) { /* silent fail for batch */ }
@@ -109,7 +129,9 @@ async function startServer() {
                   url = `${base}${strategy.path}${encodeURIComponent(sym)}&range=1d&interval=5m`;
                 }
                 
+                console.log(`[Yahoo Proxy] Stage 2 Fetching ${sym} via ${strategy.type}: ${url}`);
                 const res = await fetch(url, { headers: commonHeaders });
+                console.log(`[Yahoo Proxy] Stage 2 Status: ${res.status} for ${sym}`);
                 if (res.ok) {
                   const data = await res.json();
                   
@@ -174,7 +196,25 @@ async function startServer() {
           }
           await new Promise(r => setTimeout(r, 50));
         }
-        if (Object.keys(finalResult).length > 0) success = true;
+        // Manual Gram Gold/Silver calculation
+      if (!finalResult["GAU=X"] || !finalResult["GAG=X"]) {
+        const gold = finalResult["GC=F"]?.price;
+        const silver = finalResult["SI=F"]?.price;
+        const usltry = finalResult["TRY=X"]?.price;
+        
+        if (usltry) {
+          if (gold && !finalResult["GAU=X"]) {
+            const gramGold = (gold / 31.1035) * usltry;
+            finalResult["GAU=X"] = { price: gramGold, change: finalResult["GC=F"].change, symbol: "GAU=X" };
+          }
+          if (silver && !finalResult["GAG=X"]) {
+            const gramSilver = (silver / 31.1035) * usltry;
+            finalResult["GAG=X"] = { price: gramSilver, change: finalResult["SI=F"].change, symbol: "GAG=X" };
+          }
+        }
+      }
+
+      if (Object.keys(finalResult).length > 0) success = true;
       }
 
       if (success) {
