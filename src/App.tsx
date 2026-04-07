@@ -358,7 +358,7 @@ useEffect(() => {
           }
         }
         // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       if (!anySuccess) {
@@ -375,8 +375,8 @@ useEffect(() => {
 
   useEffect(() => {
     fetchLivePrices(); 
-    // Update every 2 minutes to stay under rate limits
-    const interval = setInterval(fetchLivePrices, 120000);
+    // Update every 5 seconds as requested
+    const interval = setInterval(fetchLivePrices, 5000);
     return () => clearInterval(interval);
   }, [fetchLivePrices]);
 

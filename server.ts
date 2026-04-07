@@ -13,9 +13,9 @@ async function startServer() {
   // API route to proxy Yahoo Finance requests for real-time quotes
   // Simple in-memory cache to prevent 429 errors
   const cache: Record<string, { data: any, timestamp: number }> = {};
-  const CACHE_TTL = 60000; // 1 minute cache
+  const CACHE_TTL = 5000; // 5 seconds cache
   let requestQueue = Promise.resolve();
-  const MIN_REQUEST_GAP = 500; // Minimum 0.5 seconds between outgoing requests to Yahoo
+  const MIN_REQUEST_GAP = 200; // Minimum 0.2 seconds between outgoing requests to Yahoo
 
   app.get("/api/yahoo", async (req, res) => {
     try {
