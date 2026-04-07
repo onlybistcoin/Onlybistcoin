@@ -13,9 +13,9 @@ async function startServer() {
   // API route to proxy Yahoo Finance requests for real-time quotes
   // Simple in-memory cache to prevent 429 errors
   const cache: Record<string, { data: any, timestamp: number }> = {};
-  const CACHE_TTL = 300000; // 5 minutes cache
+  const CACHE_TTL = 60000; // 1 minute cache
   let requestQueue = Promise.resolve();
-  const MIN_REQUEST_GAP = 2000; // Minimum 2 seconds between outgoing requests to Yahoo
+  const MIN_REQUEST_GAP = 500; // Minimum 0.5 seconds between outgoing requests to Yahoo
 
   app.get("/api/yahoo", async (req, res) => {
     try {
@@ -69,6 +69,7 @@ async function startServer() {
                     price: q.regularMarketPrice,
                     change: q.regularMarketChangePercent || 0,
                     previousClose: q.regularMarketPreviousClose,
+                    volume: q.regularMarketVolume || 0,
                     symbol: q.symbol
                   };
                 });
@@ -83,8 +84,9 @@ async function startServer() {
         if (success) break;
       }
 
-      // Stage 2: If symbols are still missing, try individual strategies
       if (Object.keys(finalResult).length < symbolList.length) {
+        const missing = symbolList.filter(s => !finalResult[s]);
+        console.warn(`[Yahoo Proxy] Missing symbols from batch: ${missing.join(", ")}`);
         for (const sym of symbolList) {
           if (finalResult[sym]) continue;
 
@@ -92,9 +94,7 @@ async function startServer() {
           // Strategies in order of preference
           const strategies = [
             { type: 'quote', path: '/v7/finance/quote?symbols=' },
-            { type: 'quote', path: '/v6/finance/quote?symbols=' },
-            { type: 'spark', path: '/v8/finance/spark?symbols=' },
-            { type: 'chart', path: '/v8/finance/chart/' }
+            { type: 'spark', path: '/v8/finance/spark?symbols=' }
           ];
 
           for (const strategy of strategies) {
@@ -120,6 +120,7 @@ async function startServer() {
                         price: q.regularMarketPrice,
                         change: q.regularMarketChangePercent || 0,
                         previousClose: q.regularMarketPreviousClose,
+                        volume: q.regularMarketVolume || 0,
                         symbol: q.symbol
                       };
                       symSuccess = true;
@@ -166,40 +167,6 @@ async function startServer() {
               } catch (e) { /* ignore */ }
             }
             if (symSuccess) break;
-          }
-          
-          if (!symSuccess) {
-            // Last ditch effort: Try to search for the symbol to see if it has a different suffix
-            try {
-              const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym.split('.')[0])}`;
-              const searchRes = await fetch(searchUrl, { headers: commonHeaders });
-              if (searchRes.ok) {
-                const searchData = await searchRes.json();
-                const firstResult = searchData.quotes?.[0];
-                if (firstResult && firstResult.symbol !== sym) {
-                  console.log(`[Yahoo Proxy] Found alternative symbol for ${sym}: ${firstResult.symbol}`);
-                  // Try to fetch the alternative symbol
-                  for (const base of bases) {
-                    const altUrl = `${base}/v7/finance/quote?symbols=${encodeURIComponent(firstResult.symbol)}`;
-                    const altRes = await fetch(altUrl, { headers: commonHeaders });
-                    if (altRes.ok) {
-                      const altData = await altRes.json();
-                      const q = altData.quoteResponse?.result?.[0];
-                      if (q) {
-                        finalResult[sym] = {
-                          price: q.regularMarketPrice,
-                          change: q.regularMarketChangePercent || 0,
-                          previousClose: q.regularMarketPreviousClose,
-                          symbol: sym // Map it back to the requested symbol
-                        };
-                        symSuccess = true;
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-            } catch (e) { /* ignore search errors */ }
           }
           
           if (!symSuccess) {

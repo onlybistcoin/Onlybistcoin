@@ -62,8 +62,8 @@ const BIST_STOCKS = [
 const CRYPTO_COINS = [
   ["BTC-USDT", "Bitcoin"], ["ETH-USDT", "Ethereum"], ["SOL-USDT", "Solana"], ["BNB-USDT", "Binance Coin"],
   ["XRP-USDT", "XRP"], ["ADA-USDT", "Cardano"], ["AVAX-USDT", "Avalanche"], ["DOGE-USDT", "Dogecoin"],
-  ["DOT-USDT", "Polkadot"], ["LINK-USDT", "Chainlink"], ["MATIC-USDT", "Polygon"], ["NEAR-USDT", "Near Protocol"],
-  ["10000PEPE-USDT", "10000 Pepe"], ["FET-USDT", "Fetch.ai"], ["RNDR-USDT", "Render"], ["10000SHIB-USDT", "10000 Shiba Inu"],
+  ["DOT-USDT", "Polkadot"], ["LINK-USDT", "Chainlink"], ["POL-USDT", "Polygon (POL)"], ["NEAR-USDT", "Near Protocol"],
+  ["10000PEPE-USDT", "10000 Pepe"], ["FET-USDT", "Fetch.ai"], ["RENDER-USDT", "Render"], ["10000SHIB-USDT", "10000 Shiba Inu"],
   ["LTC-USDT", "Litecoin"], ["BCH-USDT", "Bitcoin Cash"], ["UNI-USDT", "Uniswap"], ["ARB-USDT", "Arbitrum"],
   ["TIA-USDT", "Celestia"], ["OP-USDT", "Optimism"], ["INJ-USDT", "Injective"], ["SUI-USDT", "Sui"],
   ["APT-USDT", "Aptos"], ["STX-USDT", "Stacks"], ["FIL-USDT", "Filecoin"], ["ATOM-USDT", "Cosmos"],
@@ -252,7 +252,7 @@ useEffect(() => {
       const indexSymbols = ["XU100.IS", "XU030.IS", "TRY=X"];
       const allSymbols = Array.from(new Set([...stockSymbols, ...cryptoSymbols, ...commoditySymbols, ...indexSymbols]));
       
-      const batchSize = 20;
+      const batchSize = 40;
       const batches = [];
       for (let i = 0; i < allSymbols.length; i += batchSize) {
         batches.push(allSymbols.slice(i, i + batchSize).join(","));
@@ -306,6 +306,10 @@ useEffect(() => {
                       const precision = finalSym.startsWith("10000") ? 5 : (finalSym.includes("-USDT") ? 4 : 2);
                       next[finalSym] = +finalPrice.toFixed(precision);
                       
+                      if (stockData.volume) {
+                        next[`${finalSym}_volume`] = stockData.volume;
+                      }
+                      
                       if (stockData.change !== undefined && stockData.change !== null) {
                         next[`${finalSym}_change`] = +stockData.change.toFixed(2);
                       } else if (stockData.previousClose) {
@@ -316,6 +320,23 @@ useEffect(() => {
                   });
                   return next;
                 });
+
+                // Manual calculations for Gram Gold/Silver if needed
+                setPrices(prev => {
+                  const next = { ...prev };
+                  const usdTry = next["TRY=X"];
+                  const goldOns = next["GC=F"];
+                  const silverOns = next["SI=F"];
+                  
+                  if (usdTry && goldOns && !next["GAU=X"]) {
+                    next["GAU=X"] = +((goldOns / 31.1035) * usdTry).toFixed(2);
+                  }
+                  if (usdTry && silverOns && !next["GAG=X"]) {
+                    next["GAG=X"] = +((silverOns / 31.1035) * usdTry).toFixed(2);
+                  }
+                  return next;
+                });
+
                 setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
               } else {
                 // Empty data from proxy means it tried all fallbacks and failed for this batch
@@ -337,7 +358,7 @@ useEffect(() => {
           }
         }
         // Delay between batches
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       
       if (!anySuccess) {
