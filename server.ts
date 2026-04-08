@@ -8,6 +8,7 @@ import { getFirestore as getClientFirestore, collection as clientCollection, doc
 import firebaseConfig from "./firebase-applet-config.json" with { type: "json" };
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
+import * as cheerio from "cheerio";
 
 // Initialize Firebase Admin (for other things if needed)
 try {
@@ -33,23 +34,10 @@ let finnhubClient: any = null;
 
 if (finnhubKey) {
   try {
-    // Handle potential ESM/CJS interop issues
     const finnhubModule: any = (finnhub as any).default || finnhub;
-    const ApiClient = finnhubModule.ApiClient;
     const DefaultApi = finnhubModule.DefaultApi;
-
-    if (ApiClient && ApiClient.instance) {
-      const api_key = ApiClient.instance.authentications['api_key'];
-      api_key.apiKey = finnhubKey;
-      finnhubClient = new DefaultApi();
-      console.log("[Finnhub] Client initialized successfully");
-    } else {
-      console.warn("[Finnhub] ApiClient.instance not found, attempting alternative initialization");
-      // Fallback if the structure is different
-      const client = new ApiClient();
-      client.authentications['api_key'].apiKey = finnhubKey;
-      finnhubClient = new DefaultApi(client);
-    }
+    finnhubClient = new DefaultApi(finnhubKey);
+    console.log("[Finnhub] Client initialized successfully");
   } catch (err) {
     console.error("[Finnhub] Initialization error:", err);
   }
@@ -60,6 +48,13 @@ async function startServer() {
   const PORT = 3000;
   
   app.use(express.json());
+
+  // --- In-Memory Price Cache ---
+  const inMemoryPrices: Record<string, any> = {};
+
+  app.get("/api/prices", (req, res) => {
+    res.json(inMemoryPrices);
+  });
 
   // --- Symbols ---
   const BIST_SYMBOLS = [
@@ -135,11 +130,19 @@ async function startServer() {
           price *= 10000;
         }
 
+        const change = ticker.percentage || 0;
+        
+        inMemoryPrices[docId] = {
+          price: price,
+          change: change,
+          lastUpdated: new Date().toISOString()
+        };
+
         const priceDoc = clientDoc(db, "prices", docId);
         currentBatch.set(priceDoc, {
           symbol: docId,
           price: price,
-          change: ticker.percentage || 0,
+          change: change,
           volume: ticker.quoteVolume || 0,
           lastUpdated: new Date().toISOString()
         }, { merge: true });
@@ -164,124 +167,156 @@ async function startServer() {
   // --- BIST/Commodity Worker (Alternative Sources) ---
   async function fetchGoogleFinancePrice(symbol: string) {
     const url = `https://www.google.com/finance/quote/${symbol}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
     try {
       const res = await fetch(url, {
+        signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
       });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const text = await res.text();
-        const match = text.match(/data-last-price="([^"]+)"/);
-        if (match) return parseFloat(match[1].replace(/,/g, ''));
+        const $ = cheerio.load(text);
+        const price = $('div[data-last-price]').attr('data-last-price');
+        if (price) return parseFloat(price.replace(/,/g, ''));
         
-        const match2 = text.match(/class="YMlS1d"[^>]*>([^<]+)</);
-        if (match2) return parseFloat(match2[1].replace(/,/g, ''));
+        const price2 = $('.YMlS1d').text();
+        if (price2) return parseFloat(price2.replace(/,/g, ''));
       }
     } catch (err) {
-      console.error(`[GoogleFinance] Failed for ${symbol}:`, err);
+      clearTimeout(timeoutId);
+      console.error(`[GoogleFinance] Failed for ${symbol}:`, (err as Error).message);
     }
     return null;
   }
 
   async function updateBistPrices() {
+    console.log("updateBistPrices called");
     try {
       let count = 0;
 
       // 1. Update BIST Symbols via Google Finance Scraping
-      const chunkSize = 10;
-      for (let i = 0; i < BIST_SYMBOLS.length; i += chunkSize) {
-        const batch = clientWriteBatch(db);
-        const chunk = BIST_SYMBOLS.slice(i, i + chunkSize);
-        let chunkCount = 0;
-        
-        await Promise.all(chunk.map(async (symbol) => {
-          const price = await fetchGoogleFinancePrice(`${symbol}:IST`);
-          if (price) {
-            const priceDoc = clientDoc(db, "prices", symbol);
-            batch.set(priceDoc, {
-              symbol: symbol,
-              price: price,
-              lastUpdated: new Date().toISOString()
-            }, { merge: true });
-            chunkCount++;
-          }
-        }));
+      let batch = clientWriteBatch(db);
+      let batchCount = 0;
+      for (const symbol of BIST_SYMBOLS) {
+        const price = await fetchGoogleFinancePrice(`${symbol}:IST`);
+        if (price) {
+          inMemoryPrices[symbol] = {
+            price: price,
+            lastUpdated: new Date().toISOString()
+          };
 
-        if (chunkCount > 0) {
-          await batch.commit();
-          count += chunkCount;
+          const priceDoc = clientDoc(db, "prices", symbol);
+          batch.set(priceDoc, {
+            symbol: symbol,
+            price: price,
+            lastUpdated: new Date().toISOString()
+          }, { merge: true });
+          count++;
+          batchCount++;
         }
-        // Small delay between chunks
-        await new Promise(r => setTimeout(r, 1000));
+        
+        if (batchCount >= 20) {
+          try {
+            await batch.commit();
+          } catch (e) {
+            console.error("Batch commit failed (Quota?):", e);
+          }
+          batch = clientWriteBatch(db);
+          batchCount = 0;
+        }
+        
+        await new Promise(r => setTimeout(r, 200)); // Reduced to 200ms
       }
+      
+      if (batchCount > 0) {
+        console.log("Committing final batch for BIST symbols");
+        try {
+          await batch.commit();
+        } catch (e) {
+          console.error("Final batch commit failed (Quota?):", e);
+        }
+      }
+      console.log("Batch committed for BIST symbols");
+    } catch (err) {
+      console.error("[Worker] BIST update failed:", err);
+    }
+  }
 
-      // 2. Update FX and Commodities
+  async function updateCommodities() {
+    console.log("updateCommodities called");
+    try {
       const metaBatch = clientWriteBatch(db);
       let metaCount = 0;
 
-      try {
-        const fxRes = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
-        if (fxRes.ok) {
-          const fxData = await fxRes.json();
-          const usdTry = fxData.rates.TRY;
-          if (usdTry) {
-            metaBatch.set(clientDoc(db, "prices", "TRY=X"), {
-              symbol: "TRY=X",
-              price: usdTry,
-              lastUpdated: new Date().toISOString()
-            }, { merge: true });
-            metaCount++;
+      const fxRes = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+      if (fxRes.ok) {
+        const fxData = await fxRes.json();
+        const usdTry = fxData.rates.TRY;
+        if (usdTry) {
+          inMemoryPrices["TRY=X"] = { price: usdTry, lastUpdated: new Date().toISOString() };
+          metaBatch.set(clientDoc(db, "prices", "TRY=X"), {
+            symbol: "TRY=X",
+            price: usdTry,
+            lastUpdated: new Date().toISOString()
+          }, { merge: true });
+          metaCount++;
 
-            // 3. Update Gold/Silver via Gold-API
-            const goldRes = await fetch("https://api.gold-api.com/price/XAU");
-            const silverRes = await fetch("https://api.gold-api.com/price/XAG");
-            
-            if (goldRes.ok) {
-              const goldData = await goldRes.json();
-              const goldPrice = goldData.price;
-              if (goldPrice) {
-                const gramGold = (goldPrice / 31.1035) * usdTry;
-                metaBatch.set(clientDoc(db, "prices", "GAU=X"), {
-                  symbol: "GAU=X",
-                  price: gramGold,
-                  lastUpdated: new Date().toISOString()
-                }, { merge: true });
-                metaCount++;
-                
-                metaBatch.set(clientDoc(db, "prices", "GC=F"), {
-                  symbol: "GC=F",
-                  price: goldPrice,
-                  lastUpdated: new Date().toISOString()
-                }, { merge: true });
-                metaCount++;
-              }
+          // 3. Update Gold/Silver via Gold-API
+          const goldRes = await fetch("https://api.gold-api.com/price/XAU");
+          const silverRes = await fetch("https://api.gold-api.com/price/XAG");
+          
+          if (goldRes.ok) {
+            const goldData = await goldRes.json();
+            const goldPrice = goldData.price;
+            if (goldPrice) {
+              const gramGold = (goldPrice / 31.1035) * usdTry;
+              inMemoryPrices["GAU=X"] = { price: gramGold, lastUpdated: new Date().toISOString() };
+              inMemoryPrices["GC=F"] = { price: goldPrice, lastUpdated: new Date().toISOString() };
+              
+              metaBatch.set(clientDoc(db, "prices", "GAU=X"), {
+                symbol: "GAU=X",
+                price: gramGold,
+                lastUpdated: new Date().toISOString()
+              }, { merge: true });
+              metaCount++;
+              
+              metaBatch.set(clientDoc(db, "prices", "GC=F"), {
+                symbol: "GC=F",
+                price: goldPrice,
+                lastUpdated: new Date().toISOString()
+              }, { merge: true });
+              metaCount++;
             }
+          }
 
-            if (silverRes.ok) {
-              const silverData = await silverRes.json();
-              const silverPrice = silverData.price;
-              if (silverPrice) {
-                const gramSilver = (silverPrice / 31.1035) * usdTry;
-                metaBatch.set(clientDoc(db, "prices", "GAG=X"), {
-                  symbol: "GAG=X",
-                  price: gramSilver,
-                  lastUpdated: new Date().toISOString()
-                }, { merge: true });
-                metaCount++;
+          if (silverRes.ok) {
+            const silverData = await silverRes.json();
+            const silverPrice = silverData.price;
+            if (silverPrice) {
+              const gramSilver = (silverPrice / 31.1035) * usdTry;
+              inMemoryPrices["GAG=X"] = { price: gramSilver, lastUpdated: new Date().toISOString() };
+              inMemoryPrices["SI=F"] = { price: silverPrice, lastUpdated: new Date().toISOString() };
 
-                metaBatch.set(clientDoc(db, "prices", "SI=F"), {
-                  symbol: "SI=F",
-                  price: silverPrice,
-                  lastUpdated: new Date().toISOString()
-                }, { merge: true });
-                metaCount++;
-              }
+              metaBatch.set(clientDoc(db, "prices", "GAG=X"), {
+                symbol: "GAG=X",
+                price: gramSilver,
+                lastUpdated: new Date().toISOString()
+              }, { merge: true });
+              metaCount++;
+
+              metaBatch.set(clientDoc(db, "prices", "SI=F"), {
+                symbol: "SI=F",
+                price: silverPrice,
+                lastUpdated: new Date().toISOString()
+              }, { merge: true });
+              metaCount++;
             }
           }
         }
-      } catch (fxErr) {
-        console.error("[Worker] FX/Gold update failed:", fxErr);
       }
 
       // 4. Indices
@@ -292,6 +327,7 @@ async function startServer() {
       for (const idx of indices) {
         const price = await fetchGoogleFinancePrice(idx.gSym);
         if (price) {
+          inMemoryPrices[idx.sym] = { price: price, lastUpdated: new Date().toISOString() };
           metaBatch.set(clientDoc(db, "prices", idx.sym), {
             symbol: idx.sym,
             price: price,
@@ -302,13 +338,16 @@ async function startServer() {
       }
 
       if (metaCount > 0) {
-        await metaBatch.commit();
-        count += metaCount;
+        try {
+          await metaBatch.commit();
+        } catch (e) {
+          console.error("Commodities batch commit failed (Quota?):", e);
+        }
       }
 
-      console.log(`[Worker] Updated ${count} BIST/FX/Commodity prices using alternative sources`);
+      console.log(`[Worker] Updated ${metaCount} FX/Commodity prices`);
     } catch (err) {
-      console.error("[Worker] BIST update failed:", err);
+      console.error("[Worker] Commodities update failed:", err);
     }
   }
 
@@ -316,27 +355,31 @@ async function startServer() {
   async function updateNews() {
     if (!finnhubClient) return;
     try {
-      finnhubClient.marketNews('general', {}, async (error, data) => {
+      finnhubClient.marketNews('general', {}, async (error: any, data: any) => {
         if (error) {
           console.error("[News] Finnhub error:", error);
           return;
         }
         if (data && Array.isArray(data)) {
-          const batch = clientWriteBatch(db);
-          data.slice(0, 10).forEach((item: any) => {
-            const newsDoc = clientDoc(db, "news", String(item.id));
-            batch.set(newsDoc, {
-              id: item.id,
-              title: item.headline,
-              summary: item.summary,
-              url: item.url,
-              source: item.source,
-              timestamp: new Date(item.datetime * 1000).toISOString(),
-              category: item.category
-            }, { merge: true });
-          });
-          await batch.commit();
-          console.log(`[News] Updated ${data.length} news items from Finnhub`);
+          try {
+            const batch = clientWriteBatch(db);
+            data.slice(0, 10).forEach((item: any) => {
+              const newsDoc = clientDoc(db, "news", String(item.id));
+              batch.set(newsDoc, {
+                id: item.id,
+                title: item.headline,
+                summary: item.summary,
+                url: item.url,
+                source: item.source,
+                timestamp: new Date(item.datetime * 1000).toISOString(),
+                category: item.category
+              }, { merge: true });
+            });
+            await batch.commit();
+            console.log(`[News] Updated ${data.length} news items from Finnhub`);
+          } catch (commitErr) {
+            console.error("[News] Batch commit failed:", commitErr);
+          }
         }
       });
     } catch (err) {
@@ -344,15 +387,33 @@ async function startServer() {
     }
   }
 
-  // Start background loops
-  setInterval(updateCryptoPrices, 15000); 
-  setInterval(updateBistPrices, 60000); 
-  setInterval(updateNews, 120000); // News every 2 minutes
+  // --- Background Loops (Recursive to prevent overlapping) ---
   
+  async function loopCrypto() {
+    await updateCryptoPrices();
+    setTimeout(loopCrypto, 2000); // 2 seconds
+  }
+
+  async function loopBist() {
+    await updateBistPrices();
+    setTimeout(loopBist, 20000); // 20 seconds
+  }
+
+  async function loopCommodities() {
+    await updateCommodities();
+    setTimeout(loopCommodities, 60000); // 60 seconds
+  }
+
+  async function loopNews() {
+    await updateNews();
+    setTimeout(loopNews, 1800000); // 30 minutes
+  }
+
   // Initial run
-  updateCryptoPrices();
-  updateBistPrices();
-  updateNews();
+  loopCrypto();
+  loopBist();
+  loopCommodities();
+  loopNews();
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -374,4 +435,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});

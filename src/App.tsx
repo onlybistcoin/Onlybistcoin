@@ -245,35 +245,39 @@ useEffect(() => {
 }, []);
 
   useEffect(() => {
-    console.log("[App] Starting real-time Firestore listener...");
+    console.log("[App] Starting real-time API polling...");
     setLoading(true);
     
-    const q = query(collection(db, "prices"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setPrices(prev => {
-        const next = { ...prev };
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "added" || change.type === "modified") {
-            const data = change.doc.data();
-            const symbol = data.symbol;
-            next[symbol] = data.price;
-            if (data.change !== undefined) next[`${symbol}_change`] = data.change;
-            if (data.volume !== undefined) next[`${symbol}_volume`] = data.volume;
-          }
-        });
-        return next;
-      });
-      
-      setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      setLoading(false);
-      setFetchError(null);
-    }, (error) => {
-      console.error("Firestore subscription error:", error);
-      setFetchError("Veri bağlantısı kesildi");
-      setLoading(false);
-    });
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch('/api/prices');
+        if (res.ok) {
+          const data = await res.json();
+          setPrices(prev => {
+            const next = { ...prev };
+            for (const [symbol, info] of Object.entries(data)) {
+              const infoData = info as any;
+              next[symbol] = infoData.price;
+              if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
+              if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
+            }
+            return next;
+          });
+          
+          setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+          setLoading(false);
+          setFetchError(null);
+        }
+      } catch (error) {
+        console.error("API fetch error:", error);
+        setFetchError("Veri bağlantısı kesildi");
+        setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   // News Listener
