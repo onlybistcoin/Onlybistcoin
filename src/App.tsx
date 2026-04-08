@@ -891,8 +891,8 @@ function CeilingScreen({ candidates, prices, lastUpdated, onBack, onSelect }: an
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>TAVAN İHTİMALİ</span>
-                    <span style={{ color: "#ffd60a", fontSize: 10, fontWeight: 800 }}>%{score}</span>
+                    <span style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>{score === 100 ? "TAVAN KİLİT" : "TAVAN İHTİMALİ"}</span>
+                    <span style={{ color: "#ffd60a", fontSize: 10, fontWeight: 800 }}>{score === 100 ? "🔒 %100" : `%${score}`}</span>
                   </div>
                   <div style={{ background: "#21262d", height: 6, borderRadius: 3, overflow: "hidden" }}>
                     <div style={{ background: "linear-gradient(90deg, #ffd60a, #ff9f0a)", width: `${score}%`, height: "100%", borderRadius: 3 }} />
