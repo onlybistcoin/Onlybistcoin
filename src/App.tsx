@@ -208,9 +208,9 @@ const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 9150, "XU030": 10200, "TRY=X": 34.20, "EURTRY=X": 36.80,
-      "BTC-USDT": 96500, "ETH-USDT": 3450, "SOL-USDT": 235,
-      "GC=F": 2650, "GA=F": 2950, "GAG=X": 32.40
+      "XU100": 9155.32, "XU030": 10212.45, "TRY=X": 34.22, "EURTRY=X": 36.85,
+      "BTC-USDT": 96540.20, "ETH-USDT": 3455.10, "SOL-USDT": 235.40,
+      "GC=F": 2652.30, "GA=F": 2955.15, "GAG=X": 32.45
     };
     
     [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
@@ -270,8 +270,11 @@ useEffect(() => {
             data.forEach((t: any) => {
               if (t.symbol.endsWith("USDT")) {
                 const sym = t.symbol.replace("USDT", "-USDT");
-                next[sym] = parseFloat(t.lastPrice);
-                next[`${sym}_change`] = parseFloat(t.priceChangePercent);
+                let price = parseFloat(t.lastPrice);
+                if (!isNaN(price)) {
+                  next[sym] = price;
+                  next[`${sym}_change`] = parseFloat(t.priceChangePercent);
+                }
               }
             });
             return next;
@@ -350,7 +353,7 @@ useEffect(() => {
       console.log("[App] fetchPrices started");
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds
         
         // Add cache buster to backend request too
         const res = await fetch(`/api/prices?_=${Date.now()}`, { signal: controller.signal });
@@ -372,6 +375,7 @@ useEffect(() => {
               next[symbol] = infoData.price;
               if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
               if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
+              if (infoData.source) next[`${symbol}_source`] = infoData.source;
               // Store last updated per symbol if available
               if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
             }
@@ -770,10 +774,10 @@ return (
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 14 }}>
       {[
-        { label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
-        { label: "BTC/USDT", val: prices["BTC-USDT"] > 0 ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : (loading ? "..." : "---"), chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
-        { label: "USD/TRY", val: prices["TRY=X"] > 0 ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : (loading ? "..." : "---"), chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
-        { label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
+        { sym: "XU100", label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
+        { sym: "BTC-USDT", label: "BTC/USDT", val: prices["BTC-USDT"] > 0 ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : (loading ? "..." : "---"), chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
+        { sym: "TRY=X", label: "USD/TRY", val: prices["TRY=X"] > 0 ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : (loading ? "..." : "---"), chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
+        { sym: "GAG=X", label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
           <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
@@ -782,7 +786,10 @@ return (
         ) : (
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val}</div>
         )}
-          <div style={{ color: m.up ? "#30d158" : "#ff453a", fontSize: 10, fontWeight: 600 }}>{m.chg}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ color: m.up ? "#30d158" : "#ff453a", fontSize: 10, fontWeight: 600 }}>{m.chg}</div>
+            {prices[`${m.sym}_source`] && <div style={{ color: "#4a5568", fontSize: 8 }}>{prices[`${m.sym}_source`]}</div>}
+          </div>
         </div>
       ))}
     </div>
@@ -1280,8 +1287,10 @@ return (
 <div style={{ color: "#4a5568", fontSize: 12 }}>{stock.name}</div>
 </div>
 <div style={{ textAlign: "right" }}>
-{!isCrypto && !isCommodity && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
-<div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>{price.toFixed(pricePrecision)}{currency}</div>
+  <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>
+    {prices[`${stock.symbol}_source`] ? `📡 ${prices[`${stock.symbol}_source`]}` : (!isCrypto && !isCommodity ? "⏱ 15 Dk Gecikmeli" : "📡 Canlı")}
+  </div>
+  <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>{price.toFixed(pricePrecision)}{currency}</div>
 <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 700 }}>
 {up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toFixed(2)}%
 </div>

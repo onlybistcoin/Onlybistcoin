@@ -63,6 +63,15 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
   
+  // CORS and Headers
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    next();
+  });
+
   // 1. API routes FIRST (before any middleware)
   app.get("/api/health", (req, res) => {
     res.set('Cache-Control', 'no-store');
@@ -224,41 +233,78 @@ async function startServer() {
   async function fetchBistFromBigpara() {
     console.log("[Worker] Fetching BIST from Bigpara...");
     try {
-      const url = "https://bigpara.hurriyet.com.tr/borsa/hisse-fiyatlari/";
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      });
-      if (res.ok) {
-        const text = await res.text();
-        const $ = cheerio.load(text);
-        let count = 0;
-        
-        $('.tBody ul').each((_, el) => {
-          const symbol = $(el).find('.li_sembol a').text().trim();
-          const priceStr = $(el).find('.li_son').text().trim();
-          const changeStr = $(el).find('.li_yuzde').text().trim();
-          
-          if (symbol && priceStr) {
-            const price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
-            const change = parseFloat(changeStr.replace(',', '.'));
-            
-            if (!isNaN(price)) {
-              inMemoryPrices[symbol] = {
-                price: price,
-                change: isNaN(change) ? 0 : change,
-                lastUpdated: new Date().toISOString()
-              };
-              count++;
-            }
+      // Trying multiple Bigpara URLs for better coverage
+      const urls = [
+        "https://bigpara.hurriyet.com.tr/borsa/hisse-fiyatlari/",
+        "https://bigpara.hurriyet.com.tr/borsa/canli-borsa/"
+      ];
+      
+      let totalCount = 0;
+      for (const url of urls) {
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
           }
         });
-        console.log(`[Worker] Bigpara scraper found ${count} BIST stocks`);
-        return count > 0;
+        
+        if (res.ok) {
+          const text = await res.text();
+          const $ = cheerio.load(text);
+          
+          // Try TR structure
+          $('tr').each((_, el) => {
+            const cells = $(el).find('td');
+            if (cells.length >= 3) {
+              const symbol = $(cells[0]).text().trim().split(' ')[0];
+              const priceStr = $(cells[1]).text().trim();
+              const changeStr = $(cells[2]).text().trim();
+              
+              if (symbol && symbol.length >= 2 && symbol.length <= 6) {
+                let price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
+                let change = parseFloat(changeStr.replace(',', '.'));
+                
+                if (!isNaN(price)) {
+                  inMemoryPrices[symbol] = {
+                    price: price,
+                    change: isNaN(change) ? 0 : change,
+                    lastUpdated: new Date().toISOString(),
+                    source: 'Bigpara'
+                  };
+                  totalCount++;
+                }
+              }
+            }
+          });
+
+          // Try UL structure
+          $('.tBody ul').each((_, el) => {
+            const symbol = $(el).find('.li_sembol a').text().trim();
+            const priceStr = $(el).find('.li_son').text().trim();
+            const changeStr = $(el).find('.li_yuzde').text().trim();
+            
+            if (symbol && priceStr) {
+              let price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
+              let change = parseFloat(changeStr.replace(',', '.'));
+              
+              if (!isNaN(price)) {
+                inMemoryPrices[symbol] = {
+                  price: price,
+                  change: isNaN(change) ? 0 : change,
+                  lastUpdated: new Date().toISOString(),
+                  source: 'Bigpara-Alt'
+                };
+                totalCount++;
+              }
+            }
+          });
+        }
       }
+
+      console.log(`[Worker] BIST scraper found ${totalCount} stocks total`);
+      return totalCount > 0;
     } catch (err) {
-      console.error("[Worker] Bigpara scraper failed:", err);
+      console.error("[Worker] BIST scraper failed:", err);
     }
     return false;
   }
@@ -289,7 +335,8 @@ async function startServer() {
                 price: result.regularMarketPrice,
                 change: result.regularMarketChangePercent || 0,
                 volume: result.regularMarketVolume || 0,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                source: 'YahooFinance'
               };
               count++;
             }
@@ -327,7 +374,7 @@ async function startServer() {
         const fxRes = await fetchWithTimeout("https://api.exchangerate-api.com/v4/latest/USD");
         if (fxRes.ok) {
           const fxData = await fxRes.json();
-          const usdTry = fxData.rates.TRY;
+          let usdTry = fxData.rates.TRY;
           if (usdTry) {
             inMemoryPrices["TRY=X"] = { price: usdTry, lastUpdated: new Date().toISOString() };
             metaCount++;
@@ -337,7 +384,7 @@ async function startServer() {
               const goldRes = await fetchWithTimeout("https://api.gold-api.com/price/XAU");
               if (goldRes.ok) {
                 const goldData = await goldRes.json();
-                const goldPrice = goldData.price;
+                let goldPrice = goldData.price;
                 if (goldPrice) {
                   const gramGold = (goldPrice / 31.1035) * usdTry;
                   inMemoryPrices["GAU=X"] = { price: gramGold, lastUpdated: new Date().toISOString() };
@@ -376,9 +423,9 @@ async function startServer() {
         { sym: "XU030", gSym: "XU030:INDEXIST" }
       ];
       for (const idx of indices) {
-        const price = await fetchGoogleFinancePrice(idx.gSym);
+        let price = await fetchGoogleFinancePrice(idx.gSym);
         if (price) {
-          inMemoryPrices[idx.sym] = { price: price, lastUpdated: new Date().toISOString() };
+          inMemoryPrices[idx.sym] = { price: price, lastUpdated: new Date().toISOString(), source: 'GoogleFinance' };
           metaCount++;
         }
       }
@@ -430,7 +477,7 @@ async function startServer() {
 
   async function loopBist() {
     await updateBistPrices();
-    setTimeout(loopBist, 60000); // 60 seconds
+    setTimeout(loopBist, 30000); // 30 seconds
   }
 
   async function loopCommodities() {
