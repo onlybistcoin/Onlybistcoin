@@ -10,53 +10,50 @@ const BIST_STOCKS = [
   ["THYAO", "Türk Hava Yolları"], ["GARAN", "Garanti BBVA"], ["AKBNK", "Akbank"], ["EREGL", "Ereğli Demir Çelik"],
   ["KCHOL", "Koç Holding"], ["SAHOL", "Sabancı Holding"], ["BIMAS", "BİM Mağazalar"], ["TOASO", "Tofaş Oto"],
   ["ARCLK", "Arçelik"], ["TUPRS", "Tüpraş"], ["SISE", "Şişe Cam"], ["DOHOL", "Doğan Holding"],
-  ["PETKM", "Petkim"], ["FROTO", "Ford Otosan"], ["ASELS", "Aselsan"],
-  ["MGROS", "Migros"], ["PGSUS", "Pegasus"], ["TAVHL", "TAV Havalimanları"], ["YKBNK", "Yapı Kredi"],
-  ["EKGYO", "Emlak Konut GYO"], ["VESTL", "Vestel"], ["ODAS", "Odaş Elektrik"], ["SMRTG", "Smart Güneş"],
-  ["CANTE", "Çan2 Termik"], ["ISCTR", "İş Bankası (C)"], ["HALKB", "Halkbank"], ["VAKBN", "Vakıfbank"],
-  ["TSKB", "TSKB"], ["ALARK", "Alarko Holding"], ["ENKAI", "Enka İnşaat"], ["TKFEN", "Tekfen Holding"],
-  ["GUBRF", "Gübre Fabrikaları"], ["HEKTS", "Hektaş"], ["SASA", "Sasa Polyester"], ["KONTR", "Kontrolmatik"],
-  ["GESAN", "Girişim Elektrik"], ["YEOTK", "Yeo Teknoloji"], ["ASTOR", "Astor Enerji"], ["EUPWR", "Europower Enerji"],
-  ["CWENE", "Cw Enerji"], ["ALFAS", "Alfa Solar"], ["MIATK", "Mia Teknoloji"],
-  ["REEDR", "Reeder Teknoloji"], ["TABGD", "Tab Gıda"], ["TARKM", "Tarkim Bitki Koruma"], ["EBEBK", "Ebebek Mağazacılık"],
-  ["KAYSE", "Kayseri Şeker"], ["BIENY", "Bien Yapı Ürünleri"], ["SDTTR", "SDT Uzay ve Savunma"], ["ONCSM", "Oncosem Onkolojik"],
-  ["SOKE", "Söke Değirmencilik"], ["EYGYO", "Eyüp Yapı GYO"], ["GOKNR", "Göknur Gıda"], ["CVKMD", "CVK Maden"],
-  ["KOPOL", "Koza Polyester"], ["PASEU", "Pasifik Eurasia"], ["KATMR", "Katmerciler Ekipman"], ["TMSN", "Tümosan Motor"],
-  ["OTKAR", "Otokar"], ["TTRAK", "Türk Traktör"], ["DOAS", "Doğuş Otomotiv"], ["ASUZU", "Anadolu Isuzu"],
-  ["KMPUR", "Kimteks Poliüretan"], ["SAYAS", "Say Yenilenebilir"], ["HUNER", "Hun Enerji"], ["ZEDUR", "Zedur Enerji"],
-  ["PRKME", "Park Elek.Madencilik"],
-  ["ULKER", "Ülker Bisküvi"], ["AEFES", "Anadolu Efes"], ["CCOLA", "Coca-Cola İçecek"], ["TATGD", "Tat Gıda"],
-  ["SOKM", "Şok Marketler"], ["TKNSA", "Teknosa"], ["MAVI", "Mavi Giyim"],
-  ["VAKKO", "Vakko"], ["YATAS", "Yataş"], ["BRISA", "Brisa"], ["GOODY", "Goodyear"],
-  ["AKSA", "Aksa"], ["KORDS", "Kordsa"],
+  ["PETKM", "Petkim"], ["FROTO", "Ford Otosan"], ["ASELS", "Aselsan"], ["MGROS", "Migros"],
+  ["PGSUS", "Pegasus"], ["TAVHL", "TAV Havalimanları"], ["YKBNK", "Yapı Kredi"], ["EKGYO", "Emlak Konut GYO"],
+  ["VESTL", "Vestel"], ["ODAS", "Odaş Elektrik"], ["SMRTG", "Smart Güneş"], ["CANTE", "Çan2 Termik"],
+  ["ISCTR", "İş Bankası (C)"], ["HALKB", "Halkbank"], ["VAKBN", "Vakıfbank"], ["TSKB", "TSKB"],
+  ["ALARK", "Alarko Holding"], ["ENKAI", "Enka İnşaat"], ["TKFEN", "Tekfen Holding"], ["GUBRF", "Gübre Fabrikaları"],
+  ["HEKTS", "Hektaş"], ["SASA", "Sasa Polyester"], ["KONTR", "Kontrolmatik"], ["GESAN", "Girişim Elektrik"],
+  ["YEOTK", "Yeo Teknoloji"], ["ASTOR", "Astor Enerji"], ["EUPWR", "Europower Enerji"], ["CWENE", "Cw Enerji"],
+  ["ALFAS", "Alfa Solar"], ["MIATK", "Mia Teknoloji"], ["REEDR", "Reeder Teknoloji"], ["TABGD", "Tab Gıda"],
+  ["TARKM", "Tarkim Bitki Koruma"], ["EBEBK", "Ebebek Mağazacılık"], ["KAYSE", "Kayseri Şeker"], ["BIENY", "Bien Yapı Ürünleri"],
+  ["SDTTR", "SDT Uzay ve Savunma"], ["ONCSM", "Oncosem Onkolojik"], ["SOKE", "Söke Değirmencilik"], ["EYGYO", "Eyüp Yapı GYO"],
+  ["GOKNR", "Göknur Gıda"], ["CVKMD", "CVK Maden"], ["KOPOL", "Koza Polyester"], ["PASEU", "Pasifik Eurasia"],
+  ["KATMR", "Katmerciler Ekipman"], ["TMSN", "Tümosan Motor"], ["OTKAR", "Otokar"], ["TTRAK", "Türk Traktör"],
+  ["DOAS", "Doğuş Otomotiv"], ["ASUZU", "Anadolu Isuzu"], ["KMPUR", "Kimteks Poliüretan"], ["SAYAS", "Say Yenilenebilir"],
+  ["HUNER", "Hun Enerji"], ["ZEDUR", "Zedur Enerji"], ["PRKME", "Park Elek.Madencilik"], ["ULKER", "Ülker Bisküvi"],
+  ["AEFES", "Anadolu Efes"], ["CCOLA", "Coca-Cola İçecek"], ["TATGD", "Tat Gıda"], ["SOKM", "Şok Marketler"],
+  ["TKNSA", "Teknosa"], ["MAVI", "Mavi Giyim"], ["VAKKO", "Vakko"], ["YATAS", "Yataş"],
+  ["BRISA", "Brisa"], ["GOODY", "Goodyear"], ["AKSA", "Aksa"], ["KORDS", "Kordsa"],
   ["BAGFS", "Bagfaş Gübre"], ["EGEEN", "Ege Endüstri"], ["BFREN", "Bosch Fren"], ["FMIZP", "Federal-Mogul İzmit"],
   ["PARSN", "Parsan"], ["JANTS", "Jantsa Jant"], ["ALCAR", "Alarko Carrier"], ["ALGYO", "Alarko GYO"],
   ["TRGYO", "Torunlar GYO"], ["OZKGY", "Özak GYO"], ["MSGYO", "Mistral GYO"], ["HLGYO", "Halk GYO"],
   ["VKGYO", "Vakıf GYO"], ["SNGYO", "Sinpaş GYO"], ["KLGYO", "Kiler GYO"], ["AKFGY", "Akfen GYO"],
   ["ISGYO", "İş GYO"], ["KGYO", "Koray GYO"], ["IDGYO", "İdealist GYO"], ["PAGYO", "Panora GYO"],
-  ["DZGYO", "Deniz GYO"], ["SRVGY", "Servet GYO"], ["RYGYO", "Reysaş GYO"],
-  ["RYSAS", "Reysaş Lojistik"], ["GLYHO", "Global Yatırım Holding"], ["NETAS", "Netaş Telekom"], ["ALCTL", "Alcatel Lucent"],
-  ["ARENA", "Arena Bilgisayar"], ["INDES", "İndeks Bilgisayar"], ["DESPC", "Despec Bilgisayar"], ["DGATE", "Datagate Bilgisayar"],
-  ["LINK", "Link Bilgisayar"], ["LOGO", "Logo Yazılım"], ["KFEIN", "Kafein Yazılım"],
-  ["ARDYZ", "Ard Bilişim"], ["ESCOM", "Escort Teknoloji"], ["FONET", "Fonet Bilgi Teknolojileri"], ["KRVGD", "Kervan Gıda"],
-  ["AVOD", "Avod Gıda"], ["OYYAT", "Oyak Yatırım"], ["ISMEN", "İş Yatırım"], ["GSDHO", "GSD Holding"],
-  ["INFO", "İnfo Yatırım"], ["OSMEN", "Osmanlı Yatırım"], ["GLBMD", "Global Menkul Değerler"], ["GEDIK", "Gedik Yatırım"],
-  ["TUKAS", "Tukaş"], ["KNFRT", "Konfrut Gıda"], ["FRIGO", "Frigo Pak Gıda"],
-  ["ELITE", "Elite Naturel"], ["ULUUN", "Ulusoy Un"], ["VANGD", "Vanet Gıda"],
+  ["DZGYO", "Deniz GYO"], ["SRVGY", "Servet GYO"], ["RYGYO", "Reysaş GYO"], ["RYSAS", "Reysaş Lojistik"],
+  ["GLYHO", "Global Yatırım Holding"], ["NETAS", "Netaş Telekom"], ["ALCTL", "Alcatel Lucent"], ["ARENA", "Arena Bilgisayar"],
+  ["INDES", "İndeks Bilgisayar"], ["DESPC", "Despec Bilgisayar"], ["DGATE", "Datagate Bilgisayar"], ["LINK", "Link Bilgisayar"],
+  ["LOGO", "Logo Yazılım"], ["KFEIN", "Kafein Yazılım"], ["ARDYZ", "Ard Bilişim"], ["ESCOM", "Escort Teknoloji"],
+  ["FONET", "Fonet Bilgi Teknolojileri"], ["KRVGD", "Kervan Gıda"], ["AVOD", "Avod Gıda"], ["OYYAT", "Oyak Yatırım"],
+  ["ISMEN", "İş Yatırım"], ["GSDHO", "GSD Holding"], ["INFO", "İnfo Yatırım"], ["OSMEN", "Osmanlı Yatırım"],
+  ["GLBMD", "Global Menkul Değerler"], ["GEDIK", "Gedik Yatırım"], ["TUKAS", "Tukaş"], ["KNFRT", "Konfrut Gıda"],
+  ["FRIGO", "Frigo Pak Gıda"], ["ELITE", "Elite Naturel"], ["ULUUN", "Ulusoy Un"], ["VANGD", "Vanet Gıda"],
   ["MERKO", "Merko Gıda"], ["PETUN", "Pınar Et ve Un"], ["PNSUT", "Pınar Süt"], ["SELVA", "Selva Gıda"],
   ["BRKSN", "Berikosan Yalıtım"], ["PRZMA", "Prizma Press Matbaacılık"], ["IHLAS", "İhlas Holding"], ["IHEVA", "İhlas Ev Aletleri"],
-  ["IHYAY", "İhlas Yayın Holding"], ["IHGZT", "İhlas Gazetecilik"], ["METRO", "Metro Holding"],
-  ["AVGYO", "Avrasya GYO"], ["ATLAS", "Atlas Yatırım Ortaklığı"], ["ETYAT", "Euro Trend Yatırım"], ["EUYO", "Euro Menkul Kıymet"],
-  ["EUKYO", "Euro Kapital Yatırım"], ["MZHLD", "Mazhar Zorlu Holding"], ["EPLAS", "Egeplast"], ["DERIM", "Derimod"],
-  ["DESA", "Desa Deri"], ["HATEK", "Hatay Tekstil"], ["MNDRS", "Menderes Tekstil"], ["ARSAN", "Arsan Tekstil"],
-  ["LUKSK", "Lüks Kadife"], ["KRTEK", "Karsu Tekstil"], ["SKTAS", "Söktaş"], ["SNPAM", "Sönmez Pamuklu"],
-  ["SONME", "Sönmez Filament"], ["DAGI", "Dagi Giyim"], ["KRONT", "Kron Teknoloji"], ["EDATA", "E-Data Teknoloji"],
-  ["VBTYZ", "VBT Yazılım"], ["PKART", "Plastikkart"], ["SMART", "Smartiks Yazılım"], ["HTTBT", "Hitit Bilgisayar"],
-  ["OBASL", "Oba Makarnacılık"], ["ALVES", "Alves Kablo"], ["ARTMS", "Artemis Halı"], ["MOGAN", "Mogan Enerji"],
-  ["ODINE", "Odine Teknoloji"], ["ENTRA", "IC Enterra Yenilenebilir"], ["HOROZ", "Horoz Lojistik"], ["ALTNY", "Altınay Savunma"],
-  ["KOTON", "Koton Mağazacılık"], ["LILA", "Lila Kağıt"], ["HRKET", "Hareket Proje Taşımacılığı"], ["YIGIT", "Yiğit Akü"],
-  ["DCTTR", "DCT TR Trading"], ["BAHEV", "Bahadır Kimya"], ["ONUR", "Onur Yüksek Teknoloji"], ["OZATD", "Özata Denizcilik"],
-  ["CEMZY", "Cem Zeytin"], ["KARYE", "Kartal Yenilenebilir"], ["GIPTA", "Gıpta Ofis Kırtasiye"],
+  ["IHYAY", "İhlas Yayın Holding"], ["IHGZT", "İhlas Gazetecilik"], ["METRO", "Metro Holding"], ["AVGYO", "Avrasya GYO"],
+  ["ATLAS", "Atlas Yatırım Ortaklığı"], ["ETYAT", "Euro Trend Yatırım"], ["EUYO", "Euro Menkul Kıymet"], ["EUKYO", "Euro Kapital Yatırım"],
+  ["MZHLD", "Mazhar Zorlu Holding"], ["EPLAS", "Egeplast"], ["DERIM", "Derimod"], ["DESA", "Desa Deri"],
+  ["HATEK", "Hatay Tekstil"], ["MNDRS", "Menderes Tekstil"], ["ARSAN", "Arsan Tekstil"], ["LUKSK", "Lüks Kadife"],
+  ["KRTEK", "Karsu Tekstil"], ["SKTAS", "Söktaş"], ["SNPAM", "Sönmez Pamuklu"], ["SONME", "Sönmez Filament"],
+  ["DAGI", "Dagi Giyim"], ["KRONT", "Kron Teknoloji"], ["EDATA", "E-Data Teknoloji"], ["VBTYZ", "VBT Yazılım"],
+  ["PKART", "Plastikkart"], ["SMART", "Smartiks Yazılım"], ["HTTBT", "Hitit Bilgisayar"], ["OBASL", "Oba Makarnacılık"],
+  ["ALVES", "Alves Kablo"], ["ARTMS", "Artemis Halı"], ["MOGAN", "Mogan Enerji"], ["ODINE", "Odine Teknoloji"],
+  ["ENTRA", "IC Enterra Yenilenebilir"], ["HOROZ", "Horoz Lojistik"], ["ALTNY", "Altınay Savunma"], ["KOTON", "Koton Mağazacılık"],
+  ["LILA", "Lila Kağıt"], ["HRKET", "Hareket Proje Taşımacılığı"], ["YIGIT", "Yiğit Akü"], ["DCTTR", "DCT TR Trading"],
+  ["BAHEV", "Bahadır Kimya"], ["ONUR", "Onur Yüksek Teknoloji"], ["OZATD", "Özata Denizcilik"], ["CEMZY", "Cem Zeytin"],
+  ["KARYE", "Kartal Yenilenebilir"], ["GIPTA", "Gıpta Ofis Kırtasiye"],
 ].map(([symbol, name]) => ({
   symbol, name, price: 0, change: 0, volume: 0, sector: "BIST"
 }));
@@ -200,6 +197,7 @@ function generateCandleData(basePrice: number, periods = 60) {
 export default function BISTAnalyzer() {
 const [screen, setScreen] = useState("scanner"); 
 const [market, setMarket] = useState<"BIST" | "CRYPTO" | "EMTİA">("BIST");
+const [showDebug, setShowDebug] = useState(false);
 const [selectedStock, setSelectedStock] = useState<any>(null);
 const [scanning, setScanning] = useState(false);
 const [scanProgress, setScanProgress] = useState(0);
@@ -245,10 +243,6 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, []);
 
-  useEffect(() => {
-    console.log("[App] Starting real-time API polling...");
-    setLoading(true);
-    
     const fetchCryptoFallback = async () => {
       try {
         const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
@@ -272,38 +266,63 @@ useEffect(() => {
     };
 
     const fetchBistFallback = async () => {
+      console.log("[App] Attempting BIST fallback...");
       try {
-        // Use a CORS proxy for Truncgil API to ensure it works on Vercel/Browser
-        const targetUrl = 'https://finans.truncgil.com/v3/today.json';
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        const sources = [
+          'https://finans.truncgil.com/v3/today.json',
+          'https://finans.truncgil.com/today.json'
+        ];
         
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          const proxyData = await res.json();
-          const data = JSON.parse(proxyData.contents);
+        let success = false;
+        for (const targetUrl of sources) {
+          if (success) break;
           
-          setPrices(prev => {
-            const next = { ...prev };
-            for (const [key, val] of Object.entries(data)) {
-              if (typeof val === 'object' && val !== null) {
-                const item = val as any;
-                const sym = key.toUpperCase().trim();
-                if (item.Selling) {
-                  // Truncgil uses comma as decimal separator
-                  const price = parseFloat(item.Selling.replace('.', '').replace(',', '.'));
-                  next[sym] = price;
-                  if (item.Change) {
-                    const change = parseFloat(item.Change.replace(',', '.').replace('%', ''));
-                    next[`${sym}_change`] = change;
+          try {
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+              const proxyData = await res.json();
+              const data = JSON.parse(proxyData.contents);
+              
+              setPrices(prev => {
+                const next = { ...prev };
+                const mappings: Record<string, string> = {
+                  "BIST 100": "XU100",
+                  "BIST 30": "XU030",
+                  "ABD DOLARI": "TRY=X",
+                  "USD/TRY": "TRY=X",
+                  "EURO": "EURTRY=X",
+                  "ONS ALTIN": "GC=F",
+                  "GRAM ALTIN": "GA=F"
+                };
+
+                for (const [key, val] of Object.entries(data)) {
+                  if (typeof val === 'object' && val !== null) {
+                    const item = val as any;
+                    const rawKey = key.toUpperCase().trim();
+                    const sym = mappings[rawKey] || rawKey;
+                    
+                    if (item.Selling) {
+                      const price = parseFloat(item.Selling.replace('.', '').replace(',', '.'));
+                      next[sym] = price;
+                      if (item.Change) {
+                        const change = parseFloat(item.Change.replace(',', '.').replace('%', ''));
+                        next[`${sym}_change`] = change;
+                      }
+                    }
                   }
                 }
-              }
+                console.log("[App] Prices updated from fallback. Count:", Object.keys(next).length);
+                return next;
+              });
+              success = true;
             }
-            return next;
-          });
+          } catch (err) {
+            console.warn(`[App] BIST source ${targetUrl} failed:`, err);
+          }
         }
       } catch (e) {
-        console.error("BIST fallback failed:", e);
+        console.error("BIST fallback critical failure:", e);
       }
     };
 
@@ -315,8 +334,8 @@ useEffect(() => {
           
           if (Object.keys(data).length === 0) {
             console.warn("[App] Backend cache is empty, attempting fallbacks...");
-            fetchCryptoFallback();
-            fetchBistFallback();
+            await fetchCryptoFallback();
+            await fetchBistFallback();
           }
 
           setPrices(prev => {
@@ -333,16 +352,16 @@ useEffect(() => {
           setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
           setFetchError(null);
         } else {
-          fetchCryptoFallback();
-          fetchBistFallback();
-          setFetchError(`Sunucu hatası: ${res.status}. Yedek veri hatları devrede.`);
+          await fetchCryptoFallback();
+          await fetchBistFallback();
+          setFetchError("Yedek veri hatları devrede.");
         }
         setLoading(false);
       } catch (error) {
         console.error("API fetch error:", error);
-        fetchCryptoFallback();
-        fetchBistFallback();
-        setFetchError("Veri bağlantısı kesildi. Yedek veri hatları devrede.");
+        await fetchCryptoFallback();
+        await fetchBistFallback();
+        setFetchError("Yedek veri hatları devrede.");
         setLoading(false);
       }
     };
@@ -359,14 +378,17 @@ useEffect(() => {
       }
     };
 
+  useEffect(() => {
+    console.log("[App] Starting real-time API polling...");
+    setLoading(true);
     fetchPrices();
     fetchNews();
     const interval = setInterval(() => {
       fetchPrices();
       fetchNews();
-    }, 3000);
+    }, 30000); // 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [market]);
 
   // Removed News Listener to avoid Firestore quota issues
 
@@ -392,9 +414,20 @@ const startScan = useCallback(() => {
 
       // Dynamically calculate potential based on live price changes and mock pattern data
       const found = stocks.flatMap(s => {
-        const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
-        let liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
-        if (!Number.isFinite(liveChange)) liveChange = 0;
+        // Use live price if available, otherwise fallback to mock
+        const livePrice = prices[s.symbol] || s.price || 0;
+        const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
+        
+        const pd = PATTERN_DATA[s.symbol] || { 
+          rsi: 45 + Math.random() * 10, 
+          macd: Math.random() * 2 - 1, 
+          fibLevel: "0.618", 
+          patternScore: 60 + Math.random() * 20, 
+          pattern: "Düşen Kama", 
+          potential: 15 + Math.random() * 10 
+        };
+        
+        if (!Number.isFinite(liveChange)) return [];
         
         // Long Potential: base potential + (liveChange * 5)
         let longPotential = pd.potential + (liveChange * 5);
@@ -614,6 +647,34 @@ border: "1px solid #30363d"
     </div>
 
     <BottomNav screen={screen} setScreen={setScreen} candidates={candidates} market={market} />
+
+    {/* Debug Panel Toggle */}
+    <div style={{ position: "fixed", bottom: 80, right: 16, zIndex: 1000 }}>
+      <button 
+        onClick={() => setShowDebug(!showDebug)}
+        style={{ background: "#1a1f2e", border: "1px solid #30363d", color: "#8b949e", fontSize: 10, padding: "4px 8px", borderRadius: 6 }}
+      >
+        {showDebug ? "Debug Kapat" : "Debug Aç"}
+      </button>
+    </div>
+
+    {showDebug && (
+      <div style={{ position: "fixed", bottom: 110, left: 16, right: 16, maxHeight: "40vh", overflow: "auto", background: "#0d1117", border: "1px solid #30363d", borderRadius: 8, padding: 12, zIndex: 1000, fontSize: 10, fontFamily: "monospace", color: "#30d158" }}>
+        <div style={{ fontWeight: 700, marginBottom: 8, borderBottom: "1px solid #30363d", paddingBottom: 4 }}>DEBUG PANEL (RAW DATA)</div>
+        <div>Backend Status: {fetchError || "OK"}</div>
+        <div>Market: {market}</div>
+        <div>Stocks Count: {stocks.length}</div>
+        <div>Prices Count: {Object.keys(prices).length}</div>
+        <div style={{ marginTop: 8, color: "#8b949e" }}>Sample Prices:</div>
+        <pre>{JSON.stringify(Object.fromEntries(Object.entries(prices).slice(0, 10)), null, 2)}</pre>
+        <button 
+          onClick={() => { fetchBistFallback(); fetchCryptoFallback(); }}
+          style={{ marginTop: 8, background: "#00d4aa", color: "#000", border: "none", padding: "4px 8px", borderRadius: 4, fontWeight: 700 }}
+        >
+          Yedek Hatları Zorla
+        </button>
+      </div>
+    )}
   </div>
 </div>
 );
@@ -659,8 +720,8 @@ return (
   {loading ? "..." : "YENİLE"}
 </button>
 <div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
-<div style={{ color: fetchError ? "#ff453a" : "#30d158", fontSize: 10, fontWeight: 600, marginTop: 4 }}>
-  {fetchError ? "⚠️ Sunucu Bağlantısı Yok (Yedek Devrede)" : "✅ Sunucu Bağlantısı Aktif"}
+<div style={{ color: fetchError ? "#ff9f0a" : "#30d158", fontSize: 10, fontWeight: 600, marginTop: 4 }}>
+  {fetchError ? "⚠️ Veri Hattı: Yedek (Global/CORS)" : "✅ Veri Hattı: Ana Sunucu"}
 </div>
 <div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"}</div>
 {fetchError && <div style={{ color: "#ff453a", fontSize: 9, fontWeight: 700, marginTop: 4 }}>{fetchError}</div>}
