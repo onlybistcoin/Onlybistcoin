@@ -276,7 +276,7 @@ useEffect(() => {
     };
 
     fetchPrices();
-    const interval = setInterval(fetchPrices, 5000);
+    const interval = setInterval(fetchPrices, 3000);
     return () => clearInterval(interval);
   }, []);
 

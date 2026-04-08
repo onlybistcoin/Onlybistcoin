@@ -203,8 +203,8 @@ async function startServer() {
       // Deduplicate symbols
       const uniqueSymbols = [...new Set(BIST_SYMBOLS)];
 
-      // Process in chunks of 40 to speed up
-      const chunkSize = 40;
+      // Process in chunks of 60 to speed up
+      const chunkSize = 60;
       for (let i = 0; i < uniqueSymbols.length; i += chunkSize) {
         const chunk = uniqueSymbols.slice(i, i + chunkSize);
         
@@ -244,7 +244,7 @@ async function startServer() {
         }
         
         // Small delay between chunks to avoid getting blocked
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 200));
       }
       
       if (batchCount > 0) {
@@ -405,17 +405,17 @@ async function startServer() {
   
   async function loopCrypto() {
     await updateCryptoPrices();
-    setTimeout(loopCrypto, 5000); // 5 seconds
+    setTimeout(loopCrypto, 3000); // 3 seconds
   }
 
   async function loopBist() {
     await updateBistPrices();
-    setTimeout(loopBist, 5000); // 5 seconds
+    setTimeout(loopBist, 3000); // 3 seconds
   }
 
   async function loopCommodities() {
     await updateCommodities();
-    setTimeout(loopCommodities, 5000); // 5 seconds
+    setTimeout(loopCommodities, 3000); // 3 seconds
   }
 
   async function loopNews() {
