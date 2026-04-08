@@ -1,30 +1,23 @@
-
-async function testYahoo() {
-  const symbols = "THYAO.IS,GARAN.IS,GC=F,TRY=X";
-  const url = `https://query1.finance.yahoo.com/v8/finance/quoteSummary/${encodeURIComponent("THYAO.IS")}?modules=price`;
-  
+async function test() {
   try {
+    const symbols = ["THYAO.IS", "TRY=X", "GC=F", "SI=F", "XU100.IS"];
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(",")}`;
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': 'https://finance.yahoo.com',
-        'Referer': 'https://finance.yahoo.com/'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
-    
-    console.log(`Status: ${res.status}`);
-    if (res.ok) {
-      const data = await res.json();
-      console.log(JSON.stringify(data, null, 2));
+    const data = await res.json();
+    console.log("Status:", res.status);
+    if (data.quoteResponse && data.quoteResponse.result) {
+      data.quoteResponse.result.forEach((q: any) => {
+        console.log(`${q.symbol}: ${q.regularMarketPrice} (Change: ${q.regularMarketChangePercent}%)`);
+      });
     } else {
-      const text = await res.text();
-      console.log(`Error body: ${text}`);
+      console.log(data);
     }
-  } catch (err: any) {
-    console.error("Fetch failed:", err.message);
+  } catch (e) {
+    console.error(e);
   }
 }
-
-testYahoo();
+test();

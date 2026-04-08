@@ -197,50 +197,64 @@ async function startServer() {
     console.log("updateBistPrices called");
     try {
       let count = 0;
-
-      // 1. Update BIST Symbols via Google Finance Scraping
       let batch = clientWriteBatch(db);
       let batchCount = 0;
-      for (const symbol of BIST_SYMBOLS) {
-        const price = await fetchGoogleFinancePrice(`${symbol}:IST`);
-        if (price) {
-          inMemoryPrices[symbol] = {
-            price: price,
-            lastUpdated: new Date().toISOString()
-          };
 
-          const priceDoc = clientDoc(db, "prices", symbol);
-          batch.set(priceDoc, {
-            symbol: symbol,
-            price: price,
-            lastUpdated: new Date().toISOString()
-          }, { merge: true });
-          count++;
-          batchCount++;
-        }
+      // Deduplicate symbols
+      const uniqueSymbols = [...new Set(BIST_SYMBOLS)];
+
+      // Process in chunks of 40 to speed up
+      const chunkSize = 40;
+      for (let i = 0; i < uniqueSymbols.length; i += chunkSize) {
+        const chunk = uniqueSymbols.slice(i, i + chunkSize);
         
-        if (batchCount >= 20) {
-          try {
-            await batch.commit();
-          } catch (e) {
-            console.error("Batch commit failed (Quota?):", e);
+        const promises = chunk.map(async (symbol) => {
+          const price = await fetchGoogleFinancePrice(`${symbol}:IST`);
+          return { symbol, price };
+        });
+
+        const results = await Promise.all(promises);
+
+        for (const { symbol, price } of results) {
+          if (price) {
+            inMemoryPrices[symbol] = {
+              price: price,
+              lastUpdated: new Date().toISOString()
+            };
+
+            const priceDoc = clientDoc(db, "prices", symbol);
+            batch.set(priceDoc, {
+              symbol: symbol,
+              price: price,
+              lastUpdated: new Date().toISOString()
+            }, { merge: true });
+            count++;
+            batchCount++;
           }
-          batch = clientWriteBatch(db);
-          batchCount = 0;
+
+          if (batchCount >= 20) {
+            try {
+              await batch.commit();
+            } catch (e) {
+              console.error("Batch commit failed:", e);
+            }
+            batch = clientWriteBatch(db);
+            batchCount = 0;
+          }
         }
         
-        await new Promise(r => setTimeout(r, 200)); // Reduced to 200ms
+        // Small delay between chunks to avoid getting blocked
+        await new Promise(r => setTimeout(r, 500));
       }
       
       if (batchCount > 0) {
-        console.log("Committing final batch for BIST symbols");
         try {
           await batch.commit();
         } catch (e) {
-          console.error("Final batch commit failed (Quota?):", e);
+          console.error("Final batch commit failed:", e);
         }
       }
-      console.log("Batch committed for BIST symbols");
+      console.log(`[Worker] Updated ${count} BIST prices in parallel`);
     } catch (err) {
       console.error("[Worker] BIST update failed:", err);
     }
@@ -391,17 +405,17 @@ async function startServer() {
   
   async function loopCrypto() {
     await updateCryptoPrices();
-    setTimeout(loopCrypto, 2000); // 2 seconds
+    setTimeout(loopCrypto, 5000); // 5 seconds
   }
 
   async function loopBist() {
     await updateBistPrices();
-    setTimeout(loopBist, 20000); // 20 seconds
+    setTimeout(loopBist, 5000); // 5 seconds
   }
 
   async function loopCommodities() {
     await updateCommodities();
-    setTimeout(loopCommodities, 60000); // 60 seconds
+    setTimeout(loopCommodities, 5000); // 5 seconds
   }
 
   async function loopNews() {
