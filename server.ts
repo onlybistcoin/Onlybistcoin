@@ -4,20 +4,26 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// --- In-Memory Price Cache ---
+const inMemoryPrices: Record<string, any> = {};
+const inMemoryNews: any[] = [];
+
 import admin from "firebase-admin";
 import { initializeApp as initializeClientApp } from "firebase/app";
 import { getFirestore as getClientFirestore, collection as clientCollection, doc as clientDoc, writeBatch as clientWriteBatch, getDocs as clientGetDocs, limit as clientLimit, query as clientQuery } from "firebase/firestore";
-import firebaseConfig from "./firebase-applet-config.json" with { type: "json" };
+
+// Load firebase config
+const firebaseConfig = JSON.parse(fs.readFileSync(path.join(__dirname, "firebase-applet-config.json"), "utf-8"));
+
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
-import YahooFinance from 'yahoo-finance2';
-
-const yahooFinance = new YahooFinance();
+import yahooFinance from 'yahoo-finance2';
 
 // Initialize Firebase Admin (for other things if needed)
 try {
@@ -58,7 +64,13 @@ async function startServer() {
   
   app.use(express.json());
 
-  // Health check for production debugging
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`[Server] ${req.method} ${req.url}`);
+    next();
+  });
+
+  // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ 
       status: "ok", 
@@ -67,22 +79,18 @@ async function startServer() {
     });
   });
 
-  // --- In-Memory Price Cache ---
-  const inMemoryPrices: Record<string, any> = {};
-  const inMemoryNews: any[] = [];
-
   app.get("/api/prices", (req, res) => {
-    if (Object.keys(inMemoryPrices).length === 0) {
-      console.warn("[API] Prices requested but cache is empty");
-    }
+    const count = Object.keys(inMemoryPrices).length;
+    console.log(`[API] GET /api/prices - returning ${count} symbols`);
     res.json(inMemoryPrices);
   });
 
   app.get("/api/news", (req, res) => {
+    console.log(`[API] GET /api/news - returning ${inMemoryNews.length} items`);
     res.json(inMemoryNews);
   });
 
-  // --- Symbols ---
+  // --- In-Memory Price Cache ---
   const BIST_SYMBOLS = [
     "THYAO", "GARAN", "AKBNK", "EREGL", "KCHOL", "SAHOL", "BIMAS", "TOASO", "ARCLK", "TUPRS", "SISE", "DOHOL",
     "PETKM", "FROTO", "ASELS", "MGROS", "PGSUS", "TAVHL", "YKBNK", "EKGYO", "VESTL", "ODAS", "SMRTG", "CANTE",
