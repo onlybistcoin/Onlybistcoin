@@ -197,7 +197,7 @@ async function startServer() {
   async function fetchGoogleFinancePrice(symbol: string) {
     const url = `https://www.google.com/finance/quote/${symbol}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     try {
       const res = await fetch(url, {
         signal: controller.signal,
@@ -211,7 +211,6 @@ async function startServer() {
         const $ = cheerio.load(text);
         const price = $('div[data-last-price]').attr('data-last-price');
         if (price) return parseFloat(price.replace(/,/g, ''));
-        
         const price2 = $('.YMlS1d').text();
         if (price2) return parseFloat(price2.replace(/,/g, ''));
       }
@@ -222,25 +221,69 @@ async function startServer() {
     return null;
   }
 
+  async function fetchBistFromBigpara() {
+    console.log("[Worker] Fetching BIST from Bigpara...");
+    try {
+      const url = "https://bigpara.hurriyet.com.tr/borsa/hisse-fiyatlari/";
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const $ = cheerio.load(text);
+        let count = 0;
+        
+        $('.tBody ul').each((_, el) => {
+          const symbol = $(el).find('.li_sembol a').text().trim();
+          const priceStr = $(el).find('.li_son').text().trim();
+          const changeStr = $(el).find('.li_yuzde').text().trim();
+          
+          if (symbol && priceStr) {
+            const price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
+            const change = parseFloat(changeStr.replace(',', '.'));
+            
+            if (!isNaN(price)) {
+              inMemoryPrices[symbol] = {
+                price: price,
+                change: isNaN(change) ? 0 : change,
+                lastUpdated: new Date().toISOString()
+              };
+              count++;
+            }
+          }
+        });
+        console.log(`[Worker] Bigpara scraper found ${count} BIST stocks`);
+        return count > 0;
+      }
+    } catch (err) {
+      console.error("[Worker] Bigpara scraper failed:", err);
+    }
+    return false;
+  }
+
   async function updateBistPrices() {
-    console.log("updateBistPrices called");
+    console.log("[Worker] updateBistPrices started");
+    
+    // Try Bigpara first as it's more reliable for BIST
+    const bigparaSuccess = await fetchBistFromBigpara();
+    
+    // Then try Yahoo Finance for anything missing or as a secondary source
     try {
       let count = 0;
-
-      // Deduplicate symbols
       const uniqueSymbols = [...new Set(BIST_SYMBOLS)];
-
-      // Process in chunks of 20
-      const chunkSize = 20;
+      const chunkSize = 30;
+      
       for (let i = 0; i < uniqueSymbols.length; i += chunkSize) {
         const chunk = uniqueSymbols.slice(i, i + chunkSize);
         const yfSymbols = chunk.map(s => `${s}.IS`);
         
         try {
           const results = await yahooFinance.quote(yfSymbols);
-          console.log(`[Worker] Yahoo Finance returned ${results.length} results for chunk`);
           for (const result of results) {
             const symbol = result.symbol.replace('.IS', '');
+            // Only update if not already updated by Bigpara recently, or if Bigpara failed
             if (result.regularMarketPrice) {
               inMemoryPrices[symbol] = {
                 price: result.regularMarketPrice,
@@ -252,14 +295,11 @@ async function startServer() {
             }
           }
         } catch (e) {
-          console.error("[Worker] Yahoo Finance chunk failed:", e);
+          console.error(`[Worker] Yahoo Finance chunk ${i} failed:`, (e as Error).message);
         }
-        
-        // Delay between chunks to avoid getting blocked
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 2000)); // 2s delay between chunks
       }
-      
-      console.log(`[Worker] Updated ${count} BIST prices using Yahoo Finance`);
+      console.log(`[Worker] Yahoo Finance updated ${count} BIST stocks`);
     } catch (err) {
       console.error("[Worker] BIST update failed:", err);
     }
@@ -385,17 +425,17 @@ async function startServer() {
   
   async function loopCrypto() {
     await updateCryptoPrices();
-    setTimeout(loopCrypto, 3000); // 3 seconds
+    setTimeout(loopCrypto, 10000); // 10 seconds
   }
 
   async function loopBist() {
     await updateBistPrices();
-    setTimeout(loopBist, 3000); // 3 seconds
+    setTimeout(loopBist, 60000); // 60 seconds
   }
 
   async function loopCommodities() {
     await updateCommodities();
-    setTimeout(loopCommodities, 3000); // 3 seconds
+    setTimeout(loopCommodities, 30000); // 30 seconds
   }
 
   async function loopNews() {

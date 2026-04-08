@@ -208,9 +208,9 @@ const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 10000, "XU030": 11000, "TRY=X": 32.50, "EURTRY=X": 35.20,
-      "BTC-USDT": 65000, "ETH-USDT": 3500, "SOL-USDT": 145,
-      "GC=F": 2350, "GA=F": 2450, "GAG=X": 25.40
+      "XU100": 9150, "XU030": 10200, "TRY=X": 34.20, "EURTRY=X": 36.80,
+      "BTC-USDT": 96500, "ETH-USDT": 3450, "SOL-USDT": 235,
+      "GC=F": 2650, "GA=F": 2950, "GAG=X": 32.40
     };
     
     [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
@@ -285,9 +285,10 @@ useEffect(() => {
     const fetchBistFallback = async () => {
       console.log("[App] Attempting BIST fallback...");
       try {
+        const cacheBuster = Date.now();
         const sources = [
-          'https://finans.truncgil.com/v3/today.json',
-          'https://finans.truncgil.com/today.json'
+          `https://finans.truncgil.com/v3/today.json?_=${cacheBuster}`,
+          `https://finans.truncgil.com/today.json?_=${cacheBuster}`
         ];
         
         let success = false;
@@ -295,7 +296,7 @@ useEffect(() => {
           if (success) break;
           
           try {
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&_=${cacheBuster}`;
             const res = await fetch(proxyUrl);
             if (res.ok) {
               const proxyData = await res.json();
@@ -321,10 +322,12 @@ useEffect(() => {
                     
                     if (item.Selling) {
                       const price = parseFloat(item.Selling.replace('.', '').replace(',', '.'));
-                      next[sym] = price;
-                      if (item.Change) {
-                        const change = parseFloat(item.Change.replace(',', '.').replace('%', ''));
-                        next[`${sym}_change`] = change;
+                      if (!isNaN(price)) {
+                        next[sym] = price;
+                        if (item.Change) {
+                          const change = parseFloat(item.Change.replace(',', '.').replace('%', ''));
+                          next[`${sym}_change`] = isNaN(change) ? 0 : change;
+                        }
                       }
                     }
                   }
@@ -349,7 +352,8 @@ useEffect(() => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const res = await fetch('/api/prices', { signal: controller.signal });
+        // Add cache buster to backend request too
+        const res = await fetch(`/api/prices?_=${Date.now()}`, { signal: controller.signal });
         clearTimeout(timeoutId);
         
         if (res.ok) {
@@ -368,6 +372,8 @@ useEffect(() => {
               next[symbol] = infoData.price;
               if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
               if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
+              // Store last updated per symbol if available
+              if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
             }
             return next;
           });
@@ -378,13 +384,13 @@ useEffect(() => {
           console.warn("[App] Backend returned non-OK status:", res.status);
           fetchCryptoFallback();
           fetchBistFallback();
-          setFetchError("Yedek veri hatları devrede.");
+          setFetchError(`Yedek hat devrede (${new Date().toLocaleTimeString("tr-TR")})`);
         }
       } catch (error) {
         console.error("API fetch error:", error);
         fetchCryptoFallback();
         fetchBistFallback();
-        setFetchError("Yedek veri hatları devrede.");
+        setFetchError(`Yedek hat devrede (${new Date().toLocaleTimeString("tr-TR")})`);
       } finally {
         setLoading(false);
       }
@@ -744,8 +750,8 @@ return (
   {loading ? "..." : "YENİLE"}
 </button>
 <div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
-<div style={{ color: fetchError ? "#ff9f0a" : "#30d158", fontSize: 10, fontWeight: 600, marginTop: 4 }}>
-  {fetchError ? "⚠️ Veri Hattı: Yedek (Global/CORS)" : "✅ Veri Hattı: Ana Sunucu"}
+<div style={{ color: fetchError ? "#ff9f0a" : "#30d158", fontSize: 10, fontWeight: 700, marginTop: 4, background: fetchError ? "rgba(255,159,10,0.1)" : "transparent", padding: fetchError ? "2px 6px" : 0, borderRadius: 4 }}>
+  {fetchError ? `⚠️ ${fetchError}` : "✅ Veri Hattı: Ana Sunucu"}
 </div>
 <div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"}</div>
 {fetchError && <div style={{ color: "#ff453a", fontSize: 9, fontWeight: 700, marginTop: 4 }}>{fetchError}</div>}
