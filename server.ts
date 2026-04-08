@@ -23,7 +23,8 @@ const firebaseConfig = JSON.parse(fs.readFileSync(path.join(__dirname, "firebase
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+const yahooFinance = new YahooFinance();
 
 // Initialize Firebase Admin (for other things if needed)
 try {
