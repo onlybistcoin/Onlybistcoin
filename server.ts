@@ -18,7 +18,7 @@ import { initializeApp as initializeClientApp } from "firebase/app";
 import { getFirestore as getClientFirestore, collection as clientCollection, doc as clientDoc, writeBatch as clientWriteBatch, getDocs as clientGetDocs, limit as clientLimit, query as clientQuery } from "firebase/firestore";
 
 // Load firebase config
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(__dirname, "firebase-applet-config.json"), "utf-8"));
+const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf-8"));
 
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
@@ -61,18 +61,11 @@ if (finnhubKey) {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
   
-  app.use(express.json());
-
-  // Logging middleware
-  app.use((req, res, next) => {
-    console.log(`[Server] ${req.method} ${req.url}`);
-    next();
-  });
-
-  // API routes FIRST
+  // 1. API routes FIRST (before any middleware)
   app.get("/api/health", (req, res) => {
+    res.set('Cache-Control', 'no-store');
     res.json({ 
       status: "ok", 
       env: process.env.NODE_ENV,
@@ -81,14 +74,33 @@ async function startServer() {
   });
 
   app.get("/api/prices", (req, res) => {
-    const count = Object.keys(inMemoryPrices).length;
-    console.log(`[API] GET /api/prices - returning ${count} symbols`);
+    res.set('Cache-Control', 'no-store');
+    const symbols = Object.keys(inMemoryPrices);
     res.json(inMemoryPrices);
   });
 
   app.get("/api/news", (req, res) => {
-    console.log(`[API] GET /api/news - returning ${inMemoryNews.length} items`);
+    res.set('Cache-Control', 'no-store');
     res.json(inMemoryNews);
+  });
+
+  // Debug route
+  app.get("/api/debug", (req, res) => {
+    res.json({
+      pricesCount: Object.keys(inMemoryPrices).length,
+      newsCount: inMemoryNews.length,
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    });
+  });
+
+  // 2. General Middleware
+  app.use(express.json());
+
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`[Server] ${req.method} ${req.url}`);
+    next();
   });
 
   // --- In-Memory Price Cache ---
@@ -226,6 +238,7 @@ async function startServer() {
         
         try {
           const results = await yahooFinance.quote(yfSymbols);
+          console.log(`[Worker] Yahoo Finance returned ${results.length} results for chunk`);
           for (const result of results) {
             const symbol = result.symbol.replace('.IS', '');
             if (result.regularMarketPrice) {
@@ -406,7 +419,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     console.log("[Server] Starting in PRODUCTION mode");
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = path.join(process.cwd(), 'dist');
     console.log(`[Server] Serving static files from: ${distPath}`);
     
     app.use(express.static(distPath));

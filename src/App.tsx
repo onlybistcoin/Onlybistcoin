@@ -273,19 +273,29 @@ useEffect(() => {
 
     const fetchBistFallback = async () => {
       try {
-        // Truncgil API is a common fallback for BIST (might have CORS issues)
-        const res = await fetch('https://finans.truncgil.com/v3/today.json');
+        // Use a CORS proxy for Truncgil API to ensure it works on Vercel/Browser
+        const targetUrl = 'https://finans.truncgil.com/v3/today.json';
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        
+        const res = await fetch(proxyUrl);
         if (res.ok) {
-          const data = await res.json();
+          const proxyData = await res.json();
+          const data = JSON.parse(proxyData.contents);
+          
           setPrices(prev => {
             const next = { ...prev };
             for (const [key, val] of Object.entries(data)) {
               if (typeof val === 'object' && val !== null) {
                 const item = val as any;
-                const sym = key.toUpperCase();
+                const sym = key.toUpperCase().trim();
                 if (item.Selling) {
-                  next[sym] = parseFloat(item.Selling.replace(',', '.'));
-                  if (item.Change) next[`${sym}_change`] = parseFloat(item.Change.replace(',', '.').replace('%', ''));
+                  // Truncgil uses comma as decimal separator
+                  const price = parseFloat(item.Selling.replace('.', '').replace(',', '.'));
+                  next[sym] = price;
+                  if (item.Change) {
+                    const change = parseFloat(item.Change.replace(',', '.').replace('%', ''));
+                    next[`${sym}_change`] = change;
+                  }
                 }
               }
             }
@@ -649,6 +659,9 @@ return (
   {loading ? "..." : "YENİLE"}
 </button>
 <div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
+<div style={{ color: fetchError ? "#ff453a" : "#30d158", fontSize: 10, fontWeight: 600, marginTop: 4 }}>
+  {fetchError ? "⚠️ Sunucu Bağlantısı Yok (Yedek Devrede)" : "✅ Sunucu Bağlantısı Aktif"}
+</div>
 <div style={{ color: "#4a5568", fontSize: 11, marginTop: 4 }}>{stocks.length} {market === "BIST" ? "hisse" : market === "CRYPTO" ? "coin" : "varlık"}</div>
 {fetchError && <div style={{ color: "#ff453a", fontSize: 9, fontWeight: 700, marginTop: 4 }}>{fetchError}</div>}
 </div>
