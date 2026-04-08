@@ -2,6 +2,12 @@ import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 import admin from "firebase-admin";
 import { initializeApp as initializeClientApp } from "firebase/app";
 import { getFirestore as getClientFirestore, collection as clientCollection, doc as clientDoc, writeBatch as clientWriteBatch, getDocs as clientGetDocs, limit as clientLimit, query as clientQuery } from "firebase/firestore";
@@ -48,15 +54,32 @@ if (finnhubKey) {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   
   app.use(express.json());
 
+  // Health check for production debugging
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      time: new Date().toISOString()
+    });
+  });
+
   // --- In-Memory Price Cache ---
   const inMemoryPrices: Record<string, any> = {};
+  const inMemoryNews: any[] = [];
 
   app.get("/api/prices", (req, res) => {
+    if (Object.keys(inMemoryPrices).length === 0) {
+      console.warn("[API] Prices requested but cache is empty");
+    }
     res.json(inMemoryPrices);
+  });
+
+  app.get("/api/news", (req, res) => {
+    res.json(inMemoryNews);
   });
 
   // --- Symbols ---
@@ -314,25 +337,21 @@ async function startServer() {
           return;
         }
         if (data && Array.isArray(data)) {
-          try {
-            const batch = clientWriteBatch(db);
-            data.slice(0, 10).forEach((item: any) => {
-              const newsDoc = clientDoc(db, "news", String(item.id));
-              batch.set(newsDoc, {
-                id: item.id,
-                title: item.headline,
-                summary: item.summary,
-                url: item.url,
-                source: item.source,
-                timestamp: new Date(item.datetime * 1000).toISOString(),
-                category: item.category
-              }, { merge: true });
-            });
-            await batch.commit();
-            console.log(`[News] Updated ${data.length} news items from Finnhub`);
-          } catch (commitErr) {
-            console.error("[News] Batch commit failed:", commitErr);
-          }
+          // Store in memory instead of Firestore to avoid quota issues
+          const formattedNews = data.slice(0, 20).map((item: any) => ({
+            id: item.id,
+            title: item.headline,
+            summary: item.summary,
+            url: item.url,
+            source: item.source,
+            timestamp: new Date(item.datetime * 1000).toISOString(),
+            category: item.category
+          }));
+          
+          inMemoryNews.length = 0; // Clear existing
+          inMemoryNews.push(...formattedNews);
+          
+          console.log(`[News] Updated ${inMemoryNews.length} news items in memory`);
         }
       });
     } catch (err) {
@@ -370,21 +389,27 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    console.log("[Server] Starting in DEVELOPMENT mode with Vite middleware");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    console.log("[Server] Starting in PRODUCTION mode");
+    const distPath = path.resolve(__dirname, 'dist');
+    console.log(`[Server] Serving static files from: ${distPath}`);
+    
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      res.sendFile(indexPath);
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] Bulletproof Sync Server running on http://localhost:${PORT}`);
+    console.log(`[Server] Running on port ${PORT}`);
+    console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }
 

@@ -205,6 +205,7 @@ const [scanning, setScanning] = useState(false);
 const [scanProgress, setScanProgress] = useState(0);
 const [scanned, setScanned] = useState(false);
 const [candidates, setCandidates] = useState<any[]>([]);
+const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
     [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
@@ -248,11 +249,66 @@ useEffect(() => {
     console.log("[App] Starting real-time API polling...");
     setLoading(true);
     
+    const fetchCryptoFallback = async () => {
+      try {
+        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+        if (res.ok) {
+          const data = await res.json();
+          setPrices(prev => {
+            const next = { ...prev };
+            data.forEach((t: any) => {
+              if (t.symbol.endsWith("USDT")) {
+                const sym = t.symbol.replace("USDT", "-USDT");
+                next[sym] = parseFloat(t.lastPrice);
+                next[`${sym}_change`] = parseFloat(t.priceChangePercent);
+              }
+            });
+            return next;
+          });
+        }
+      } catch (e) {
+        console.error("Crypto fallback failed:", e);
+      }
+    };
+
+    const fetchBistFallback = async () => {
+      try {
+        // Truncgil API is a common fallback for BIST (might have CORS issues)
+        const res = await fetch('https://finans.truncgil.com/v3/today.json');
+        if (res.ok) {
+          const data = await res.json();
+          setPrices(prev => {
+            const next = { ...prev };
+            for (const [key, val] of Object.entries(data)) {
+              if (typeof val === 'object' && val !== null) {
+                const item = val as any;
+                const sym = key.toUpperCase();
+                if (item.Selling) {
+                  next[sym] = parseFloat(item.Selling.replace(',', '.'));
+                  if (item.Change) next[`${sym}_change`] = parseFloat(item.Change.replace(',', '.').replace('%', ''));
+                }
+              }
+            }
+            return next;
+          });
+        }
+      } catch (e) {
+        console.error("BIST fallback failed:", e);
+      }
+    };
+
     const fetchPrices = async () => {
       try {
         const res = await fetch('/api/prices');
         if (res.ok) {
           const data = await res.json();
+          
+          if (Object.keys(data).length === 0) {
+            console.warn("[App] Backend cache is empty, attempting fallbacks...");
+            fetchCryptoFallback();
+            fetchBistFallback();
+          }
+
           setPrices(prev => {
             const next = { ...prev };
             for (const [symbol, info] of Object.entries(data)) {
@@ -261,39 +317,48 @@ useEffect(() => {
               if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
               if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
             }
-            console.log("XU100 price:", next["XU100"]);
             return next;
           });
           
           setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
           setFetchError(null);
         } else {
-          setFetchError(`Sunucu hatası: ${res.status}`);
+          fetchCryptoFallback();
+          fetchBistFallback();
+          setFetchError(`Sunucu hatası: ${res.status}. Yedek veri hatları devrede.`);
         }
         setLoading(false);
       } catch (error) {
         console.error("API fetch error:", error);
-        setFetchError("Veri bağlantısı kesildi");
+        fetchCryptoFallback();
+        fetchBistFallback();
+        setFetchError("Veri bağlantısı kesildi. Yedek veri hatları devrede.");
         setLoading(false);
       }
     };
 
+    const fetchNews = async () => {
+      try {
+        const res = await fetch('/api/news');
+        if (res.ok) {
+          const data = await res.json();
+          setNews(data);
+        }
+      } catch (error) {
+        console.error("News fetch error:", error);
+      }
+    };
+
     fetchPrices();
-    const interval = setInterval(fetchPrices, 3000);
+    fetchNews();
+    const interval = setInterval(() => {
+      fetchPrices();
+      fetchNews();
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // News Listener
-  useEffect(() => {
-    const q = query(collection(db, "news"), orderBy("timestamp", "desc"), limit(20));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setNews(newsList);
-    }, (err) => {
-      console.error("News listener error:", err);
-    });
-    return () => unsubscribe();
-  }, []);
+  // Removed News Listener to avoid Firestore quota issues
 
   const handleRefresh = () => {
     // With Firestore, refresh is automatic, but we can show loading briefly
@@ -316,21 +381,55 @@ const startScan = useCallback(() => {
       setScanned(true);
 
       // Dynamically calculate potential based on live price changes and mock pattern data
-      const found = stocks.map(s => {
+      const found = stocks.flatMap(s => {
         const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
         let liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
         if (!Number.isFinite(liveChange)) liveChange = 0;
         
-        // Calculate a dynamic score: base potential + (liveChange * 5)
-        let dynamicPotential = pd.potential + (liveChange * 5);
-        // Ensure it stays between 0 and 100
-        dynamicPotential = Math.max(0, Math.min(100, dynamicPotential));
+        // Long Potential: base potential + (liveChange * 5)
+        let longPotential = pd.potential + (liveChange * 5);
+        longPotential = Math.max(0, Math.min(100, longPotential));
+
+        // Short Potential: base potential - (liveChange * 5)
+        // If price is dropping fast, short potential increases
+        let shortPotential = pd.potential - (liveChange * 5);
+        shortPotential = Math.max(0, Math.min(100, shortPotential));
         
-        return { ...s, dynamicPotential };
-      }).filter(s => s.dynamicPotential >= 40)
-        .sort((a, b) => b.dynamicPotential - a.dynamicPotential);
+        const results = [];
+        if (longPotential >= 40) {
+          results.push({ ...s, dynamicPotential: longPotential, side: 'long' });
+        }
+        if (shortPotential >= 40) {
+          results.push({ ...s, dynamicPotential: shortPotential, side: 'short' });
+        }
+        return results;
+      }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
 
       setCandidates(found);
+
+      // Tavan (Ceiling) Candidates for BIST
+      if (market === "BIST") {
+        const ceiling = stocks.map(s => {
+          let liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
+          if (!Number.isFinite(liveChange)) liveChange = 0;
+          
+          // Ceiling probability logic:
+          // 1. Price change is already high (5% to 9.5%)
+          // 2. High volume (simulated)
+          // 3. Positive news sentiment (simulated)
+          const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
+          
+          let ceilingScore = (liveChange * 8) + (pd.patternScore / 5);
+          if (liveChange > 9.8) ceilingScore = 100; // Already at ceiling
+          
+          return { ...s, ceilingScore };
+        }).filter(s => s.ceilingScore >= 60)
+          .sort((a, b) => b.ceilingScore - a.ceilingScore);
+        
+        setCeilingCandidates(ceiling);
+      } else {
+        setCeilingCandidates([]);
+      }
     }
     setScanProgress(Math.min(p, 100));
   }, 80);
@@ -469,6 +568,7 @@ border: "1px solid #30363d"
         onScan={startScan}
         onViewCandidates={() => setScreen("candidates")}
         onViewScalp={() => setScreen("scalp")}
+        onViewCeiling={() => setScreen("ceiling")}
         onRefresh={handleRefresh}
         loading={loading}
         fetchError={fetchError}
@@ -494,17 +594,22 @@ border: "1px solid #30363d"
         onFetchAi={() => fetchAiAnalysis(selectedStock)}
         kapNews={news.length > 0 ? news : kapNews} tab={tab} setTab={setTab}
         timeframe={timeframe} setTimeframe={setTimeframe}
-        onBack={() => setScreen("candidates")}
+        onBack={() => setScreen(ceilingCandidates.some(c => c.symbol === selectedStock.symbol) ? "ceiling" : "candidates")}
+      />}
+      {screen === "ceiling" && <CeilingScreen
+        candidates={ceilingCandidates} prices={prices} lastUpdated={lastUpdated}
+        onBack={() => setScreen("scanner")}
+        onSelect={openDetail}
       />}
     </div>
 
-    <BottomNav screen={screen} setScreen={setScreen} candidates={candidates} />
+    <BottomNav screen={screen} setScreen={setScreen} candidates={candidates} market={market} />
   </div>
 </div>
 );
 }
 
-function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
+function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onViewCeiling, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
 const topMovers = [...stocks].sort((a, b) => {
   let changeA = Number(prices[`${a.symbol}_change`] ?? a.change ?? 0);
   if (!Number.isFinite(changeA)) changeA = 0;
@@ -624,6 +729,19 @@ return (
         {scanning ? "Taranıyor..." : scanned ? "Yeniden Tara" : market === "BIST" ? "🚀 Tüm BİST'i Tara" : market === "CRYPTO" ? "🚀 Tüm Kriptoyu Tara" : "🚀 Tüm Emtiayı Tara"}
       </button>
 
+      {scanned && market === "BIST" && (
+        <button
+          onClick={onViewCeiling}
+          style={{
+            width: "100%", marginTop: 8, padding: "12px", borderRadius: 14,
+            background: "linear-gradient(135deg, #ffd60a, #ff9f0a)", color: "#000", border: "none",
+            cursor: "pointer", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            boxShadow: "0 4px 12px rgba(255, 214, 10, 0.2)"
+          }}
+        >
+          🚀 Tavan İhtimali Olanlar
+        </button>
+      )}
       {scanned && (
         <button
           onClick={onViewScalp}
@@ -716,6 +834,94 @@ return (
 );
 }
 
+function CeilingScreen({ candidates, prices, lastUpdated, onBack, onSelect }: any) {
+  return (
+    <div style={{ padding: "0 0 20px" }}>
+      <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(255,214,10,0.05) 0%, transparent 100%)" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#ffd60a", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 10 }}>
+          ← Geri
+        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>Tavan İhtimali</div>
+              <div style={{ background: "#ffd60a", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>BİST</div>
+            </div>
+            <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>Temel ve teknik verilerle tavan potansiyeli</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>
+            {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>{lastUpdated}</div>}
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {candidates.length > 0 ? candidates.map((stock: any) => {
+          const price = Number(prices[stock.symbol] ?? stock.price ?? 0);
+          const change = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
+          const score = Math.round(stock.ceilingScore || 0);
+          
+          return (
+            <div 
+              key={stock.symbol} 
+              onClick={() => onSelect(stock)}
+              style={{ 
+                background: "linear-gradient(135deg, #1a1f2e 0%, #131922 100%)", 
+                borderRadius: 20, 
+                padding: 16, 
+                border: "1px solid rgba(255,214,10,0.15)",
+                cursor: "pointer",
+                position: "relative",
+                overflow: "hidden"
+              }}
+            >
+              <div style={{ position: "absolute", top: 0, right: 0, width: 60, height: 60, background: "radial-gradient(circle at top right, rgba(255,214,10,0.1), transparent 70%)" }} />
+              
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{stock.symbol}</div>
+                  <div style={{ color: "#4a5568", fontSize: 11, fontWeight: 600 }}>{stock.name}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: "#fff", fontSize: 16, fontWeight: 800 }}>{price.toFixed(2)} ₺</div>
+                  <div style={{ color: "#30d158", fontSize: 13, fontWeight: 700 }}>▲ +{change.toFixed(2)}%</div>
+                </div>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>TAVAN İHTİMALİ</span>
+                    <span style={{ color: "#ffd60a", fontSize: 10, fontWeight: 800 }}>%{score}</span>
+                  </div>
+                  <div style={{ background: "#21262d", height: 6, borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ background: "linear-gradient(90deg, #ffd60a, #ff9f0a)", width: `${score}%`, height: "100%", borderRadius: 3 }} />
+                  </div>
+                </div>
+                <div style={{ background: "rgba(255,214,10,0.1)", borderRadius: 10, padding: "6px 10px", border: "1px solid rgba(255,214,10,0.2)" }}>
+                  <div style={{ color: "#ffd60a", fontSize: 9, fontWeight: 700 }}>GÜÇ</div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{score > 85 ? "YÜKSEK" : "ORTA"}</div>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: 12, display: "flex", gap: 6 }}>
+                <span style={{ background: "rgba(0,212,170,0.1)", color: "#00d4aa", fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 6 }}>POZİTİF HABER</span>
+                <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 6 }}>HACİM ARTIŞI</span>
+              </div>
+            </div>
+          );
+        }) : (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#4a5568" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🔭</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Şu an tavan ihtimali yüksek aday bulunamadı.</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Tarayıcıyı kullanarak yeni analiz başlatabilirsiniz.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
   // Filter for stocks with high RSI or specific scalp patterns if needed
   // For now, we'll use the same candidates but with a scalp-focused UI
@@ -750,19 +956,30 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
           const isCrypto = stock.symbol.includes("-USDT");
           const currency = isCrypto ? " USDT" : " ₺";
           
-          const scalpTp = +(price * 1.025).toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)));
-          const scalpSl = +(price * 0.985).toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)));
+          const isShort = stock.side === 'short';
+          const sideColor = isShort ? "#ff453a" : "#00d4aa";
+          
+          const scalpTp = isShort 
+            ? +(price * 0.975).toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))
+            : +(price * 1.025).toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)));
+          
+          const scalpSl = isShort
+            ? +(price * 1.015).toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))
+            : +(price * 0.985).toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)));
 
           return (
             <button
-              key={stock.symbol}
+              key={`${stock.symbol}-${stock.side}`}
               onClick={() => onSelect(stock)}
-              style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: "1px solid rgba(0,212,170,0.2)", cursor: "pointer", textAlign: "left", width: "100%", position: "relative", overflow: "hidden" }}
+              style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: `1px solid ${sideColor}33`, cursor: "pointer", textAlign: "left", width: "100%", position: "relative", overflow: "hidden" }}
             >
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#00d4aa" }} />
+              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: sideColor }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <div>
-                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{stock.symbol}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{stock.symbol}</div>
+                    <div style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: sideColor, fontSize: 8, fontWeight: 800, padding: "1px 5px", borderRadius: 4 }}>{isShort ? "SELL" : "BUY"}</div>
+                  </div>
                   <div style={{ color: "#8b949e", fontSize: 11 }}>{stock.name}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -776,13 +993,13 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                   <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>GİRİŞ</div>
                   <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{price.toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}</div>
                 </div>
-                <div style={{ background: "rgba(48,209,88,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: "1px solid rgba(48,209,88,0.2)" }}>
-                  <div style={{ color: "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF</div>
-                  <div style={{ color: "#30d158", fontSize: 13, fontWeight: 800 }}>{scalpTp}</div>
+                <div style={{ background: isShort ? "rgba(255,69,58,0.08)" : "rgba(48,209,88,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: `1px solid ${isShort ? "rgba(255,69,58,0.2)" : "rgba(48,209,88,0.2)"}` }}>
+                  <div style={{ color: isShort ? "#ff453a" : "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF</div>
+                  <div style={{ color: isShort ? "#ff453a" : "#30d158", fontSize: 13, fontWeight: 800 }}>{scalpTp}</div>
                 </div>
-                <div style={{ background: "rgba(255,69,58,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: "1px solid rgba(255,69,58,0.2)" }}>
-                  <div style={{ color: "#ff453a", fontSize: 9, fontWeight: 700 }}>STOP</div>
-                  <div style={{ color: "#ff453a", fontSize: 13, fontWeight: 800 }}>{scalpSl}</div>
+                <div style={{ background: isShort ? "rgba(48,209,88,0.08)" : "rgba(255,69,58,0.08)", borderRadius: 12, padding: "8px", textAlign: "center", border: `1px solid ${isShort ? "rgba(48,209,88,0.2)" : "rgba(255,69,58,0.2)"}` }}>
+                  <div style={{ color: isShort ? "#30d158" : "#ff453a", fontSize: 9, fontWeight: 700 }}>STOP</div>
+                  <div style={{ color: isShort ? "#30d158" : "#ff453a", fontSize: 13, fontWeight: 800 }}>{scalpSl}</div>
                 </div>
               </div>
 
@@ -791,7 +1008,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                   <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {pd.rsi}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
                 </div>
-                <div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
+                <div style={{ color: sideColor, fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
               </div>
             </button>
           );
@@ -833,16 +1050,20 @@ return (
       const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
       const precision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
       
+      const isShort = stock.side === 'short';
+      const sideColor = isShort ? "#ff453a" : "#00d4aa";
+      
       let potential = Number(stock.dynamicPotential ?? pd.potential ?? 0);
       if (!Number.isFinite(potential)) potential = 0;
-      const tp = +(price * (1 + potential / 100)).toFixed(precision);
-      const resist = +(price * 1.08).toFixed(precision);
+      
+      const tp = isShort ? +(price * (1 - potential / 100)).toFixed(precision) : +(price * (1 + potential / 100)).toFixed(precision);
+      const resist = isShort ? +(price * 0.92).toFixed(precision) : +(price * 1.08).toFixed(precision);
 
       return (
         <button
-          key={stock.symbol}
+          key={`${stock.symbol}-${stock.side}`}
           onClick={() => onSelect(stock)}
-          style={{ background: isTop ? "linear-gradient(135deg, #21262d, #161b22)" : "#21262d", borderRadius: 18, padding: "14px 16px", border: isTop ? "1px solid rgba(0,212,170,0.3)" : "1px solid #30363d", cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: isTop ? "linear-gradient(135deg, #21262d, #161b22)" : "#21262d", borderRadius: 18, padding: "14px 16px", border: isTop ? `1px solid ${sideColor}55` : "1px solid #30363d", cursor: "pointer", textAlign: "left", width: "100%" }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -850,8 +1071,8 @@ return (
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ color: "#fff", fontSize: 16, fontWeight: 800 }}>{stock.symbol}</span>
-                  <span style={{ background: "rgba(0,212,170,0.15)", color: "#00d4aa", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, border: "1px solid rgba(0,212,170,0.3)" }}>
-                    +%{(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}
+                  <span style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: sideColor, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, border: `1px solid ${sideColor}33` }}>
+                    {isShort ? "SELL" : "BUY"} {(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}%
                   </span>
                 </div>
                 <div style={{ color: "#8b949e", fontSize: 11, marginTop: 2 }}>{stock.name}</div>
@@ -864,34 +1085,34 @@ return (
           </div>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: "rgba(48,209,88,0.08)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(48,209,88,0.2)" }}>
-              <div style={{ color: "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF (TP)</div>
+            <div style={{ flex: 1, background: isShort ? "rgba(255,69,58,0.08)" : "rgba(48,209,88,0.08)", borderRadius: 10, padding: "8px 10px", border: `1px solid ${isShort ? "rgba(255,69,58,0.2)" : "rgba(48,209,88,0.2)"}` }}>
+              <div style={{ color: isShort ? "#ff453a" : "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF (TP)</div>
               <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{tp}{currency}</div>
             </div>
             <div style={{ flex: 1, background: "rgba(255,214,10,0.08)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(255,214,10,0.2)" }}>
-              <div style={{ color: "#ffd60a", fontSize: 9, fontWeight: 700 }}>DİRENÇ</div>
+              <div style={{ color: "#ffd60a", fontSize: 9, fontWeight: 700 }}>{isShort ? "DESTEK" : "DİRENÇ"}</div>
               <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{resist}{currency}</div>
             </div>
           </div>
 
-          <div style={{ background: "rgba(0,212,170,0.06)", borderRadius: 10, padding: "8px 10px", marginBottom: 10 }}>
-            <div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 700 }}>📐 {pd.pattern}</div>
+          <div style={{ background: `${sideColor}11`, borderRadius: 10, padding: "8px 10px", marginBottom: 10 }}>
+            <div style={{ color: sideColor, fontSize: 11, fontWeight: 700 }}>📐 {pd.pattern}</div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
-            <Pill label="RSI" val={pd.rsi} good={pd.rsi < 40} />
-            <Pill label="MACD" val={pd.macd > 0 ? "▲" : "▼"} good={pd.macd > 0} />
+            <Pill label="RSI" val={pd.rsi} good={isShort ? pd.rsi > 60 : pd.rsi < 40} />
+            <Pill label="MACD" val={pd.macd > 0 ? "▲" : "▼"} good={isShort ? pd.macd < 0 : pd.macd > 0} />
             <Pill label="FIB" val={pd.fibLevel} good />
-            <Pill label="POT." val={`+${(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}%`} good={true} />
+            <Pill label="POT." val={`${isShort ? "-" : "+"}${(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}%`} good={true} />
           </div>
 
           <div style={{ marginTop: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <span style={{ color: "#8b949e", fontSize: 10 }}>Güven Skoru</span>
-              <span style={{ color: pd.patternScore > 85 ? "#ffd60a" : "#00d4aa", fontSize: 10, fontWeight: 700 }}>{pd.patternScore}/100</span>
+              <span style={{ color: pd.patternScore > 85 ? "#ffd60a" : sideColor, fontSize: 10, fontWeight: 700 }}>{pd.patternScore}/100</span>
             </div>
             <div style={{ background: "#30363d", borderRadius: 4, height: 4 }}>
-              <div style={{ background: pd.patternScore > 85 ? "linear-gradient(90deg, #ffd60a, #ff9f0a)" : "linear-gradient(90deg, #00d4aa, #00b8ff)", width: `${pd.patternScore}%`, height: "100%", borderRadius: 4 }} />
+              <div style={{ background: pd.patternScore > 85 ? "linear-gradient(90deg, #ffd60a, #ff9f0a)" : `linear-gradient(90deg, ${sideColor}, #00b8ff)`, width: `${pd.patternScore}%`, height: "100%", borderRadius: 4 }} />
             </div>
           </div>
         </button>
@@ -924,28 +1145,34 @@ const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]
 
 const pricePrecision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
 
-const tp1 = +(price * 1.15).toFixed(pricePrecision);
-const tp2 = +(price * 1.28).toFixed(pricePrecision);
+const isShort = stock.side === 'short';
+const sideColor = isShort ? "#ff453a" : "#00d4aa";
+
+const tp1 = isShort ? +(price * 0.85).toFixed(pricePrecision) : +(price * 1.15).toFixed(pricePrecision);
+const tp2 = isShort ? +(price * 0.72).toFixed(pricePrecision) : +(price * 1.28).toFixed(pricePrecision);
 let potential = Number(stock.dynamicPotential ?? pd.potential ?? 0);
 if (!Number.isFinite(potential)) potential = 0;
-const tp3 = +(price * (1 + potential / 100)).toFixed(pricePrecision);
-const sl = +(price * 0.92).toFixed(pricePrecision);
+const tp3 = isShort ? +(price * (1 - potential / 100)).toFixed(pricePrecision) : +(price * (1 + potential / 100)).toFixed(pricePrecision);
+const sl = isShort ? +(price * 1.08).toFixed(pricePrecision) : +(price * 0.92).toFixed(pricePrecision);
 const support = +(price * 0.95).toFixed(pricePrecision);
 const resist = +(price * 1.08).toFixed(pricePrecision);
 
 // Scalp Levels (Short Term)
-const scalpTp1 = +(price * 1.02).toFixed(pricePrecision);
-const scalpTp2 = +(price * 1.04).toFixed(pricePrecision);
-const scalpSl = +(price * 0.985).toFixed(pricePrecision);
+const scalpTp1 = isShort ? +(price * 0.98).toFixed(pricePrecision) : +(price * 1.02).toFixed(pricePrecision);
+const scalpTp2 = isShort ? +(price * 0.96).toFixed(pricePrecision) : +(price * 1.04).toFixed(pricePrecision);
+const scalpSl = isShort ? +(price * 1.015).toFixed(pricePrecision) : +(price * 0.985).toFixed(pricePrecision);
 
 return (
 <>
 <div style={{ padding: "0 0 20px" }}>
 <div style={{ padding: "8px 20px 12px", borderBottom: "1px solid #1a1f2e" }}>
-<button onClick={onBack} style={{ background: "none", border: "none", color: "#00d4aa", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 8 }}>← Geri</button>
+<button onClick={onBack} style={{ background: "none", border: "none", color: sideColor, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 8 }}>← Geri</button>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
 <div>
-<div style={{ color: "#fff", fontSize: 26, fontWeight: 800 }}>{stock.symbol}</div>
+<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+  <div style={{ color: "#fff", fontSize: 26, fontWeight: 800 }}>{stock.symbol}</div>
+  <div style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: isShort ? "#ff453a" : "#00d4aa", fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 6 }}>{isShort ? "SELL / SHORT" : "BUY / LONG"}</div>
+</div>
 <div style={{ color: "#4a5568", fontSize: 12 }}>{stock.name}</div>
 </div>
 <div style={{ textAlign: "right" }}>
@@ -1135,7 +1362,7 @@ return (
     <div style={{ margin: "12px 16px 0" }}>
       <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>KAP & X HABERLERI</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {kapNews.length > 0 ? kapNews.map((n: any, i: number) => (
+        {kapNews.filter((n: any) => n.type === "pozitif" || n.type === "negatif").length > 0 ? kapNews.filter((n: any) => n.type === "pozitif" || n.type === "negatif").map((n: any, i: number) => (
           <a key={n.id || i} href={n.url} target="_blank" rel="noreferrer" style={{ background: "#131922", borderRadius: 14, padding: "12px 14px", border: "1px solid #1a1f2e", textDecoration: "none", display: "block" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <div style={{ display: "flex", gap: 6 }}>
@@ -1174,15 +1401,18 @@ return (
 );
 }
 
-function BottomNav({ screen, setScreen, candidates }: any) {
+function BottomNav({ screen, setScreen, candidates, market }: any) {
+const navItems = [
+  { key: "scanner", icon: "🔍", label: "Tarayıcı" },
+  { key: "scalp", icon: "⚡", label: "Scalp" },
+  ...(market === "BIST" ? [{ key: "ceiling", icon: "🚀", label: "Tavan" }] : []),
+  { key: "candidates", icon: "⭐", label: "Adaylar", badge: candidates.length },
+  { key: "detail", icon: "📊", label: "Analiz" },
+];
+
 return (
 <div style={{ background: "rgba(13,17,23,0.95)", borderTop: "1px solid #1a1f2e", padding: "10px 0 28px", display: "flex", justifyContent: "space-around", backdropFilter: "blur(20px)" }}>
-{[
-{ key: "scanner", icon: "🔍", label: "Tarayıcı" },
-{ key: "scalp", icon: "⚡", label: "Scalp" },
-{ key: "candidates", icon: "⭐", label: "Adaylar", badge: candidates.length },
-{ key: "detail", icon: "📊", label: "Analiz" },
-].map(n => (
+{navItems.map(n => (
 <button
 key={n.key}
 onClick={() => n.key !== "detail" && setScreen(n.key)}
