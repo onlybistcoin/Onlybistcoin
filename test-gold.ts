@@ -1,16 +1,11 @@
-
-async function testGold() {
-  const url = "https://api.gold-api.com/price/WTI";
+async function test() {
   try {
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      console.log("WTI price:", data.price);
-    } else {
-      console.log("WTI failed:", res.status);
-    }
-  } catch (err: any) {
-    console.error("WTI fetch failed:", err.message);
+    const res = await fetch("https://api.gold-api.com/price/XAU");
+    console.log("Status:", res.status);
+    const data = await res.json();
+    console.log(data);
+  } catch (e) {
+    console.error(e);
   }
 }
-testGold();
+test();

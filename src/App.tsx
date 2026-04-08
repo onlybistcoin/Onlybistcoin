@@ -261,13 +261,16 @@ useEffect(() => {
               if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
               if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
             }
+            console.log("XU100 price:", next["XU100"]);
             return next;
           });
           
           setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-          setLoading(false);
           setFetchError(null);
+        } else {
+          setFetchError(`Sunucu hatası: ${res.status}`);
         }
+        setLoading(false);
       } catch (error) {
         console.error("API fetch error:", error);
         setFetchError("Veri bağlantısı kesildi");
@@ -355,12 +358,13 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
     const prompt = `Analist: ${isCrypto ? "Kripto" : "Borsa"}. Varlık: ${stock.symbol}. 
 Veri: Fiyat ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
 
-Talimat: Çok kısa, teknik ve net ol. 
+Talimat: Çok kısa, teknik ve temel olarak net ol. 
 1. 🎯 FORMASYON: ${pd.pattern} yorumu.
 2. 📊 TEKNİK: RSI/MACD yönü.
-3. ⚡ SCALP: Giriş/TP.
-4. 🎰 RİSK: Stop.
-5. 💎 KARAR: Al/Sat/Bekle (neden).`;
+3. 📰 TEMEL: Varlık hakkında kısa temel beklenti.
+4. ⚡ SCALP: Giriş/TP.
+5. 🎰 RİSK: Stop.
+6. 💎 KARAR: Al/Sat/Bekle (neden).`;
 
     let apiKey = "";
     try {

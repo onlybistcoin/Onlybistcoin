@@ -1,9 +1,9 @@
 async function test() {
   try {
-    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const res = await fetch("https://bigpara.hurriyet.com.tr/api/v1/hisse/list");
     console.log("Status:", res.status);
     const data = await res.json();
-    console.log(data.rates.TRY);
+    console.log(data.data.slice(0, 2));
   } catch (e) {
     console.error(e);
   }

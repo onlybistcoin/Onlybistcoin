@@ -1,9 +1,9 @@
 async function test() {
   try {
-    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const res = await fetch("http://127.0.0.1:3000/api/prices");
     console.log("Status:", res.status);
     const data = await res.json();
-    console.log(data.rates.TRY);
+    console.log("Keys:", Object.keys(data).length);
   } catch (e) {
     console.error(e);
   }
