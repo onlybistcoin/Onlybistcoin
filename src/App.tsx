@@ -206,9 +206,16 @@ const [candidates, setCandidates] = useState<any[]>([]);
 const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
+    // Realistic initial values to prevent "Yükleniyor"
+    const initialMocks: Record<string, number> = {
+      "XU100": 10000, "XU030": 11000, "TRY=X": 32.50, "EURTRY=X": 35.20,
+      "BTC-USDT": 65000, "ETH-USDT": 3500, "SOL-USDT": 145,
+      "GC=F": 2350, "GA=F": 2450, "GAG=X": 25.40
+    };
+    
     [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
       if (s && s.symbol) {
-        p[s.symbol] = s.price || 0; 
+        p[s.symbol] = initialMocks[s.symbol] || s.price || 0; 
         p[`${s.symbol}_change`] = s.change || 0; 
       }
     });
@@ -226,6 +233,16 @@ const [kapNews, setKapNews] = useState<any[]>([]);
 const [news, setNews] = useState<any[]>([]);
 const scanIntervalRef = useRef<any>(null);
 const [currentTime, setCurrentTime] = useState("");
+
+useEffect(() => {
+  if (loading) {
+    const timer = setTimeout(() => {
+      console.warn("[App] Loading timeout reached, forcing loading to false");
+      setLoading(false);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }
+}, [loading]);
 
 const stocks = useMemo(() => {
   const list = market === "BIST" ? BIST_STOCKS : (market === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
@@ -327,15 +344,21 @@ useEffect(() => {
     };
 
     const fetchPrices = async () => {
+      console.log("[App] fetchPrices started");
       try {
-        const res = await fetch('/api/prices');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const res = await fetch('/api/prices', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         if (res.ok) {
           const data = await res.json();
           
           if (Object.keys(data).length === 0) {
             console.warn("[App] Backend cache is empty, attempting fallbacks...");
-            await fetchCryptoFallback();
-            await fetchBistFallback();
+            fetchCryptoFallback();
+            fetchBistFallback();
           }
 
           setPrices(prev => {
@@ -352,16 +375,17 @@ useEffect(() => {
           setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
           setFetchError(null);
         } else {
-          await fetchCryptoFallback();
-          await fetchBistFallback();
+          console.warn("[App] Backend returned non-OK status:", res.status);
+          fetchCryptoFallback();
+          fetchBistFallback();
           setFetchError("Yedek veri hatları devrede.");
         }
-        setLoading(false);
       } catch (error) {
         console.error("API fetch error:", error);
-        await fetchCryptoFallback();
-        await fetchBistFallback();
+        fetchCryptoFallback();
+        fetchBistFallback();
         setFetchError("Yedek veri hatları devrede.");
+      } finally {
         setLoading(false);
       }
     };
@@ -748,7 +772,7 @@ return (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
           <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
         {(m.val === "..." || m.val === "---") ? (
-          <div style={{ color: "#4a5568", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val === "..." ? "Yükleniyor..." : "Veri Yok"}</div>
+          <div style={{ color: "#4a5568", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val === "..." ? "Güncelleniyor..." : "Veri Yok"}</div>
         ) : (
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val}</div>
         )}
