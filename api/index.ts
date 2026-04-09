@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -48,8 +47,13 @@ if (fs.existsSync(firebaseConfigPath)) {
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
-import YahooFinance from 'yahoo-finance2';
-const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
+import yahooFinance from 'yahoo-finance2';
+// Suppress the survey notice
+try {
+  (yahooFinance as any).setGlobalConfig({ suppressNotices: ['yahooSurvey'] });
+} catch (e) {
+  console.error("Failed to set Yahoo Finance config:", e);
+}
 
 // Initialize Firebase Admin
 try {
@@ -110,8 +114,35 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("[Server Error]", err);
+  res.status(500).json({ 
+    error: "Internal Server Error", 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 // 3. API routes
-app.get("/api/prices", (req, res) => {
+let lastUpdate = 0;
+const UPDATE_INTERVAL = 60000; // 1 minute
+
+app.get("/api/prices", async (req, res) => {
+  const now = Date.now();
+  // If data is older than 1 minute, trigger an update
+  if (now - lastUpdate > UPDATE_INTERVAL) {
+    lastUpdate = now;
+    console.log("[API] Triggering on-demand price update...");
+    
+    // We don't await them to keep the response fast, 
+    // but in serverless they might get cut off.
+    // However, subsequent requests will eventually get the data.
+    updateCryptoPrices().catch(e => console.error("Crypto update failed:", e));
+    updateBistPrices().catch(e => console.error("BIST update failed:", e));
+    updateCommodities().catch(e => console.error("Commodities update failed:", e));
+  }
+  
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.json(inMemoryPrices);
 });
@@ -214,7 +245,7 @@ async function updateBistPrices() {
   try {
     // Indices first
     const indices = ["XU100.IS", "XU030.IS"];
-    const indexQuotes = await yahooFinance.quote(indices);
+    const indexQuotes = await yahooFinance.quote(indices) as any[];
     for (const quote of indexQuotes) {
       let sym = quote.symbol === "XU100.IS" ? "XU100" : "XU030";
       inMemoryPrices[sym] = {
@@ -231,7 +262,7 @@ async function updateBistPrices() {
     for (let i = 0; i < BIST_SYMBOLS.length; i += batchSize) {
       const batch = BIST_SYMBOLS.slice(i, i + batchSize).map(s => `${s}.IS`);
       try {
-        const quotes = await yahooFinance.quote(batch);
+        const quotes = await yahooFinance.quote(batch) as any[];
         for (const quote of quotes) {
           const originalSymbol = quote.symbol.replace('.IS', '');
           if (quote.regularMarketPrice !== undefined) {
@@ -257,7 +288,7 @@ async function updateBistPrices() {
 async function updateCommodities() {
   try {
     const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "HG=F"];
-    const quotes = await yahooFinance.quote(yfSymbols);
+    const quotes = await yahooFinance.quote(yfSymbols) as any[];
     const prices: Record<string, number> = {};
     const changes: Record<string, number> = {};
 
@@ -299,19 +330,10 @@ async function updateCommodities() {
   }
 }
 
-// Background Loops
-// Initial run
-updateCryptoPrices();
-updateBistPrices();
-updateCommodities();
-
-setInterval(updateCryptoPrices, 15000);
-setInterval(updateBistPrices, 60000);
-setInterval(updateCommodities, 60000);
-
 // Vite middleware for development
 async function setupVite() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -319,18 +341,41 @@ async function setupVite() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    } else {
+      console.warn("[Server] dist directory not found. Static serving might fail.");
+      app.get('*', (req, res) => {
+        res.status(404).send("Production build not found. Please run 'npm run build'.");
+      });
+    }
   }
 }
 
-setupVite();
+async function startServer() {
+  await setupVite();
 
-const PORT = 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[Server] Running on http://localhost:${PORT}`);
+  const PORT = 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[Server] Running on http://localhost:${PORT}`);
+    
+    // Start background loops AFTER server is listening
+    console.log("[Server] Starting background price updates...");
+    updateCryptoPrices();
+    updateBistPrices();
+    updateCommodities();
+
+    setInterval(updateCryptoPrices, 15000);
+    setInterval(updateBistPrices, 60000);
+    setInterval(updateCommodities, 60000);
+  });
+}
+
+startServer().catch(err => {
+  console.error("[Server] Failed to start:", err);
 });
 
 export default app;
