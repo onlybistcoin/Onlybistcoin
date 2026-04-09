@@ -809,16 +809,30 @@ return (
         { sym: "TRY=X", label: "USD/TRY", val: prices["TRY=X"] > 0 ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : (loading ? "..." : "---"), chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
         { sym: "GAG=X", label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
       ].map(m => (
-        <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 10px", border: "1px solid #30363d" }}>
-          <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>{m.label}</div>
-        {(m.val === "..." || m.val === "---") ? (
-          <div style={{ color: "#4a5568", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val === "..." ? "Güncelleniyor..." : "Veri Yok"}</div>
-        ) : (
-          <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginTop: 2 }}>{m.val}</div>
-        )}
+        <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 12px", border: "1px solid #30363d", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700, letterSpacing: 0.5 }}>{m.label}</div>
+            {prices[`${m.sym}_source`] && <div style={{ color: "#4a5568", fontSize: 7, fontWeight: 600 }}>{prices[`${m.sym}_source`].toUpperCase()}</div>}
+          </div>
+          
+          {(m.val === "..." || m.val === "---") ? (
+            <div style={{ color: "#4a5568", fontSize: 14, fontWeight: 700, margin: "4px 0" }}>{m.val === "..." ? "..." : "---"}</div>
+          ) : (
+            <div style={{ color: "#fff", fontSize: 14, fontWeight: 800, margin: "4px 0" }}>{m.val}</div>
+          )}
+          
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ color: m.up ? "#30d158" : "#ff453a", fontSize: 10, fontWeight: 600 }}>{m.chg}</div>
-            {prices[`${m.sym}_source`] && <div style={{ color: "#4a5568", fontSize: 8 }}>{prices[`${m.sym}_source`]}</div>}
+            <div style={{ 
+              color: m.up ? "#30d158" : "#ff453a", 
+              fontSize: 11, 
+              fontWeight: 800,
+              display: "flex",
+              alignItems: "center",
+              gap: 2
+            }}>
+              {m.up ? "▲" : "▼"} {m.chg || "%0.00"}
+            </div>
+            <div style={{ color: "#4a5568", fontSize: 8, fontWeight: 700 }}>GÜNLÜK</div>
           </div>
         </div>
       ))}

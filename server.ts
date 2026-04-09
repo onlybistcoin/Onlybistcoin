@@ -13,7 +13,7 @@ const __dirname = dirname(__filename);
 
 // --- In-Memory Price Cache ---
 const inMemoryPrices: Record<string, any> = {
-  "XU100": { price: 9155.32, change: 0.45, source: "Initial" },
+  "XU100": { price: 13589.97, change: 0.39, source: "Initial" },
   "BTC-USDT": { price: 96540.20, change: -1.2, source: "Initial" },
   "TRY=X": { price: 34.22, change: 0.05, source: "Initial" }
 };
@@ -347,8 +347,8 @@ async function startServer() {
       for (let i = 0; i < uniqueSymbols.length; i += chunkSize) {
         const chunk = uniqueSymbols.slice(i, i + chunkSize);
         const yfSymbols = chunk.map(s => {
-          if (s === "XU100") return "^XU100";
-          if (s === "XU030") return "^XU030";
+          if (s === "XU100") return "XU100.IS";
+          if (s === "XU030") return "XU030.IS";
           return `${s}.IS`;
         });
         
@@ -356,8 +356,8 @@ async function startServer() {
           const results = await yahooFinance.quote(yfSymbols) as any[];
           for (const result of results) {
             let symbol = result.symbol;
-            if (symbol === "^XU100") symbol = "XU100";
-            else if (symbol === "^XU030") symbol = "XU030";
+            if (symbol === "XU100.IS") symbol = "XU100";
+            else if (symbol === "XU030.IS") symbol = "XU030";
             else symbol = symbol.replace('.IS', '');
             
             // Only update if not already updated by Bigpara recently, or if Bigpara failed
@@ -397,73 +397,84 @@ async function startServer() {
   }
 
   async function updateCommodities() {
-    console.log("updateCommodities called");
+    console.log("[Worker] updateCommodities started");
     try {
-      let metaCount = 0;
-
+      // 1. Try Yahoo Finance for major indices and currencies (provides change %)
+      const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "XU100.IS", "XU030.IS", "EURTRY=X"];
       try {
-        const fxRes = await fetchWithTimeout("https://api.exchangerate-api.com/v4/latest/USD");
-        if (fxRes.ok) {
-          const fxData = await fxRes.json();
-          let usdTry = fxData.rates.TRY;
-          if (usdTry) {
-            inMemoryPrices["TRY=X"] = { price: usdTry, lastUpdated: new Date().toISOString() };
-            metaCount++;
-
-            // 3. Update Gold/Silver via Gold-API
-            try {
-              const goldRes = await fetchWithTimeout("https://api.gold-api.com/price/XAU");
-              if (goldRes.ok) {
-                const goldData = await goldRes.json();
-                let goldPrice = goldData.price;
-                if (goldPrice) {
-                  const gramGold = (goldPrice / 31.1035) * usdTry;
-                  inMemoryPrices["GAU=X"] = { price: gramGold, lastUpdated: new Date().toISOString() };
-                  inMemoryPrices["GC=F"] = { price: goldPrice, lastUpdated: new Date().toISOString() };
-                  metaCount += 2;
-                }
-              }
-            } catch (e) {
-              console.error("Gold API failed:", e);
-            }
-
-            try {
-              const silverRes = await fetchWithTimeout("https://api.gold-api.com/price/XAG");
-              if (silverRes.ok) {
-                const silverData = await silverRes.json();
-                const silverPrice = silverData.price;
-                if (silverPrice) {
-                  const gramSilver = (silverPrice / 31.1035) * usdTry;
-                  inMemoryPrices["GAG=X"] = { price: gramSilver, lastUpdated: new Date().toISOString() };
-                  inMemoryPrices["SI=F"] = { price: silverPrice, lastUpdated: new Date().toISOString() };
-                  metaCount += 2;
-                }
-              }
-            } catch (e) {
-              console.error("Silver API failed:", e);
-            }
-          }
+        const quotes = await yahooFinance.quote(yfSymbols);
+        for (const quote of quotes) {
+          let sym = quote.symbol;
+          if (sym === "XU100.IS") sym = "XU100";
+          else if (sym === "XU030.IS") sym = "XU030";
+          
+          inMemoryPrices[sym] = {
+            price: quote.regularMarketPrice,
+            change: quote.regularMarketChangePercent || 0,
+            lastUpdated: new Date().toISOString(),
+            source: 'YahooFinance'
+          };
         }
       } catch (e) {
-        console.error("FX API failed:", e);
+        console.error("[Worker] Yahoo Finance commodities failed:", (e as Error).message);
       }
 
-      // 4. Indices
-      const indices = [
-        { sym: "XU100", gSym: "XU100:INDEXIST" },
-        { sym: "XU030", gSym: "XU030:INDEXIST" }
-      ];
-      for (const idx of indices) {
-        let price = await fetchGoogleFinancePrice(idx.gSym);
-        if (price) {
-          inMemoryPrices[idx.sym] = { price: price, lastUpdated: new Date().toISOString(), source: 'GoogleFinance' };
-          metaCount++;
+      // 2. Fallbacks and derived values
+      const usdTry = inMemoryPrices["TRY=X"]?.price || 34.22;
+      
+      // Update Gram Gold/Silver if Ons prices are available
+      const goldOns = inMemoryPrices["GC=F"]?.price;
+      if (goldOns) {
+        const gramGold = (goldOns / 31.1035) * usdTry;
+        const goldOnsChange = inMemoryPrices["GC=F"]?.change || 0;
+        const usdTryChange = inMemoryPrices["TRY=X"]?.change || 0;
+        // Approximation of gram gold change
+        const gramGoldChange = goldOnsChange + usdTryChange;
+        
+        inMemoryPrices["GAU=X"] = { 
+          price: gramGold, 
+          change: gramGoldChange,
+          lastUpdated: new Date().toISOString(),
+          source: 'Calculated'
+        };
+      }
+
+      const silverOns = inMemoryPrices["SI=F"]?.price;
+      if (silverOns) {
+        const gramSilver = (silverOns / 31.1035) * usdTry;
+        const silverOnsChange = inMemoryPrices["SI=F"]?.change || 0;
+        const usdTryChange = inMemoryPrices["TRY=X"]?.change || 0;
+        const gramSilverChange = silverOnsChange + usdTryChange;
+        
+        inMemoryPrices["GAG=X"] = { 
+          price: gramSilver, 
+          change: gramSilverChange,
+          lastUpdated: new Date().toISOString(),
+          source: 'Calculated'
+        };
+      }
+
+      // 3. Legacy fallbacks (just in case)
+      if (!inMemoryPrices["TRY=X"]?.price) {
+        try {
+          const fxRes = await fetchWithTimeout("https://api.exchangerate-api.com/v4/latest/USD");
+          if (fxRes.ok) {
+            const fxData = await fxRes.json();
+            if (fxData.rates.TRY) {
+              inMemoryPrices["TRY=X"] = { 
+                price: fxData.rates.TRY, 
+                change: 0, 
+                lastUpdated: new Date().toISOString(),
+                source: 'ExchangeRateAPI'
+              };
+            }
+          }
+        } catch (e) {
+          console.error("[Worker] FX fallback failed:", e);
         }
       }
-
-      console.log(`[Worker] Updated ${metaCount} FX/Commodity prices`);
     } catch (err) {
-      console.error("[Worker] Commodities update failed:", err);
+      console.error("[Worker] updateCommodities critical failure:", err);
     }
   }
 
