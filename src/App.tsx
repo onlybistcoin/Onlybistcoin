@@ -208,7 +208,7 @@ const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 9155.32, "XU030": 10212.45, "TRY=X": 34.22, "EURTRY=X": 36.85,
+      "XU100": 13589.97, "XU030": 15582.01, "TRY=X": 34.22, "EURTRY=X": 36.85,
       "BTC-USDT": 96540.20, "ETH-USDT": 3455.10, "SOL-USDT": 235.40,
       "GC=F": 2652.30, "GA=F": 2955.15, "GAG=X": 32.45
     };
@@ -396,7 +396,7 @@ useEffect(() => {
         } else {
           const errorText = await res.text().catch(() => "Unknown error");
           console.warn(`[App] Backend error ${res.status}:`, errorText);
-          setFetchError(`Yedek hat devrede (Hata: ${res.status})`);
+          setFetchError(`Fiyat Hattı Hatası: ${res.status} (Yedekler devrede)`);
           fetchCryptoFallback();
           fetchBistFallback();
         }
@@ -421,6 +421,8 @@ useEffect(() => {
         if (res.ok) {
           const data = await res.json();
           setNews(data);
+        } else {
+          console.warn(`[App] News fetch failed: ${res.status}`);
         }
       } catch (error) {
         console.error("News fetch error:", error);

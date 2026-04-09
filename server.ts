@@ -8,6 +8,14 @@ import fs from "fs";
 
 console.log("[Server] Starting initialization...");
 
+process.on('uncaughtException', (err) => {
+  console.error('[Server] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -93,22 +101,26 @@ async function startServer() {
   app.use(express.json());
 
   // 3. API routes (Defined BEFORE any other middleware or static serving)
-  app.get("/api/health", (req, res) => {
-    res.json({ 
-      status: "ok", 
-      env: process.env.NODE_ENV,
-      time: new Date().toISOString()
-    });
-  });
-
   app.get("/api/prices", (req, res) => {
-    res.set('Cache-Control', 'no-store');
+    console.log(`[Server] Serving /api/prices to ${req.ip}`);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json(inMemoryPrices);
   });
 
   app.get("/api/news", (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.json(inMemoryNews);
+  });
+
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      time: new Date().toISOString(),
+      pricesCount: Object.keys(inMemoryPrices).length
+    });
   });
 
   app.get("/api/debug", (req, res) => {
@@ -514,21 +526,25 @@ async function startServer() {
   // --- Background Loops (Recursive to prevent overlapping) ---
   
   async function loopCrypto() {
+    console.log("[Worker] Starting Crypto loop...");
     await updateCryptoPrices();
     setTimeout(loopCrypto, 10000); // 10 seconds
   }
 
   async function loopBist() {
+    console.log("[Worker] Starting BIST loop...");
     await updateBistPrices();
     setTimeout(loopBist, 30000); // 30 seconds
   }
 
   async function loopCommodities() {
+    console.log("[Worker] Starting Commodities loop...");
     await updateCommodities();
     setTimeout(loopCommodities, 30000); // 30 seconds
   }
 
   async function loopNews() {
+    console.log("[Worker] Starting News loop...");
     await updateNews();
     setTimeout(loopNews, 1800000); // 30 minutes
   }
@@ -563,9 +579,18 @@ async function startServer() {
     console.log(`[Server] Running on port ${PORT}`);
     console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+
+  return app;
 }
 
-startServer().catch(err => {
+const appPromise = startServer().catch(err => {
   console.error("Failed to start server:", err);
-  process.exit(1);
+  // Don't exit in serverless environment
+  if (process.env.NODE_ENV !== 'production') process.exit(1);
 });
+
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  if (app) return app(req, res);
+  res.status(500).send("Server initialization failed");
+};
