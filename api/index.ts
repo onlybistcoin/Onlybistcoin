@@ -183,7 +183,7 @@ const BIST_SYMBOLS = [
 
 const CRYPTO_SYMBOLS = [
   "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "AVAX/USDT", "DOGE/USDT", "DOT/USDT", "LINK/USDT",
-  "USDT/TRY", "BTC/TRY", "ETH/TRY",
+  "USDT/TRY",
   "POL/USDT", "NEAR/USDT", "PEPE/USDT", "FET/USDT", "RENDER/USDT", "SHIB/USDT", "LTC/USDT", "BCH/USDT", "UNI/USDT", "ARB/USDT",
   "TIA/USDT", "OP/USDT", "INJ/USDT", "SUI/USDT", "APT/USDT", "STX/USDT", "FIL/USDT", "ATOM/USDT", "IMX/USDT", "KAS/USDT",
   "HBAR/USDT", "ETC/USDT", "ICP/USDT", "RUNE/USDT", "LDO/USDT", "TAO/USDT", "SEI/USDT", "JUP/USDT", "WIF/USDT", "FLOKI/USDT",
@@ -207,12 +207,15 @@ const CRYPTO_SYMBOLS = [
 const binance = new ccxt.binance({ enableRateLimit: true });
 async function updateCryptoPrices() {
   try {
+    console.log("[Worker] Fetching crypto prices from Binance...");
     const tickers = await binance.fetchTickers();
     const symbolSet = new Set(CRYPTO_SYMBOLS);
+    let count = 0;
 
     for (const symbol in tickers) {
       if (!symbolSet.has(symbol)) continue;
       const ticker = tickers[symbol];
+      count++;
       // Map back to App.tsx format (e.g. BTC-USDT or 10000PEPE-USDT)
       let docId = symbol.replace("/", "-");
       
@@ -239,6 +242,7 @@ async function updateCryptoPrices() {
         inMemoryPrices[`${docId}_change`] = ticker.percentage || 0;
       }
     }
+    console.log(`[Worker] Crypto update cycle complete.`);
   } catch (err) {
     console.error("[Worker] Crypto update failed:", err);
   }
@@ -290,7 +294,7 @@ async function updateBistPrices() {
 
 async function updateCommodities() {
   try {
-    const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "HG=F", "BTC-USD"];
+    const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "HG=F"];
     const quotes = await yahooFinance.quote(yfSymbols) as any[];
     const prices: Record<string, number> = {};
     const changes: Record<string, number> = {};
