@@ -350,57 +350,64 @@ useEffect(() => {
     };
 
     const fetchPrices = async () => {
-      console.log("[App] fetchPrices started");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds
-        
+        console.log(`[App] Fetching prices from backend... (${new Date().toLocaleTimeString()})`);
         const res = await fetch(`/api/prices?_=${Date.now()}`, { 
-          signal: controller.signal,
-          headers: { 'Accept': 'application/json' }
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal
         });
         clearTimeout(timeoutId);
         
         if (res.ok) {
           const data = await res.json();
-          console.log(`[App] Backend returned ${Object.keys(data).length} prices`);
+          const count = Object.keys(data).length;
+          console.log(`[App] Backend returned ${count} prices`);
           
-          if (Object.keys(data).length === 0) {
+          if (count === 0) {
             console.warn("[App] Backend cache is empty, attempting fallbacks...");
             fetchCryptoFallback();
             fetchBistFallback();
             setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
           } else {
             setFetchError(null);
+            setPrices(prev => {
+              const next = { ...prev };
+              for (const [symbol, info] of Object.entries(data)) {
+                const infoData = info as any;
+                if (infoData && typeof infoData === 'object') {
+                  next[symbol] = infoData.price ?? next[symbol];
+                  if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
+                  if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
+                  if (infoData.source) next[`${symbol}_source`] = infoData.source;
+                  if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
+                } else if (typeof infoData === 'number') {
+                  next[symbol] = infoData;
+                }
+              }
+              return next;
+            });
           }
-          
-          setPrices(prev => {
-            const next = { ...prev };
-            for (const [symbol, info] of Object.entries(data)) {
-              const infoData = info as any;
-              next[symbol] = infoData.price;
-              if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
-              if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
-              if (infoData.source) next[`${symbol}_source`] = infoData.source;
-              // Store last updated per symbol if available
-              if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
-            }
-            return next;
-          });
-          
           setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
         } else {
           const errorText = await res.text().catch(() => "Unknown error");
-          console.warn("[App] Backend returned non-OK status:", res.status, errorText);
+          console.warn(`[App] Backend error ${res.status}:`, errorText);
+          setFetchError(`Yedek hat devrede (Hata: ${res.status})`);
           fetchCryptoFallback();
           fetchBistFallback();
-          setFetchError(`Yedek hat devrede (Hata: ${res.status})`);
         }
       } catch (error: any) {
-        console.error("API fetch error:", error);
+        if (error.name === 'AbortError') {
+          console.warn("[App] API fetch timed out");
+          setFetchError("Bağlantı Zaman Aşımı (Yedekler devrede)");
+        } else {
+          console.error("[App] API fetch error:", error);
+          setFetchError(`Bağlantı Hatası: ${error.message}`);
+        }
         fetchCryptoFallback();
         fetchBistFallback();
-        setFetchError(`Yedek hat devrede (${error.name === 'AbortError' ? 'Zaman Aşımı' : 'Bağlantı Hatası'})`);
       } finally {
         setLoading(false);
       }
@@ -513,11 +520,17 @@ const startScan = useCallback(() => {
           const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
           
           let ceilingScore = (liveChange * 8) + (pd.patternScore / 5);
-          if (liveChange > 9.8) ceilingScore = 100; // Already at ceiling
-          else ceilingScore = Math.min(99, ceilingScore); // Cap at 99% for candidates
+          
+          // If already at ceiling (> 9.8%), we don't show it as a "candidate" for hitting the ceiling
+          // because it's already there. We focus on those approaching it.
+          if (liveChange > 9.8) {
+            ceilingScore = 0; 
+          } else {
+            ceilingScore = Math.min(99, ceilingScore);
+          }
           
           return { ...s, ceilingScore };
-        }).filter(s => s.ceilingScore >= 60)
+        }).filter(s => s.ceilingScore >= 45) // Lowered threshold slightly to catch more approaching stocks
           .sort((a, b) => b.ceilingScore - a.ceilingScore);
         
         setCeilingCandidates(ceiling);
@@ -1031,8 +1044,8 @@ function CeilingScreen({ candidates, prices, lastUpdated, onBack, onSelect }: an
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>{score === 100 ? "TAVAN KİLİT" : "TAVAN İHTİMALİ"}</span>
-                    <span style={{ color: "#ffd60a", fontSize: 10, fontWeight: 800 }}>{score === 100 ? "🔒 %100" : `%${score}`}</span>
+                    <span style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>TAVAN İHTİMALİ</span>
+                    <span style={{ color: "#ffd60a", fontSize: 10, fontWeight: 800 }}>%{score}</span>
                   </div>
                   <div style={{ background: "#21262d", height: 6, borderRadius: 3, overflow: "hidden" }}>
                     <div style={{ background: "linear-gradient(90deg, #ffd60a, #ff9f0a)", width: `${score}%`, height: "100%", borderRadius: 3 }} />
@@ -1040,7 +1053,7 @@ function CeilingScreen({ candidates, prices, lastUpdated, onBack, onSelect }: an
                 </div>
                 <div style={{ background: "rgba(255,214,10,0.1)", borderRadius: 10, padding: "6px 10px", border: "1px solid rgba(255,214,10,0.2)" }}>
                   <div style={{ color: "#ffd60a", fontSize: 9, fontWeight: 700 }}>GÜÇ</div>
-                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{score > 85 ? "YÜKSEK" : "ORTA"}</div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{score > 80 ? "YÜKSEK" : (score > 60 ? "ORTA" : "ZAYIF")}</div>
                 </div>
               </div>
               

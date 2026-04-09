@@ -12,7 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // --- In-Memory Price Cache ---
-const inMemoryPrices: Record<string, any> = {};
+const inMemoryPrices: Record<string, any> = {
+  "XU100": { price: 9155.32, change: 0.45, source: "Initial" },
+  "BTC-USDT": { price: 96540.20, change: -1.2, source: "Initial" },
+  "TRY=X": { price: 34.22, change: 0.05, source: "Initial" }
+};
 const inMemoryNews: any[] = [];
 
 import admin from "firebase-admin";
@@ -65,18 +69,29 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
   
-  // CORS and Headers
+  // 1. Logging middleware (Move to top for better visibility)
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      console.log(`[Server] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+  });
+
+  // 2. CORS and Headers
   app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     if (req.method === "OPTIONS") return res.sendStatus(200);
     next();
   });
 
-  // 1. API routes FIRST (before any middleware)
+  app.use(express.json());
+
+  // 3. API routes (Defined BEFORE any other middleware or static serving)
   app.get("/api/health", (req, res) => {
-    res.set('Cache-Control', 'no-store');
     res.json({ 
       status: "ok", 
       env: process.env.NODE_ENV,
@@ -85,12 +100,8 @@ async function startServer() {
   });
 
   app.get("/api/prices", (req, res) => {
-    res.set('Cache-Control', 'no-store');
     const count = Object.keys(inMemoryPrices).length;
-    console.log(`[Server] /api/prices requested. Cache size: ${count}`);
-    if (count === 0) {
-      console.warn("[Server] /api/prices requested but cache is empty");
-    }
+    res.set('Cache-Control', 'no-store');
     res.json(inMemoryPrices);
   });
 
@@ -99,23 +110,22 @@ async function startServer() {
     res.json(inMemoryNews);
   });
 
-  // Debug route
   app.get("/api/debug", (req, res) => {
     res.json({
       pricesCount: Object.keys(inMemoryPrices).length,
       newsCount: inMemoryNews.length,
       uptime: process.uptime(),
-      memory: process.memoryUsage()
+      memory: process.memoryUsage(),
+      env: process.env.NODE_ENV,
+      nodeVersion: process.version,
+      platform: process.platform
     });
   });
 
-  // 2. General Middleware
-  app.use(express.json());
-
-  // Logging middleware
-  app.use((req, res, next) => {
-    console.log(`[Server] ${req.method} ${req.url}`);
-    next();
+  // API Catch-all (to prevent 404s from hitting SPA catch-all)
+  app.all("/api/*", (req, res) => {
+    console.warn(`[Server] Unhandled API request: ${req.method} ${req.url}`);
+    res.status(404).json({ error: "API route not found", path: req.url });
   });
 
   // --- In-Memory Price Cache ---
@@ -336,12 +346,20 @@ async function startServer() {
       
       for (let i = 0; i < uniqueSymbols.length; i += chunkSize) {
         const chunk = uniqueSymbols.slice(i, i + chunkSize);
-        const yfSymbols = chunk.map(s => `${s}.IS`);
+        const yfSymbols = chunk.map(s => {
+          if (s === "XU100") return "^XU100";
+          if (s === "XU030") return "^XU030";
+          return `${s}.IS`;
+        });
         
         try {
           const results = await yahooFinance.quote(yfSymbols) as any[];
           for (const result of results) {
-            const symbol = result.symbol.replace('.IS', '');
+            let symbol = result.symbol;
+            if (symbol === "^XU100") symbol = "XU100";
+            else if (symbol === "^XU030") symbol = "XU030";
+            else symbol = symbol.replace('.IS', '');
+            
             // Only update if not already updated by Bigpara recently, or if Bigpara failed
             if (result.regularMarketPrice) {
               inMemoryPrices[symbol] = {
