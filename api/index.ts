@@ -1,0 +1,336 @@
+import "dotenv/config";
+import express from "express";
+import { createServer as createViteServer } from "vite";
+import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import fs from "fs";
+
+console.log("[Server] Starting initialization...");
+
+process.on('uncaughtException', (err) => {
+  console.error('[Server] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// --- In-Memory Price Cache ---
+const inMemoryPrices: Record<string, any> = {
+  "XU100": { price: 13950.45, change: 0.39, source: "Initial" },
+  "XU030": { price: 15820.10, change: 0.40, source: "Initial" },
+  "BTC-USDT": { price: 98450.20, change: -1.2, source: "Initial" },
+  "TRY=X": { price: 34.25, change: 0.05, source: "Initial" },
+  "GAG=X": { price: 35.25, change: 0.0, source: "Initial" },
+  "THYAO": { price: 319.50, change: 0.79, source: "Initial" },
+  "GARAN": { price: 136.30, change: -1.40, source: "Initial" },
+  "AKBNK": { price: 75.50, change: -0.80, source: "Initial" },
+  "EREGL": { price: 52.40, change: 0.50, source: "Initial" },
+  "KCHOL": { price: 215.20, change: 1.20, source: "Initial" }
+};
+const inMemoryNews: any[] = [];
+
+import admin from "firebase-admin";
+import { initializeApp as initializeClientApp } from "firebase/app";
+import { getFirestore as getClientFirestore } from "firebase/firestore";
+
+// Load firebase config
+const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
+let firebaseConfig: any = {};
+if (fs.existsSync(firebaseConfigPath)) {
+  firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
+}
+
+import ccxt from "ccxt";
+import * as finnhub from "finnhub";
+import * as cheerio from "cheerio";
+import YahooFinance from 'yahoo-finance2';
+const yahooFinance = new (YahooFinance as any)();
+
+// Initialize Firebase Admin
+try {
+  if (firebaseConfig.projectId && !admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: firebaseConfig.projectId,
+    });
+    console.log(`[Firebase Admin] Initialized with Project ID: ${firebaseConfig.projectId}`);
+  }
+} catch (err) {
+  console.error("[Firebase Admin] Initialization error:", err);
+}
+
+// Initialize Firebase Client SDK
+let db: any = null;
+if (firebaseConfig.projectId) {
+  const clientApp = initializeClientApp(firebaseConfig);
+  db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
+  console.log(`[Firebase Client] Firestore initialized with Database ID: ${firebaseConfig.firestoreDatabaseId}`);
+}
+
+// Finnhub Setup
+const finnhubKey = process.env.VITE_FINNHUB_API_KEY || "";
+let finnhubClient: any = null;
+
+if (finnhubKey) {
+  try {
+    const finnhubModule: any = (finnhub as any).default || finnhub;
+    const DefaultApi = finnhubModule.DefaultApi;
+    finnhubClient = new DefaultApi(finnhubKey);
+    console.log("[Finnhub] Client initialized successfully");
+  } catch (err) {
+    console.error("[Finnhub] Initialization error:", err);
+  }
+}
+
+const app = express();
+
+// 1. Logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[Server] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
+// 2. CORS and Headers
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
+app.use(express.json());
+
+// 3. API routes
+app.get("/api/prices", (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.json(inMemoryPrices);
+});
+
+app.get("/api/news", (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(inMemoryNews);
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    env: process.env.NODE_ENV,
+    time: new Date().toISOString(),
+    pricesCount: Object.keys(inMemoryPrices).length
+  });
+});
+
+// --- Workers ---
+const BIST_SYMBOLS = [
+  "THYAO", "GARAN", "AKBNK", "EREGL", "KCHOL", "SAHOL", "BIMAS", "TOASO", "ARCLK", "TUPRS", "SISE", "DOHOL",
+  "PETKM", "FROTO", "ASELS", "MGROS", "PGSUS", "TAVHL", "YKBNK", "EKGYO", "VESTL", "ODAS", "SMRTG", "CANTE",
+  "ISCTR", "HALKB", "VAKBN", "TSKB", "ALARK", "ENKAI", "TKFEN", "GUBRF", "HEKTS", "SASA", "KONTR", "GESAN",
+  "YEOTK", "ASTOR", "EUPWR", "CWENE", "ALFAS", "MIATK", "REEDR", "TABGD", "TARKM", "EBEBK", "KAYSE", "BIENY",
+  "SDTTR", "ONCSM", "SOKE", "EYGYO", "GOKNR", "CVKMD", "KOPOL", "PASEU", "KATMR", "TMSN", "OTKAR", "TTRAK",
+  "DOAS", "ASUZU", "KMPUR", "SAYAS", "HUNER", "ZEDUR", "PRKME", "ULKER", "AEFES", "CCOLA", "TATGD", "SOKM",
+  "TKNSA", "MAVI", "VAKKO", "YATAS", "BRISA", "GOODY", "AKSA", "KORDS", "BAGFS", "EGEEN", "BFREN", "FMIZP",
+  "PARSN", "JANTS", "ALCAR", "ALGYO", "TRGYO", "OZKGY", "MSGYO", "HLGYO", "VKGYO", "SNGYO", "KLGYO", "AKFGY",
+  "ISGYO", "KGYO", "IDGYO", "PAGYO", "DZGYO", "SRVGY", "RYGYO", "RYSAS", "GLYHO", "NETAS", "ALCTL", "ARENA",
+  "INDES", "DESPC", "DGATE", "LINK", "LOGO", "KFEIN", "ARDYZ", "ESCOM", "FONET", "KRVGD", "AVOD", "OYYAT",
+  "ISMEN", "GSDHO", "INFO", "OSMEN", "GLBMD", "GEDIK", "TUKAS", "KNFRT", "FRIGO", "ELITE", "ULUUN", "VANGD",
+  "MERKO", "PETUN", "PNSUT", "SELVA", "BRKSN", "PRZMA", "IHLAS", "IHEVA", "IHYAY", "IHGZT", "METRO", "AVGYO",
+  "ATLAS", "ETYAT", "EUYO", "EUKYO", "MZHLD", "EPLAS", "DERIM", "DESA", "HATEK", "MNDRS", "ARSAN", "LUKSK",
+  "KRTEK", "SKTAS", "SNPAM", "SONME", "DAGI", "KRONT", "EDATA", "VBTYZ", "PKART", "SMART", "HTTBT", "OBASL",
+  "ALVES", "ARTMS", "MOGAN", "ODINE", "ENTRA", "HOROZ", "ALTNY", "KOTON", "LILA", "HRKET", "YIGIT", "DCTTR",
+  "BAHEV", "ONUR", "OZATD", "CEMZY", "KARYE", "GIPTA"
+];
+
+const CRYPTO_SYMBOLS = [
+  "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "AVAX/USDT", "DOGE/USDT", "DOT/USDT", "LINK/USDT",
+  "POL/USDT", "NEAR/USDT", "PEPE/USDT", "FET/USDT", "RENDER/USDT", "SHIB/USDT", "LTC/USDT", "BCH/USDT", "UNI/USDT", "ARB/USDT",
+  "TIA/USDT", "OP/USDT", "INJ/USDT", "SUI/USDT", "APT/USDT", "STX/USDT", "FIL/USDT", "ATOM/USDT", "IMX/USDT", "KAS/USDT",
+  "HBAR/USDT", "ETC/USDT", "ICP/USDT", "RUNE/USDT", "LDO/USDT", "TAO/USDT", "SEI/USDT", "JUP/USDT", "WIF/USDT", "FLOKI/USDT",
+  "BONK/USDT", "ORDI/USDT", "GALA/USDT", "VET/USDT", "MKR/USDT", "GRT/USDT", "AAVE/USDT", "ALGO/USDT", "EGLD/USDT", "FLOW/USDT",
+  "QNT/USDT", "AXS/USDT", "SAND/USDT", "MANA/USDT", "THETA/USDT", "CHZ/USDT", "EOS/USDT", "NEO/USDT", "IOTA/USDT", "XMR/USDT",
+  "ZEC/USDT", "DASH/USDT", "CRV/USDT", "DYDX/USDT", "SNX/USDT", "GMX/USDT", "PENDLE/USDT", "ARKM/USDT", "W/USDT", "ENA/USDT",
+  "SATS/USDT", "BOME/USDT", "MEW/USDT", "NOT/USDT", "STRK/USDT", "PYTH/USDT", "JTO/USDT", "ALT/USDT", "MANTA/USDT", "BEAM/USDT",
+  "RON/USDT", "PIXEL/USDT", "PORTAL/USDT", "XAI/USDT", "ACE/USDT", "ZETA/USDT", "DYM/USDT", "MAVIA/USDT", "AEVO/USDT", "ETHFI/USDT",
+  "METIS/USDT", "VANRY/USDT", "OM/USDT", "ONDO/USDT", "CORE/USDT", "TNSR/USDT", "SAGA/USDT", "TAIKO/USDT", "ZK/USDT", "IO/USDT",
+  "ATH/USDT", "ZRO/USDT", "LISTA/USDT", "HMSTR/USDT", "CATI/USDT", "EIGEN/USDT", "SCR/USDT", "GRASS/USDT", "DRIFT/USDT", "MOODENG/USDT",
+  "GOAT/USDT", "PNUT/USDT", "ACT/USDT", "HYPE/USDT", "VIRTUAL/USDT", "AI16Z/USDT", "FARTCOIN/USDT", "TRUMP/USDT", "MELANIA/USDT", "SPX/USDT",
+  "MOG/USDT", "POPCAT/USDT", "BRETT/USDT", "TURBO/USDT", "BABYDOGE/USDT", "1CAT/USDT", "MYRO/USDT", "COQ/USDT", "WEN/USDT", "ZIG/USDT",
+  "GNS/USDT", "JOE/USDT", "PANGOLIN/USDT", "BENQI/USDT", "STEEM/USDT", "HIVE/USDT", "WAXP/USDT", "LOOM/USDT", "MTL/USDT", "STPT/USDT",
+  "RAD/USDT", "UMA/USDT", "BAND/USDT", "NMR/USDT", "TRB/USDT", "API3/USDT", "DIA/USDT", "ANKR/USDT", "OCEAN/USDT", "AGIX/USDT",
+  "RLC/USDT", "GLM/USDT", "STORJ/USDT", "SC/USDT", "AR/USDT", "LPT/USDT", "AUDIO/USDT", "ENS/USDT", "ID/USDT", "GAL/USDT",
+  "HOOK/USDT", "HFT/USDT", "GMT/USDT", "GST/USDT", "SWEAT/USDT", "FITFI/USDT", "SLP/USDT", "ILV/USDT", "YGG/USDT", "MC/USDT",
+  "MAGIC/USDT", "ENJ/USDT", "OG/USDT", "CITY/USDT", "BAR/USDT", "PSG/USDT", "JUV/USDT", "ACM/USDT", "ASR/USDT", "ATM/USDT",
+  "INTER/USDT", "LAZIO/USDT", "PORTO/USDT", "SANTOS/USDT", "ALPINE/USDT"
+];
+
+const binance = new ccxt.binance({ enableRateLimit: true });
+async function updateCryptoPrices() {
+  try {
+    const tickers = await binance.fetchTickers();
+    const symbolSet = new Set(CRYPTO_SYMBOLS);
+
+    for (const symbol in tickers) {
+      if (!symbolSet.has(symbol)) continue;
+      const ticker = tickers[symbol];
+      // Map back to App.tsx format (e.g. BTC-USDT or 10000PEPE-USDT)
+      let docId = symbol.replace("/", "-");
+      
+      // Handle 10000 prefix for meme coins if needed
+      if (["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "SATS-USDT", "BOME-USDT", "MEW-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"].includes(docId)) {
+        // Check if App.tsx uses the 10000 prefix
+        const prefixedId = "10000" + docId;
+        inMemoryPrices[prefixedId] = {
+          price: ticker.last,
+          change: ticker.percentage || 0,
+          lastUpdated: new Date().toISOString(),
+          source: 'Binance'
+        };
+      }
+
+      if (ticker.last !== undefined) {
+        inMemoryPrices[docId] = {
+          price: ticker.last,
+          change: ticker.percentage || 0,
+          lastUpdated: new Date().toISOString(),
+          source: 'Binance'
+        };
+      }
+    }
+  } catch (err) {
+    console.error("[Worker] Crypto update failed:", err);
+  }
+}
+
+async function updateBistPrices() {
+  try {
+    // Indices first
+    const indices = ["XU100.IS", "XU030.IS"];
+    const indexQuotes = await yahooFinance.quote(indices);
+    for (const quote of indexQuotes) {
+      let sym = quote.symbol === "XU100.IS" ? "XU100" : "XU030";
+      inMemoryPrices[sym] = {
+        price: quote.regularMarketPrice,
+        change: quote.regularMarketChangePercent || 0,
+        lastUpdated: new Date().toISOString(),
+        source: 'YahooFinance'
+      };
+    }
+
+    // Batch fetch all BIST stocks (Yahoo Finance supports multiple symbols)
+    // We append .IS to each symbol
+    const batchSize = 40;
+    for (let i = 0; i < BIST_SYMBOLS.length; i += batchSize) {
+      const batch = BIST_SYMBOLS.slice(i, i + batchSize).map(s => `${s}.IS`);
+      try {
+        const quotes = await yahooFinance.quote(batch);
+        for (const quote of quotes) {
+          const originalSymbol = quote.symbol.replace('.IS', '');
+          if (quote.regularMarketPrice !== undefined) {
+            inMemoryPrices[originalSymbol] = {
+              price: quote.regularMarketPrice,
+              change: quote.regularMarketChangePercent || 0,
+              lastUpdated: new Date().toISOString(),
+              source: 'YahooFinance'
+            };
+          }
+        }
+      } catch (batchErr) {
+        console.error(`[Worker] BIST batch ${i} failed:`, batchErr);
+      }
+      // Small delay between batches to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch (err) {
+    console.error("[Worker] BIST update failed:", err);
+  }
+}
+
+async function updateCommodities() {
+  try {
+    const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "HG=F"];
+    const quotes = await yahooFinance.quote(yfSymbols);
+    const prices: Record<string, number> = {};
+    const changes: Record<string, number> = {};
+
+    for (const quote of quotes) {
+      prices[quote.symbol] = quote.regularMarketPrice;
+      changes[quote.symbol] = quote.regularMarketChangePercent || 0;
+      
+      inMemoryPrices[quote.symbol] = {
+        price: quote.regularMarketPrice,
+        change: quote.regularMarketChangePercent || 0,
+        lastUpdated: new Date().toISOString(),
+        source: 'YahooFinance'
+      };
+    }
+
+    // Calculate Gram Gold (GAU=X) and Gram Silver (GAG=X)
+    if (prices["TRY=X"]) {
+      if (prices["GC=F"]) {
+        const gramGoldPrice = (prices["GC=F"] / 31.1035) * prices["TRY=X"];
+        inMemoryPrices["GAU=X"] = {
+          price: gramGoldPrice,
+          change: changes["GC=F"], // Simplified change
+          lastUpdated: new Date().toISOString(),
+          source: 'Calculated'
+        };
+      }
+      if (prices["SI=F"]) {
+        const gramSilverPrice = (prices["SI=F"] / 31.1035) * prices["TRY=X"];
+        inMemoryPrices["GAG=X"] = {
+          price: gramSilverPrice,
+          change: changes["SI=F"], // Simplified change
+          lastUpdated: new Date().toISOString(),
+          source: 'Calculated'
+        };
+      }
+    }
+  } catch (err) {
+    console.error("[Worker] Commodities failed:", err);
+  }
+}
+
+// Background Loops
+// Initial run
+updateCryptoPrices();
+updateBistPrices();
+updateCommodities();
+
+setInterval(updateCryptoPrices, 15000);
+setInterval(updateBistPrices, 60000);
+setInterval(updateCommodities, 60000);
+
+// Vite middleware for development
+async function setupVite() {
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+}
+
+setupVite();
+
+const PORT = 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[Server] Running on http://localhost:${PORT}`);
+});
+
+export default app;

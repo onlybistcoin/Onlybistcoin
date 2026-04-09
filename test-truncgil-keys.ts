@@ -1,10 +1,13 @@
-async function test() {
+async function testTruncgil() {
   try {
-    const res = await fetch("https://finans.truncgil.com/today.json");
-    const data = await res.json();
-    console.log(Object.keys(data).filter(k => k.length > 3).slice(0, 20));
-  } catch (e) {
-    console.error(e);
-  }
+    const res = await fetch('https://finans.truncgil.com/v3/today.json');
+    if (res.ok) {
+      const data = await res.json();
+      const keys = Object.keys(data);
+      console.log("Total keys:", keys.length);
+      const bistKeys = keys.filter(k => k.includes("BIST") || k.includes("XU100"));
+      console.log("BIST related keys:", bistKeys);
+    }
+  } catch (e) {}
 }
-test();
+testTruncgil();

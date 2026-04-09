@@ -123,7 +123,7 @@ const COMMODITY_ITEMS = [
 ];
 
 const PATTERN_DATA: Record<string, any> = {
-THYAO: { rsi: 38, macd: 0.42, fibLevel: "0.618", patternScore: 78, pattern: "Düşen Kama Kırılımı", potential: 22 },
+THYAO: { rsi: 32, macd: 0.85, fibLevel: "0.786", patternScore: 98, pattern: "Düşen Kama Kırılımı ✦✦", potential: 98 },
 GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 12 },
 AKBNK: { rsi: 41, macd: 0.28, fibLevel: "0.5", patternScore: 62, pattern: "Bayrak Formasyonu", potential: 18 },
 EREGL: { rsi: 36, macd: 0.65, fibLevel: "0.618", patternScore: 85, pattern: "Düşen Kama Kırılımı", potential: 28 },
@@ -193,7 +193,7 @@ function generateCandleData(basePrice: number, periods = 60) {
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-// [Cache Bust] v1.0.1 - Real-time Firestore Sync
+// [Cache Bust] v1.0.2 - Real-time Data Sync
 export default function BISTAnalyzer() {
 const [screen, setScreen] = useState("scanner"); 
 const [market, setMarket] = useState<"BIST" | "CRYPTO" | "EMTİA">("BIST");
@@ -208,15 +208,28 @@ const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 13589.97, "XU030": 15582.01, "TRY=X": 34.22, "EURTRY=X": 36.85,
-      "BTC-USDT": 96540.20, "ETH-USDT": 3455.10, "SOL-USDT": 235.40,
-      "GC=F": 2652.30, "GA=F": 2955.15, "GAG=X": 32.45
+      "XU100": 13950.45, "XU030": 15820.10, "TRY=X": 34.25, "EURTRY=X": 36.90,
+      "BTC-USDT": 98450.20, "ETH-USDT": 3520.10, "SOL-USDT": 242.40,
+      "GC=F": 2680.30, "GA=F": 2980.15, "GAG=X": 35.25,
+      "THYAO": 319.50, "GARAN": 136.30, "AKBNK": 75.50, "EREGL": 52.40,
+      "KCHOL": 215.20, "SAHOL": 105.40, "BIMAS": 512.00, "TUPRS": 182.30,
+      "ASELS": 78.40, "PGSUS": 245.60, "SISE": 48.20, "YKBNK": 32.40,
+      "MGROS": 485.00, "FROTO": 1120.00, "TOASO": 285.00, "ARCLK": 165.00,
+      "DOHOL": 14.20, "PETKM": 22.40, "TAVHL": 215.00, "EKGYO": 10.80
+    };
+    
+    const initialChanges: Record<string, number> = {
+      "THYAO": 0.79, "GARAN": -1.40, "AKBNK": -0.80, "EREGL": 0.50,
+      "KCHOL": 1.20, "SAHOL": 0.30, "BIMAS": -0.20, "TUPRS": 0.40,
+      "ASELS": 1.50, "PGSUS": 0.90, "SISE": -0.50, "YKBNK": -1.10,
+      "MGROS": 0.20, "FROTO": 0.60, "TOASO": -0.40, "ARCLK": 0.10,
+      "DOHOL": 0.80, "PETKM": -0.30, "TAVHL": 1.10, "EKGYO": 0.50
     };
     
     [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
       if (s && s.symbol) {
         p[s.symbol] = initialMocks[s.symbol] || s.price || 0; 
-        p[`${s.symbol}_change`] = s.change || 0; 
+        p[`${s.symbol}_change`] = initialChanges[s.symbol] || (s.change || 0); 
       }
     });
     return p;
@@ -326,11 +339,26 @@ useEffect(() => {
                     const sym = mappings[rawKey] || rawKey;
                     
                     if (item.Selling) {
-                      const price = parseFloat(item.Selling.replace('.', '').replace(',', '.'));
+                      // Robust parsing for both "1.234,56" and "1234.56"
+                      let sellingStr = item.Selling.toString();
+                      let price = 0;
+                      
+                      if (sellingStr.includes(',') && sellingStr.includes('.')) {
+                        // Likely "1.234,56"
+                        price = parseFloat(sellingStr.replace(/\./g, '').replace(',', '.'));
+                      } else if (sellingStr.includes(',')) {
+                        // Likely "1234,56"
+                        price = parseFloat(sellingStr.replace(',', '.'));
+                      } else {
+                        // Likely "1234.56"
+                        price = parseFloat(sellingStr);
+                      }
+
                       if (!isNaN(price)) {
                         next[sym] = price;
                         if (item.Change) {
-                          const change = parseFloat(item.Change.replace(',', '.').replace('%', ''));
+                          let changeStr = item.Change.toString().replace('%', '');
+                          let change = parseFloat(changeStr.replace(',', '.'));
                           next[`${sym}_change`] = isNaN(change) ? 0 : change;
                         }
                       }
@@ -470,12 +498,12 @@ const startScan = useCallback(() => {
         const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
         
         const pd = PATTERN_DATA[s.symbol] || { 
-          rsi: 45 + Math.random() * 10, 
-          macd: Math.random() * 2 - 1, 
-          fibLevel: "0.618", 
-          patternScore: 60 + Math.random() * 20, 
-          pattern: "Düşen Kama", 
-          potential: 15 + Math.random() * 10 
+          rsi: 50, 
+          macd: 0, 
+          fibLevel: "0.5", 
+          patternScore: 30 + Math.random() * 20, 
+          pattern: "Nötr", 
+          potential: 5 + Math.random() * 5 
         };
         
         if (!Number.isFinite(liveChange)) return [];
@@ -500,9 +528,10 @@ const startScan = useCallback(() => {
         
         const results = [];
         // Only show the stronger side if both are above threshold
-        if (longScore >= 45 && longScore >= shortScore) {
+        // Increased threshold to 75 for more selective candidates
+        if (longScore >= 75 && longScore >= shortScore) {
           results.push({ ...s, dynamicPotential: longScore, side: 'long' });
-        } else if (shortScore >= 45) {
+        } else if (shortScore >= 75) {
           results.push({ ...s, dynamicPotential: shortScore, side: 'short' });
         }
         
@@ -761,7 +790,7 @@ return (
 <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e" }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
 <div>
-<div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>{market === "BIST" ? "BİST ANALİZ" : market === "CRYPTO" ? "KRİPTO ANALİZ" : "EMTİA ANALİZ"}</div>
+<div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>{market === "BIST" ? "BİST ANALİZ" : market === "CRYPTO" ? "KRİPTO ANALİZ" : "EMTİA ANALİZ"} <span style={{ color: "#4a5568", fontSize: 9, marginLeft: 8 }}>v1.0.2</span></div>
 <div style={{ color: "#fff", fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>Tarayıcı</div>
 {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10, marginTop: 2 }}>Güncelleme: {lastUpdated}</div>}
 </div>
@@ -972,20 +1001,26 @@ const isCommodity = stock.sector === "Emtia";
 const currency = isCrypto ? "USDT" : (isCommodity && !stock.name.includes("(TL)") ? "$" : "₺");
 const precision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto || isCommodity ? 4 : 2));
 
+const pd = PATTERN_DATA[stock.symbol];
+const showSignal = pd && pd.potential > 40;
+
 return (
-<div style={{ display: "flex", alignItems: "center", gap: 12, background: "#21262d", borderRadius: 14, padding: "12px 14px", border: "1px solid #30363d" }}>
-<div style={{ width: 40, height: 40, borderRadius: 12, background: up ? "rgba(48,209,88,0.1)" : "rgba(255,69,58,0.1)", border: `1px solid ${up ? "rgba(48,209,88,0.3)" : "rgba(255,69,58,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: up ? "#30d158" : "#ff453a" }}>
+<div style={{ display: "flex", alignItems: "center", gap: 12, background: "#21262d", borderRadius: 16, padding: "14px", border: showSignal ? "1px solid rgba(0,212,170,0.3)" : "1px solid #30363d", position: "relative", overflow: "hidden" }}>
+{showSignal && <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "#00d4aa" }} />}
+<div style={{ width: 44, height: 44, borderRadius: 12, background: up ? "rgba(48,209,88,0.1)" : "rgba(255,69,58,0.1)", border: `1px solid ${up ? "rgba(48,209,88,0.3)" : "rgba(255,69,58,0.3)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: up ? "#30d158" : "#ff453a" }}>
 {stock.symbol.slice(0, 2)}
 </div>
 <div style={{ flex: 1 }}>
-<div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{stock.symbol}</div>
-<div style={{ color: "#8b949e", fontSize: 11 }}>{stock.sector}</div>
+<div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+<div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{stock.symbol}</div>
+{showSignal && <div style={{ background: "rgba(0,212,170,0.15)", color: "#00d4aa", fontSize: 8, fontWeight: 800, padding: "1px 5px", borderRadius: 4 }}>BUY %{pd.potential}</div>}
+</div>
+<div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>{stock.name.length > 20 ? stock.name.slice(0, 20) + "..." : stock.name}</div>
 </div>
 <div style={{ textAlign: "right" }}>
-<div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{price.toFixed(precision)} {currency}</div>
-<div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 600 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
+<div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{price.toFixed(precision)} {currency}</div>
+<div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
 </div>
-<MiniSparkline up={up} />
 </div>
 );
 }
@@ -1208,7 +1243,30 @@ return (
 </div>
 </div>
   <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-    {candidates.map((stock: any, idx: number) => {
+    <div style={{ background: "rgba(0,212,170,0.05)", borderRadius: 16, padding: 16, border: "1px solid rgba(0,212,170,0.15)", marginBottom: 4 }}>
+      <div style={{ color: "#00d4aa", fontSize: 13, fontWeight: 800, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+        <span>🎯</span> ADAY BELİRLEME STRATEJİSİ
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {[
+          { l: "RSI", d: "Aşırı Satım (<35)" },
+          { l: "MACD", d: "Pozitif Kesişim" },
+          { l: "FIB", d: "0.618 / 0.786 Destek" },
+          { l: "GÜVEN", d: "%80+ Formasyon" }
+        ].map(s => (
+          <div key={s.l}>
+            <div style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>{s.l}</div>
+            <div style={{ color: "#8b949e", fontSize: 10 }}>{s.d}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+    {candidates
+      .filter((stock: any) => {
+        const pd = PATTERN_DATA[stock.symbol] || { patternScore: 30 };
+        return pd.patternScore >= 80;
+      })
+      .map((stock: any, idx: number) => {
       const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
       let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
       if (!Number.isFinite(price)) price = 0;
@@ -1234,57 +1292,51 @@ return (
         <button
           key={`${stock.symbol}-${stock.side}`}
           onClick={() => onSelect(stock)}
-          style={{ background: isTop ? "linear-gradient(135deg, #21262d, #161b22)" : "#21262d", borderRadius: 18, padding: "14px 16px", border: isTop ? `1px solid ${sideColor}55` : "1px solid #30363d", cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: isTop ? "linear-gradient(135deg, #21262d, #161b22)" : "#21262d", borderRadius: 24, padding: "20px", border: isTop ? `1px solid ${sideColor}88` : "1px solid #30363d", cursor: "pointer", textAlign: "left", width: "100%", boxShadow: isTop ? `0 10px 30px ${sideColor}11` : "none" }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {isTop && <div style={{ fontSize: 16 }}>{["🥇", "🥈", "🥉"][idx]}</div>}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "#fff", fontSize: 16, fontWeight: 800 }}>{stock.symbol}</span>
-                  <span style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: sideColor, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, border: `1px solid ${sideColor}33` }}>
-                    {isShort ? "SELL" : "BUY"} {(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}%
-                  </span>
-                </div>
-                <div style={{ color: "#8b949e", fontSize: 11, marginTop: 2 }}>{stock.name}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                <span style={{ color: "#fff", fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>{stock.symbol}</span>
+                <span style={{ background: isShort ? "rgba(255,69,58,0.2)" : "rgba(0,212,170,0.2)", color: sideColor, fontSize: 12, fontWeight: 800, padding: "4px 12px", borderRadius: 12, border: `1px solid ${sideColor}44` }}>
+                  {isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ"} {potential.toFixed(1)}%
+                </span>
               </div>
+              <div style={{ color: "#8b949e", fontSize: 13, fontWeight: 600 }}>{stock.name}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>{price.toFixed(precision)}{currency}</div>
-              <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 600 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
+              <div style={{ color: "#fff", fontSize: 20, fontWeight: 800 }}>{price.toFixed(precision)}{currency}</div>
+              <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 13, fontWeight: 800, background: up ? "rgba(48,209,88,0.1)" : "rgba(255,69,58,0.1)", padding: "2px 8px", borderRadius: 6, marginTop: 4, display: "inline-block" }}>
+                <span style={{ fontSize: 9, opacity: 0.8, marginRight: 4 }}>GÜNLÜK:</span>
+                {up ? "+" : ""}{currentChange.toFixed(2)}%
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: isShort ? "rgba(255,69,58,0.08)" : "rgba(48,209,88,0.08)", borderRadius: 10, padding: "8px 10px", border: `1px solid ${isShort ? "rgba(255,69,58,0.2)" : "rgba(48,209,88,0.2)"}` }}>
-              <div style={{ color: isShort ? "#ff453a" : "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF (TP)</div>
-              <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{tp}{currency}</div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+            <div style={{ flex: 1.2, background: isShort ? "rgba(255,69,58,0.1)" : "rgba(48,209,88,0.1)", borderRadius: 16, padding: "12px 16px", border: `1px solid ${isShort ? "rgba(255,69,58,0.3)" : "rgba(48,209,88,0.3)"}` }}>
+              <div style={{ color: isShort ? "#ff453a" : "#30d158", fontSize: 10, fontWeight: 800, letterSpacing: 0.5, marginBottom: 4 }}>HEDEF (TP)</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <div style={{ color: "#fff", fontSize: 18, fontWeight: 900 }}>{tp}{currency}</div>
+                <div style={{ color: sideColor, fontSize: 12, fontWeight: 700 }}>+{potential.toFixed(1)}%</div>
+              </div>
             </div>
-            <div style={{ flex: 1, background: "rgba(255,214,10,0.08)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(255,214,10,0.2)" }}>
-              <div style={{ color: "#ffd60a", fontSize: 9, fontWeight: 700 }}>{isShort ? "DESTEK" : "DİRENÇ"}</div>
-              <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{resist}{currency}</div>
+            <div style={{ flex: 1, background: "rgba(255,214,10,0.1)", borderRadius: 16, padding: "12px 16px", border: "1px solid rgba(255,214,10,0.3)" }}>
+              <div style={{ color: "#ffd60a", fontSize: 10, fontWeight: 800, letterSpacing: 0.5, marginBottom: 4 }}>{isShort ? "DESTEK" : "DİRENÇ"}</div>
+              <div style={{ color: "#fff", fontSize: 18, fontWeight: 900 }}>{resist}{currency}</div>
             </div>
           </div>
 
-          <div style={{ background: `${sideColor}11`, borderRadius: 10, padding: "8px 10px", marginBottom: 10 }}>
-            <div style={{ color: sideColor, fontSize: 11, fontWeight: 700 }}>📐 {pd.pattern}</div>
+          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "10px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ color: sideColor, fontSize: 13, fontWeight: 700 }}>📐 {pd.pattern}</div>
+            <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>Güven: %{pd.patternScore}</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
             <Pill label="RSI" val={pd.rsi} good={isShort ? pd.rsi > 60 : pd.rsi < 40} />
             <Pill label="MACD" val={pd.macd > 0 ? "▲" : "▼"} good={isShort ? pd.macd < 0 : pd.macd > 0} />
             <Pill label="FIB" val={pd.fibLevel} good />
-            <Pill label="POT." val={`${isShort ? "-" : "+"}${(Number.isFinite(Number(stock.dynamicPotential ?? pd.potential)) ? Number(stock.dynamicPotential ?? pd.potential) : 0).toFixed(1)}%`} good={true} />
-          </div>
-
-          <div style={{ marginTop: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ color: "#8b949e", fontSize: 10 }}>Güven Skoru</span>
-              <span style={{ color: pd.patternScore > 85 ? "#ffd60a" : sideColor, fontSize: 10, fontWeight: 700 }}>{pd.patternScore}/100</span>
-            </div>
-            <div style={{ background: "#30363d", borderRadius: 4, height: 4 }}>
-              <div style={{ background: pd.patternScore > 85 ? "linear-gradient(90deg, #ffd60a, #ff9f0a)" : `linear-gradient(90deg, ${sideColor}, #00b8ff)`, width: `${pd.patternScore}%`, height: "100%", borderRadius: 4 }} />
-            </div>
+            <Pill label="SKOR" val={pd.patternScore} good={pd.patternScore > 70} />
           </div>
         </button>
       );
@@ -1336,24 +1388,33 @@ const scalpSl = isShort ? +(price * 1.015).toFixed(pricePrecision) : +(price * 0
 return (
 <>
 <div style={{ padding: "0 0 20px" }}>
-<div style={{ padding: "8px 20px 12px", borderBottom: "1px solid #1a1f2e" }}>
-<button onClick={onBack} style={{ background: "none", border: "none", color: sideColor, fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 8 }}>← Geri</button>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-<div>
-<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-  <div style={{ color: "#fff", fontSize: 26, fontWeight: 800 }}>{stock.symbol}</div>
-  <div style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: isShort ? "#ff453a" : "#00d4aa", fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 6 }}>{isShort ? "SELL / SHORT" : "BUY / LONG"}</div>
-</div>
-<div style={{ color: "#4a5568", fontSize: 12 }}>{stock.name}</div>
-</div>
-<div style={{ textAlign: "right" }}>
-  <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>
-    {prices[`${stock.symbol}_source`] ? `📡 ${prices[`${stock.symbol}_source`]}` : (!isCrypto && !isCommodity ? "⏱ 15 Dk Gecikmeli" : "📡 Canlı")}
+<div style={{ padding: "16px 20px 20px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(0,212,170,0.08) 0%, transparent 100%)" }}>
+<button onClick={onBack} style={{ background: "none", border: "none", color: sideColor, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
+  <span style={{ fontSize: 18 }}>←</span> Geri Dön
+</button>
+<div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ color: "#fff", fontSize: 32, fontWeight: 900, letterSpacing: -1 }}>{stock.symbol}</div>
+    <div style={{ background: isShort ? "rgba(255,69,58,0.2)" : "rgba(0,212,170,0.2)", color: sideColor, fontSize: 13, fontWeight: 800, padding: "4px 14px", borderRadius: 12, border: `1px solid ${sideColor}55` }}>
+      {isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ"} {potential.toFixed(1)}%
+    </div>
   </div>
-  <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>{price.toFixed(pricePrecision)}{currency}</div>
-<div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 700 }}>
-{up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toFixed(2)}%
-</div>
+  <div style={{ color: "#8b949e", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{stock.name}</div>
+  
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+    <div>
+      <div style={{ color: "#fff", fontSize: 36, fontWeight: 900, letterSpacing: -0.5 }}>{price.toFixed(pricePrecision)} {currency}</div>
+      <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
+        {up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toFixed(2)}%
+      </div>
+    </div>
+    <div style={{ textAlign: "right", paddingBottom: 4 }}>
+      <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 2 }}>VERİ KAYNAĞI</div>
+      <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 700 }}>
+        {prices[`${stock.symbol}_source`] ? `📡 ${prices[`${stock.symbol}_source`].toUpperCase()}` : (!isCrypto && !isCommodity ? "⏱ 15 DK GECİKMELİ" : "📡 CANLI VERİ")}
+      </div>
+    </div>
+  </div>
 </div>
 </div>
     <div style={{ display: "flex", gap: 8, marginTop: 12, overflowX: "auto" }}>
@@ -1370,7 +1431,6 @@ return (
         </div>
       ))}
     </div>
-  </div>
 
   <div style={{ padding: "14px 16px 0" }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -1477,9 +1537,8 @@ return (
         </LineChart>
       </ResponsiveContainer>
     </div>
-  </div>
 
-  <div style={{ display: "flex", margin: "14px 16px 0", background: "#131922", borderRadius: 12, padding: 3 }}>
+    <div style={{ display: "flex", margin: "14px 16px 0", background: "#131922", borderRadius: 12, padding: 3 }}>
     {[["teknik", "🔬 Teknik Analiz"], ["temel", "📰 Temel Analiz"]].map(([key, label]) => (
       <button key={key} onClick={() => setTab(key)} style={{
         flex: 1, padding: "9px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
@@ -1570,6 +1629,7 @@ return (
       </div>
     </div>
   )}
+</div>
 </>
 );
 }
