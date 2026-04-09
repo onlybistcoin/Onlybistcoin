@@ -123,33 +123,33 @@ const COMMODITY_ITEMS = [
 ];
 
 const PATTERN_DATA: Record<string, any> = {
-THYAO: { rsi: 38, macd: 0.42, fibLevel: "0.618", patternScore: 78, pattern: "Düşen Kama Kırılımı", potential: 42 },
-GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 18 },
-AKBNK: { rsi: 41, macd: 0.28, fibLevel: "0.5", patternScore: 62, pattern: "Bayrак Formasyonu", potential: 35 },
-EREGL: { rsi: 36, macd: 0.65, fibLevel: "0.618", patternScore: 85, pattern: "Düşen Kama Kırılımı", potential: 58 },
-KCHOL: { rsi: 52, macd: 0.05, fibLevel: "0.236", patternScore: 38, pattern: "Güçlü Yukarı Trend", potential: 22 },
-SAHOL: { rsi: 44, macd: 0.31, fibLevel: "0.5", patternScore: 71, pattern: "Çift Dip", potential: 48 },
-BIMAS: { rsi: 62, macd: -0.22, fibLevel: "0.382", patternScore: 29, pattern: "Direnç Bölgesi", potential: 12 },
-TOASO: { rsi: 39, macd: 0.78, fibLevel: "0.618", patternScore: 88, pattern: "Düşen Kama Kırılımı ✦", potential: 65 },
-ARCLK: { rsi: 42, macd: 0.55, fibLevel: "0.618", patternScore: 76, pattern: "RSI Diverjans + Fib", potential: 52 },
-TUPRS: { rsi: 48, macd: 0.18, fibLevel: "0.5", patternScore: 55, pattern: "Simetrik Üçgen", potential: 28 },
-SISE: { rsi: 35, macd: 0.82, fibLevel: "0.786", patternScore: 91, pattern: "Düşen Kama Kırılımı ✦", potential: 72 },
-DOHOL: { rsi: 33, macd: 0.91, fibLevel: "0.786", patternScore: 93, pattern: "Düşen Kama + RSI Ayrışma ✦", potential: 78 },
-PETKM: { rsi: 37, macd: 0.61, fibLevel: "0.618", patternScore: 82, pattern: "Düşen Kama Kırılımı ✦", potential: 55 },
-FROTO: { rsi: 58, macd: 0.12, fibLevel: "0.236", patternScore: 42, pattern: "Yükseliş Kanalı", potential: 20 },
-ASELS: { rsi: 34, macd: 0.95, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 85 },
-MGROS: { rsi: 55, macd: -0.08, fibLevel: "0.5", patternScore: 32, pattern: "Konsolidasyon", potential: 15 },
-PGSUS: { rsi: 36, macd: 0.88, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Kama Kırılımı ✦", potential: 68 },
-TAVHL: { rsi: 43, macd: 0.48, fibLevel: "0.618", patternScore: 74, pattern: "Çift Dip + MACD Kesişim", potential: 45 },
-YKBNK: { rsi: 45, macd: 0.22, fibLevel: "0.5", patternScore: 58, pattern: "Destek Testi", potential: 32 },
-EKGYO: { rsi: 31, macd: 1.02, fibLevel: "0.786", patternScore: 94, pattern: "Düşen Kama + Hacim ✦✦", potential: 82 },
-VESTL: { rsi: 33, macd: 0.87, fibLevel: "0.786", patternScore: 90, pattern: "RSI Aşırı Satım + Fib ✦", potential: 71 },
-ODAS: { rsi: 30, macd: 1.15, fibLevel: "0.786", patternScore: 97, pattern: "MACD + Hacim Patlaması ✦✦", potential: 90 },
-SMRTG: { rsi: 29, macd: 1.18, fibLevel: "0.786", patternScore: 95, pattern: "Düşen Kama + Tüm Sinyaller ✦✦", potential: 88 },
-CANTE: { rsi: 32, macd: 0.98, fibLevel: "0.786", patternScore: 92, pattern: "Kırılım + Hacim Artışı ✦", potential: 76 },
-"BTC-USDT": { rsi: 32, macd: 1.2, fibLevel: "0.618", patternScore: 88, pattern: "Bullish Divergence", potential: 45 },
-"ETH-USDT": { rsi: 45, macd: 0.5, fibLevel: "0.5", patternScore: 72, pattern: "Ascending Triangle", potential: 32 },
-"SOL-USDT": { rsi: 28, macd: 1.8, fibLevel: "0.786", patternScore: 94, pattern: "Falling Wedge Breakout", potential: 65 },
+THYAO: { rsi: 38, macd: 0.42, fibLevel: "0.618", patternScore: 78, pattern: "Düşen Kama Kırılımı", potential: 22 },
+GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 12 },
+AKBNK: { rsi: 41, macd: 0.28, fibLevel: "0.5", patternScore: 62, pattern: "Bayrak Formasyonu", potential: 18 },
+EREGL: { rsi: 36, macd: 0.65, fibLevel: "0.618", patternScore: 85, pattern: "Düşen Kama Kırılımı", potential: 28 },
+KCHOL: { rsi: 52, macd: 0.05, fibLevel: "0.236", patternScore: 38, pattern: "Güçlü Yukarı Trend", potential: 14 },
+SAHOL: { rsi: 44, macd: 0.31, fibLevel: "0.5", patternScore: 71, pattern: "Çift Dip", potential: 24 },
+BIMAS: { rsi: 62, macd: -0.22, fibLevel: "0.382", patternScore: 29, pattern: "Direnç Bölgesi", potential: 8 },
+TOASO: { rsi: 39, macd: 0.78, fibLevel: "0.618", patternScore: 88, pattern: "Düşen Kama Kırılımı ✦", potential: 32 },
+ARCLK: { rsi: 42, macd: 0.55, fibLevel: "0.618", patternScore: 76, pattern: "RSI Diverjans + Fib", potential: 26 },
+TUPRS: { rsi: 48, macd: 0.18, fibLevel: "0.5", patternScore: 55, pattern: "Simetrik Üçgen", potential: 16 },
+SISE: { rsi: 35, macd: 0.82, fibLevel: "0.786", patternScore: 91, pattern: "Düşen Kama Kırılımı ✦", potential: 35 },
+DOHOL: { rsi: 33, macd: 0.91, fibLevel: "0.786", patternScore: 93, pattern: "Düşen Kama + RSI Ayrışma ✦", potential: 38 },
+PETKM: { rsi: 37, macd: 0.61, fibLevel: "0.618", patternScore: 82, pattern: "Düşen Kama Kırılımı ✦", potential: 28 },
+FROTO: { rsi: 58, macd: 0.12, fibLevel: "0.236", patternScore: 42, pattern: "Yükseliş Kanalı", potential: 12 },
+ASELS: { rsi: 34, macd: 0.95, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 42 },
+MGROS: { rsi: 55, macd: -0.08, fibLevel: "0.5", patternScore: 32, pattern: "Konsolidasyon", potential: 10 },
+PGSUS: { rsi: 36, macd: 0.88, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Kama Kırılımı ✦", potential: 34 },
+TAVHL: { rsi: 43, macd: 0.48, fibLevel: "0.618", patternScore: 74, pattern: "Çift Dip + MACD Kesişim", potential: 22 },
+YKBNK: { rsi: 45, macd: 0.22, fibLevel: "0.5", patternScore: 58, pattern: "Destek Testi", potential: 16 },
+EKGYO: { rsi: 31, macd: 1.02, fibLevel: "0.786", patternScore: 94, pattern: "Düşen Kama + Hacim ✦✦", potential: 41 },
+VESTL: { rsi: 33, macd: 0.87, fibLevel: "0.786", patternScore: 90, pattern: "RSI Aşırı Satım + Fib ✦", potential: 35 },
+ODAS: { rsi: 30, macd: 1.15, fibLevel: "0.786", patternScore: 97, pattern: "MACD + Hacim Patlaması ✦✦", potential: 45 },
+SMRTG: { rsi: 29, macd: 1.18, fibLevel: "0.786", patternScore: 95, pattern: "Düşen Kama + Tüm Sinyaller ✦✦", potential: 44 },
+CANTE: { rsi: 32, macd: 0.98, fibLevel: "0.786", patternScore: 92, pattern: "Kırılım + Hacim Artışı ✦", potential: 38 },
+"BTC-USDT": { rsi: 32, macd: 1.2, fibLevel: "0.618", patternScore: 88, pattern: "Bullish Divergence", potential: 22 },
+"ETH-USDT": { rsi: 35, macd: 0.95, fibLevel: "0.5", patternScore: 82, pattern: "Falling Wedge", potential: 18 },
+"SOL-USDT": { rsi: 58, macd: 0.45, fibLevel: "0.236", patternScore: 65, pattern: "Ascending Triangle", potential: 15 },
 "BNB-USDT": { rsi: 52, macd: -0.2, fibLevel: "0.382", patternScore: 48, pattern: "Consolidation", potential: 15 },
 "XRP-USDT": { rsi: 38, macd: 0.8, fibLevel: "0.618", patternScore: 79, pattern: "Double Bottom", potential: 38 },
 "ADA-USDT": { rsi: 35, macd: 0.4, fibLevel: "0.5", patternScore: 65, pattern: "Rounding Bottom", potential: 28 },
@@ -355,19 +355,25 @@ useEffect(() => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds
         
-        // Add cache buster to backend request too
-        const res = await fetch(`/api/prices?_=${Date.now()}`, { signal: controller.signal });
+        const res = await fetch(`/api/prices?_=${Date.now()}`, { 
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' }
+        });
         clearTimeout(timeoutId);
         
         if (res.ok) {
           const data = await res.json();
+          console.log(`[App] Backend returned ${Object.keys(data).length} prices`);
           
           if (Object.keys(data).length === 0) {
             console.warn("[App] Backend cache is empty, attempting fallbacks...");
             fetchCryptoFallback();
             fetchBistFallback();
+            setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
+          } else {
+            setFetchError(null);
           }
-
+          
           setPrices(prev => {
             const next = { ...prev };
             for (const [symbol, info] of Object.entries(data)) {
@@ -383,18 +389,18 @@ useEffect(() => {
           });
           
           setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-          setFetchError(null);
         } else {
-          console.warn("[App] Backend returned non-OK status:", res.status);
+          const errorText = await res.text().catch(() => "Unknown error");
+          console.warn("[App] Backend returned non-OK status:", res.status, errorText);
           fetchCryptoFallback();
           fetchBistFallback();
-          setFetchError(`Yedek hat devrede (${new Date().toLocaleTimeString("tr-TR")})`);
+          setFetchError(`Yedek hat devrede (Hata: ${res.status})`);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("API fetch error:", error);
         fetchCryptoFallback();
         fetchBistFallback();
-        setFetchError(`Yedek hat devrede (${new Date().toLocaleTimeString("tr-TR")})`);
+        setFetchError(`Yedek hat devrede (${error.name === 'AbortError' ? 'Zaman Aşımı' : 'Bağlantı Hatası'})`);
       } finally {
         setLoading(false);
       }
@@ -463,22 +469,32 @@ const startScan = useCallback(() => {
         
         if (!Number.isFinite(liveChange)) return [];
         
-        // Long Potential: base potential + (liveChange * 5)
-        let longPotential = pd.potential + (liveChange * 5);
-        longPotential = Math.max(0, Math.min(100, longPotential));
-
-        // Short Potential: base potential - (liveChange * 5)
-        // If price is dropping fast, short potential increases
-        let shortPotential = pd.potential - (liveChange * 5);
-        shortPotential = Math.max(0, Math.min(100, shortPotential));
+        // --- Improved Logic ---
+        // 1. RSI Bias
+        let rsiLongBias = pd.rsi < 40 ? (40 - pd.rsi) * 1.5 : 0;
+        let rsiShortBias = pd.rsi > 60 ? (pd.rsi - 60) * 1.5 : 0;
+        
+        // 2. MACD Bias
+        let macdBias = pd.macd * 10; // Positive MACD favors long
+        
+        // 3. Trend Bias (liveChange)
+        let momentumBias = liveChange * 3;
+        
+        let longScore = pd.potential + rsiLongBias + macdBias + momentumBias;
+        let shortScore = pd.potential + rsiShortBias - macdBias - momentumBias;
+        
+        // Normalize and cap
+        longScore = Math.max(0, Math.min(98, longScore));
+        shortScore = Math.max(0, Math.min(98, shortScore));
         
         const results = [];
-        if (longPotential >= 40) {
-          results.push({ ...s, dynamicPotential: longPotential, side: 'long' });
+        // Only show the stronger side if both are above threshold
+        if (longScore >= 45 && longScore >= shortScore) {
+          results.push({ ...s, dynamicPotential: longScore, side: 'long' });
+        } else if (shortScore >= 45) {
+          results.push({ ...s, dynamicPotential: shortScore, side: 'short' });
         }
-        if (shortPotential >= 40) {
-          results.push({ ...s, dynamicPotential: shortPotential, side: 'short' });
-        }
+        
         return results;
       }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
 
@@ -498,6 +514,7 @@ const startScan = useCallback(() => {
           
           let ceilingScore = (liveChange * 8) + (pd.patternScore / 5);
           if (liveChange > 9.8) ceilingScore = 100; // Already at ceiling
+          else ceilingScore = Math.min(99, ceilingScore); // Cap at 99% for candidates
           
           return { ...s, ceilingScore };
         }).filter(s => s.ceilingScore >= 60)
@@ -880,24 +897,36 @@ return (
     </div>
   </div>
 
-  <div style={{ padding: "0 20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>
-            {market === "BIST" ? "BİST Öne Çıkanlar" : market === "CRYPTO" ? "KRİPTO Öne Çıkanlar" : "EMTİA Öne Çıkanlar"}
-          </div>
-          {market === "BIST" && (
-            <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>
-              ⏱ 15 Dk Gecikmeli
-            </div>
-          )}
+    <div style={{ padding: "0 20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>
+          {market === "BIST" ? "BİST Öne Çıkanlar" : market === "CRYPTO" ? "KRİPTO Öne Çıkanlar" : "EMTİA Öne Çıkanlar"}
         </div>
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {topMovers.map(s => (
-        <MoverRow key={s.symbol} stock={s} prices={prices} />
-      ))}
+        {market === "BIST" && (
+          <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>
+            ⏱ 15 Dk Gecikmeli
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {topMovers.map(s => (
+          <MoverRow key={s.symbol} stock={s} prices={prices} />
+        ))}
+      </div>
+      {/* Debug Info */}
+      <div style={{ padding: "10px 0 30px", marginTop: 20, borderTop: "1px solid #1a1f2e", fontSize: 10, color: "#4a5568" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>API: {fetchError || "Bağlı"} • Önbellek: {Object.keys(prices).length}</span>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{ background: "#21262d", border: "1px solid #30363d", color: "#8b949e", padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontSize: 9 }}
+          >
+            Yenile
+          </button>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 );
 }
 

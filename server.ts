@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import fs from "fs";
 
+console.log("[Server] Starting initialization...");
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -23,8 +25,7 @@ const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), "fire
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
-import YahooFinance from 'yahoo-finance2';
-const yahooFinance = new YahooFinance();
+import yahooFinance from 'yahoo-finance2';
 
 // Initialize Firebase Admin (for other things if needed)
 try {
@@ -84,7 +85,11 @@ async function startServer() {
 
   app.get("/api/prices", (req, res) => {
     res.set('Cache-Control', 'no-store');
-    const symbols = Object.keys(inMemoryPrices);
+    const count = Object.keys(inMemoryPrices).length;
+    console.log(`[Server] /api/prices requested. Cache size: ${count}`);
+    if (count === 0) {
+      console.warn("[Server] /api/prices requested but cache is empty");
+    }
     res.json(inMemoryPrices);
   });
 
@@ -233,7 +238,6 @@ async function startServer() {
   async function fetchBistFromBigpara() {
     console.log("[Worker] Fetching BIST from Bigpara...");
     try {
-      // Trying multiple Bigpara URLs for better coverage
       const urls = [
         "https://bigpara.hurriyet.com.tr/borsa/hisse-fiyatlari/",
         "https://bigpara.hurriyet.com.tr/borsa/canli-borsa/"
@@ -241,26 +245,54 @@ async function startServer() {
       
       let totalCount = 0;
       for (const url of urls) {
-        const res = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-          }
-        });
-        
-        if (res.ok) {
-          const text = await res.text();
-          const $ = cheerio.load(text);
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
+            },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
           
-          // Try TR structure
-          $('tr').each((_, el) => {
-            const cells = $(el).find('td');
-            if (cells.length >= 3) {
-              const symbol = $(cells[0]).text().trim().split(' ')[0];
-              const priceStr = $(cells[1]).text().trim();
-              const changeStr = $(cells[2]).text().trim();
+          if (res.ok) {
+            const text = await res.text();
+            const $ = cheerio.load(text);
+            
+            // Try TR structure
+            $('tr').each((_, el) => {
+              const cells = $(el).find('td');
+              if (cells.length >= 3) {
+                const symbol = $(cells[0]).text().trim().split(' ')[0];
+                const priceStr = $(cells[1]).text().trim();
+                const changeStr = $(cells[2]).text().trim();
+                
+                if (symbol && symbol.length >= 2 && symbol.length <= 6) {
+                  let price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
+                  let change = parseFloat(changeStr.replace(',', '.'));
+                  
+                  if (!isNaN(price)) {
+                    inMemoryPrices[symbol] = {
+                      price: price,
+                      change: isNaN(change) ? 0 : change,
+                      lastUpdated: new Date().toISOString(),
+                      source: 'Bigpara'
+                    };
+                    totalCount++;
+                  }
+                }
+              }
+            });
+
+            // Try UL structure
+            $('.tBody ul').each((_, el) => {
+              const symbol = $(el).find('.li_sembol a').text().trim();
+              const priceStr = $(el).find('.li_son').text().trim();
+              const changeStr = $(el).find('.li_yuzde').text().trim();
               
-              if (symbol && symbol.length >= 2 && symbol.length <= 6) {
+              if (symbol && priceStr) {
                 let price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
                 let change = parseFloat(changeStr.replace(',', '.'));
                 
@@ -269,42 +301,22 @@ async function startServer() {
                     price: price,
                     change: isNaN(change) ? 0 : change,
                     lastUpdated: new Date().toISOString(),
-                    source: 'Bigpara'
+                    source: 'Bigpara-Alt'
                   };
                   totalCount++;
                 }
               }
-            }
-          });
-
-          // Try UL structure
-          $('.tBody ul').each((_, el) => {
-            const symbol = $(el).find('.li_sembol a').text().trim();
-            const priceStr = $(el).find('.li_son').text().trim();
-            const changeStr = $(el).find('.li_yuzde').text().trim();
-            
-            if (symbol && priceStr) {
-              let price = parseFloat(priceStr.replace('.', '').replace(',', '.'));
-              let change = parseFloat(changeStr.replace(',', '.'));
-              
-              if (!isNaN(price)) {
-                inMemoryPrices[symbol] = {
-                  price: price,
-                  change: isNaN(change) ? 0 : change,
-                  lastUpdated: new Date().toISOString(),
-                  source: 'Bigpara-Alt'
-                };
-                totalCount++;
-              }
-            }
-          });
+            });
+          }
+        } catch (e) {
+          console.error(`[Worker] Bigpara fetch failed for ${url}:`, (e as Error).message);
         }
       }
 
       console.log(`[Worker] BIST scraper found ${totalCount} stocks total`);
       return totalCount > 0;
     } catch (err) {
-      console.error("[Worker] BIST scraper failed:", err);
+      console.error("[Worker] BIST scraper critical failed:", err);
     }
     return false;
   }
@@ -326,7 +338,7 @@ async function startServer() {
         const yfSymbols = chunk.map(s => `${s}.IS`);
         
         try {
-          const results = await yahooFinance.quote(yfSymbols);
+          const results = await yahooFinance.quote(yfSymbols) as any[];
           for (const result of results) {
             const symbol = result.symbol.replace('.IS', '');
             // Only update if not already updated by Bigpara recently, or if Bigpara failed
