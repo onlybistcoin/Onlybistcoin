@@ -14,8 +14,10 @@ const __dirname = dirname(__filename);
 // --- In-Memory Price Cache ---
 const inMemoryPrices: Record<string, any> = {
   "XU100": { price: 13589.97, change: 0.39, source: "Initial" },
+  "XU030": { price: 15582.01, change: 0.40, source: "Initial" },
   "BTC-USDT": { price: 96540.20, change: -1.2, source: "Initial" },
-  "TRY=X": { price: 34.22, change: 0.05, source: "Initial" }
+  "TRY=X": { price: 34.22, change: 0.05, source: "Initial" },
+  "GAG=X": { price: 32.45, change: 0.0, source: "Initial" }
 };
 const inMemoryNews: any[] = [];
 
@@ -100,7 +102,6 @@ async function startServer() {
   });
 
   app.get("/api/prices", (req, res) => {
-    const count = Object.keys(inMemoryPrices).length;
     res.set('Cache-Control', 'no-store');
     res.json(inMemoryPrices);
   });

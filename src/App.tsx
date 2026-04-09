@@ -310,6 +310,8 @@ useEffect(() => {
                 const mappings: Record<string, string> = {
                   "BIST 100": "XU100",
                   "BIST 30": "XU030",
+                  "XU100": "XU100",
+                  "XU030": "XU030",
                   "ABD DOLARI": "TRY=X",
                   "USD/TRY": "TRY=X",
                   "EURO": "EURTRY=X",
