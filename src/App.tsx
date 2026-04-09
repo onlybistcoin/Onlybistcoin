@@ -837,10 +837,10 @@ return (
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 14 }}>
       {[
-        { sym: "XU100", label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"]}%` : "", up: prices["XU100_change"] >= 0 },
-        { sym: "BTC-USDT", label: "BTC/USDT", val: prices["BTC-USDT"] > 0 ? prices["BTC-USDT"].toLocaleString("en-US", { style: "currency", currency: "USD" }).replace("$", "") + " USDT" : (loading ? "..." : "---"), chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"]}%` : "", up: prices["BTC-USDT_change"] >= 0 },
-        { sym: "TRY=X", label: "USD/TRY", val: prices["TRY=X"] > 0 ? prices["TRY=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : (loading ? "..." : "---"), chg: prices["TRY=X_change"] ? `${prices["TRY=X_change"] > 0 ? "+" : ""}${prices["TRY=X_change"]}%` : "", up: prices["TRY=X_change"] >= 0 },
-        { sym: "GAG=X", label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"]}%` : "", up: prices["GAG=X_change"] >= 0 },
+        { sym: "XU100", label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["XU100_change"] >= 0 },
+        { sym: "BTC-USD", label: "BTC/USD", val: prices["BTC-USD"] > 0 ? prices["BTC-USD"].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " $" : (loading ? "..." : "---"), chg: prices["BTC-USD_change"] ? `${prices["BTC-USD_change"] > 0 ? "+" : ""}${prices["BTC-USD_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["BTC-USD_change"] >= 0 },
+        { sym: "USDT-TRY", label: "USDT/TRY", val: prices["USDT-TRY"] > 0 ? prices["USDT-TRY"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : (loading ? "..." : "---"), chg: prices["USDT-TRY_change"] ? `${prices["USDT-TRY_change"] > 0 ? "+" : ""}${prices["USDT-TRY_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["USDT-TRY_change"] >= 0 },
+        { sym: "GAG=X", label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["GAG=X_change"] >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 12px", border: "1px solid #30363d", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1019,7 +1019,7 @@ return (
 </div>
 <div style={{ textAlign: "right" }}>
 <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>{price.toFixed(precision)} {currency}</div>
-<div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
+<div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
 </div>
 </div>
 );
@@ -1090,7 +1090,7 @@ function CeilingScreen({ candidates, prices, lastUpdated, onBack, onSelect }: an
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: "#fff", fontSize: 16, fontWeight: 800 }}>{price.toFixed(2)} ₺</div>
-                  <div style={{ color: "#30d158", fontSize: 13, fontWeight: 700 }}>▲ +{change.toFixed(2)}%</div>
+                  <div style={{ color: "#30d158", fontSize: 13, fontWeight: 700 }}>▲ +{change.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
                 </div>
               </div>
               
@@ -1190,7 +1190,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}{currency}</div>
-                  <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toFixed(2)}%</div>
+                  <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
                 </div>
               </div>
               
@@ -1396,7 +1396,7 @@ return (
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <div style={{ color: "#fff", fontSize: 32, fontWeight: 900, letterSpacing: -1 }}>{stock.symbol}</div>
     <div style={{ background: isShort ? "rgba(255,69,58,0.2)" : "rgba(0,212,170,0.2)", color: sideColor, fontSize: 13, fontWeight: 800, padding: "4px 14px", borderRadius: 12, border: `1px solid ${sideColor}55` }}>
-      {isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ"} {potential.toFixed(1)}%
+      {isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ"} {potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
     </div>
   </div>
   <div style={{ color: "#8b949e", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{stock.name}</div>
@@ -1405,7 +1405,7 @@ return (
     <div>
       <div style={{ color: "#fff", fontSize: 36, fontWeight: 900, letterSpacing: -0.5 }}>{price.toFixed(pricePrecision)} {currency}</div>
       <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
-        {up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toFixed(2)}%
+        {up ? "▲" : "▼"} {up ? "+" : ""}{currentChange.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
       </div>
     </div>
     <div style={{ textAlign: "right", paddingBottom: 4 }}>
@@ -1423,7 +1423,7 @@ return (
         { l: "MACD", v: pd.macd > 0 ? "ALIŞ" : "SATIŞ", good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
         { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 75 },
-        { l: "POT.", v: `+%${potential.toFixed(1)}`, good: true },
+        { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
       ].map(s => (
         <div key={s.l} style={{ flexShrink: 0, background: "#131922", borderRadius: 10, padding: "8px 12px", border: s.good ? "1px solid rgba(0,212,170,0.2)" : "1px solid rgba(255,69,58,0.2)" }}>
           <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700 }}>{s.l}</div>
@@ -1491,7 +1491,7 @@ return (
           {[
             { label: "TP 1 (+15%)", val: `${tp1} ${currency}`, color: "#30d158", bg: "rgba(48,209,88,0.08)" },
             { label: "TP 2 (+28%)", val: `${tp2} ${currency}`, color: "#30d158", bg: "rgba(48,209,88,0.08)" },
-            { label: `TP 3 (+${potential.toFixed(1)}%)`, val: `${tp3} ${currency}`, color: "#ffd60a", bg: "rgba(255,214,10,0.08)" },
+            { label: `TP 3 (+${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)`, val: `${tp3} ${currency}`, color: "#ffd60a", bg: "rgba(255,214,10,0.08)" },
             { label: "STOP LOSS (-8%)", val: `${sl} ${currency}`, color: "#ff453a", bg: "rgba(255,69,58,0.08)" },
           ].map(t => (
             <div key={t.label} style={{ background: t.bg, borderRadius: 10, padding: "10px 12px", border: `1px solid ${t.color}33` }}>

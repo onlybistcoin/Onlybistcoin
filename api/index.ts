@@ -183,6 +183,7 @@ const BIST_SYMBOLS = [
 
 const CRYPTO_SYMBOLS = [
   "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT", "AVAX/USDT", "DOGE/USDT", "DOT/USDT", "LINK/USDT",
+  "USDT/TRY", "BTC/TRY", "ETH/TRY",
   "POL/USDT", "NEAR/USDT", "PEPE/USDT", "FET/USDT", "RENDER/USDT", "SHIB/USDT", "LTC/USDT", "BCH/USDT", "UNI/USDT", "ARB/USDT",
   "TIA/USDT", "OP/USDT", "INJ/USDT", "SUI/USDT", "APT/USDT", "STX/USDT", "FIL/USDT", "ATOM/USDT", "IMX/USDT", "KAS/USDT",
   "HBAR/USDT", "ETC/USDT", "ICP/USDT", "RUNE/USDT", "LDO/USDT", "TAO/USDT", "SEI/USDT", "JUP/USDT", "WIF/USDT", "FLOKI/USDT",
@@ -234,6 +235,8 @@ async function updateCryptoPrices() {
           lastUpdated: new Date().toISOString(),
           source: 'Binance'
         };
+        // Store change separately for App.tsx
+        inMemoryPrices[`${docId}_change`] = ticker.percentage || 0;
       }
     }
   } catch (err) {
@@ -287,7 +290,7 @@ async function updateBistPrices() {
 
 async function updateCommodities() {
   try {
-    const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "HG=F"];
+    const yfSymbols = ["TRY=X", "GC=F", "SI=F", "BZ=F", "HG=F", "BTC-USD"];
     const quotes = await yahooFinance.quote(yfSymbols) as any[];
     const prices: Record<string, number> = {};
     const changes: Record<string, number> = {};
@@ -316,13 +319,27 @@ async function updateCommodities() {
         };
       }
       if (prices["SI=F"]) {
-        const gramSilverPrice = (prices["SI=F"] / 31.1035) * prices["TRY=X"];
+        // 1 troy ounce = 31.1034768 grams
+        const gramSilverPrice = (prices["SI=F"] / 31.1034768) * (prices["TRY=X"] || 1);
         inMemoryPrices["GAG=X"] = {
           price: gramSilverPrice,
-          change: changes["SI=F"], // Simplified change
+          change: changes["SI=F"], // Use silver futures change
           lastUpdated: new Date().toISOString(),
           source: 'Calculated'
         };
+        // Also store change separately for App.tsx
+        inMemoryPrices["GAG=X_change"] = changes["SI=F"];
+      }
+      
+      // USDT/TRY calculation if not already from Binance
+      if (prices["TRY=X"] && !inMemoryPrices["USDT-TRY"]) {
+        inMemoryPrices["USDT-TRY"] = {
+          price: prices["TRY=X"] * 1.001, // USDT usually slightly higher than USD
+          change: changes["TRY=X"],
+          lastUpdated: new Date().toISOString(),
+          source: 'Calculated'
+        };
+        inMemoryPrices["USDT-TRY_change"] = changes["TRY=X"];
       }
     }
   } catch (err) {
