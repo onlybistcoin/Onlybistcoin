@@ -49,7 +49,7 @@ import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
 import YahooFinance from 'yahoo-finance2';
-const yahooFinance = new (YahooFinance as any)();
+const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
 
 // Initialize Firebase Admin
 try {
