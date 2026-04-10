@@ -288,6 +288,12 @@ useEffect(() => {
                   next[sym] = price;
                   next[`${sym}_change`] = parseFloat(t.priceChangePercent);
                 }
+              } else if (t.symbol === "USDTTRY") {
+                let price = parseFloat(t.lastPrice);
+                if (!isNaN(price)) {
+                  next["USDT-TRY"] = price;
+                  next["USDT-TRY_change"] = parseFloat(t.priceChangePercent);
+                }
               }
             });
             return next;
@@ -329,7 +335,9 @@ useEffect(() => {
                   "USD/TRY": "TRY=X",
                   "EURO": "EURTRY=X",
                   "ONS ALTIN": "GC=F",
-                  "GRAM ALTIN": "GA=F"
+                  "GRAM ALTIN": "GA=F",
+                  "GRAM GÜMÜŞ": "GAG=X",
+                  "GÜMÜŞ": "GAG=X"
                 };
 
                 for (const [key, val] of Object.entries(data)) {
@@ -381,7 +389,7 @@ useEffect(() => {
 
     const fetchPrices = async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       
       try {
         console.log(`[App] Fetching prices from backend... (${new Date().toLocaleTimeString()})`);
@@ -839,7 +847,7 @@ return (
       {[
         { sym: "XU100", label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["XU100_change"] >= 0 },
         { sym: "BTC-USDT", label: "BTC/USDT", val: prices["BTC-USDT"] > 0 ? prices["BTC-USDT"].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDT" : (loading ? "..." : "---"), chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["BTC-USDT_change"] >= 0 },
-        { sym: "USDT-TRY", label: "USDT/TRY", val: prices["USDT-TRY"] > 0 ? prices["USDT-TRY"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["USDT-TRY_change"] ? `${prices["USDT-TRY_change"] > 0 ? "+" : ""}${prices["USDT-TRY_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["USDT-TRY_change"] >= 0 },
+        { sym: "USDT-TRY", label: "USDT/TRY", val: prices["USDT-TRY"] > 0 ? prices["USDT-TRY"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + " ₺" : (loading ? "..." : "---"), chg: prices["USDT-TRY_change"] ? `${prices["USDT-TRY_change"] > 0 ? "+" : ""}${prices["USDT-TRY_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["USDT-TRY_change"] >= 0 },
         { sym: "GAG=X", label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["GAG=X_change"] >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 12px", border: "1px solid #30363d", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>

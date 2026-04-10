@@ -47,10 +47,11 @@ if (fs.existsSync(firebaseConfigPath)) {
 import ccxt from "ccxt";
 import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+const yahooFinance = new YahooFinance();
 // Suppress the survey notice
 try {
-  (yahooFinance as any).setGlobalConfig({ suppressNotices: ['yahooSurvey'] });
+  yahooFinance.setGlobalConfig({ suppressNotices: ['yahooSurvey'] });
 } catch (e) {
   console.error("Failed to set Yahoo Finance config:", e);
 }
@@ -135,12 +136,16 @@ app.get("/api/prices", async (req, res) => {
     lastUpdate = now;
     console.log("[API] Triggering on-demand price update...");
     
-    // We don't await them to keep the response fast, 
-    // but in serverless they might get cut off.
-    // However, subsequent requests will eventually get the data.
-    updateCryptoPrices().catch(e => console.error("Crypto update failed:", e));
-    updateBistPrices().catch(e => console.error("BIST update failed:", e));
-    updateCommodities().catch(e => console.error("Commodities update failed:", e));
+    // In serverless environments, we MUST await these or they get killed
+    try {
+      await Promise.allSettled([
+        updateCryptoPrices(),
+        updateBistPrices(),
+        updateCommodities()
+      ]);
+    } catch (e) {
+      console.error("[API] Error during on-demand update:", e);
+    }
   }
   
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -261,11 +266,12 @@ async function updateBistPrices() {
         lastUpdated: new Date().toISOString(),
         source: 'YahooFinance'
       };
+      inMemoryPrices[`${sym}_change`] = quote.regularMarketChangePercent || 0;
     }
 
     // Batch fetch all BIST stocks (Yahoo Finance supports multiple symbols)
     // We append .IS to each symbol
-    const batchSize = 40;
+    const batchSize = 100;
     for (let i = 0; i < BIST_SYMBOLS.length; i += batchSize) {
       const batch = BIST_SYMBOLS.slice(i, i + batchSize).map(s => `${s}.IS`);
       try {
@@ -279,13 +285,12 @@ async function updateBistPrices() {
               lastUpdated: new Date().toISOString(),
               source: 'YahooFinance'
             };
+            inMemoryPrices[`${originalSymbol}_change`] = quote.regularMarketChangePercent || 0;
           }
         }
       } catch (batchErr) {
         console.error(`[Worker] BIST batch ${i} failed:`, batchErr);
       }
-      // Small delay between batches to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   } catch (err) {
     console.error("[Worker] BIST update failed:", err);
@@ -309,6 +314,7 @@ async function updateCommodities() {
         lastUpdated: new Date().toISOString(),
         source: 'YahooFinance'
       };
+      inMemoryPrices[`${quote.symbol}_change`] = quote.regularMarketChangePercent || 0;
     }
 
     // Calculate Gram Gold (GAU=X) and Gram Silver (GAG=X)
@@ -346,6 +352,7 @@ async function updateCommodities() {
         inMemoryPrices["USDT-TRY_change"] = changes["TRY=X"];
       }
     }
+    console.log(`[Worker] Commodities update cycle complete.`);
   } catch (err) {
     console.error("[Worker] Commodities failed:", err);
   }
