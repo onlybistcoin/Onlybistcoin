@@ -823,6 +823,7 @@ border: "1px solid #30363d"
         onViewCandidates={() => setScreen("candidates")}
         onViewScalp={() => setScreen("scalp")}
         onViewCeiling={() => setScreen("ceiling")}
+        onViewCorrection={() => setScreen("correction")}
         onRefresh={handleRefresh}
         loading={loading}
         fetchError={fetchError}
@@ -839,6 +840,12 @@ border: "1px solid #30363d"
         candidates={candidates} prices={prices} lastUpdated={lastUpdated}
         onBack={() => setScreen("scanner")}
         onSelect={(s: any) => { setTimeframe("1S"); openDetail(s); }}
+        market={market}
+      />}
+      {screen === "correction" && <CorrectionScreen
+        stocks={stocks} prices={prices} lastUpdated={lastUpdated}
+        onBack={() => setScreen("scanner")}
+        onSelect={openDetail}
         market={market}
       />}
       {screen === "detail" && selectedStock && <DetailScreen
@@ -891,7 +898,10 @@ border: "1px solid #30363d"
 );
 }
 
-function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onViewCeiling, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
+function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onViewCeiling, onViewCorrection, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
+  const currentHour = parseInt(new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', hour12: false }).format(new Date()), 10);
+  const isAfter18 = currentHour >= 18 || currentHour < 6; // 18:00 to 06:00
+
 const topMovers = [...stocks].sort((a, b) => {
   let changeA = Number(prices[`${a.symbol}_change`] ?? a.change ?? 0);
   if (!Number.isFinite(changeA)) changeA = 0;
@@ -1054,6 +1064,21 @@ return (
           }}
         >
           ⚡ Scalp Fırsatlarını Gör
+        </button>
+      )}
+      {scanned && (
+        <button
+          onClick={isAfter18 ? onViewCorrection : undefined}
+          style={{
+            width: "100%", marginTop: 8, padding: "12px", borderRadius: 14,
+            background: isAfter18 ? "rgba(191,90,242,0.15)" : "rgba(255,255,255,0.05)", 
+            color: isAfter18 ? "#bf5af2" : "#6b7280", 
+            border: isAfter18 ? "1px solid rgba(191,90,242,0.4)" : "1px solid #30363d",
+            cursor: isAfter18 ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            opacity: isAfter18 ? 1 : 0.7
+          }}
+        >
+          {isAfter18 ? "🌙 Yarına Hazırlık (Düzeltmesi Bitenler)" : "🔒 Yarına Hazırlık (18:00'de Açılır)"}
         </button>
       )}
       {scanned && (
@@ -1235,6 +1260,89 @@ function CeilingScreen({ candidates, prices, lastUpdated, onBack, onSelect }: an
             <div style={{ fontSize: 40, marginBottom: 10 }}>🔭</div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Şu an tavan ihtimali yüksek aday bulunamadı.</div>
             <div style={{ fontSize: 12, marginTop: 4 }}>Tarayıcıyı kullanarak yeni analiz başlatabilirsiniz.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CorrectionScreen({ stocks, prices, lastUpdated, onBack, onSelect, market }: any) {
+  // Filter for "Düzeltme Tamamlandı"
+  const candidates = stocks.map((s: any) => {
+    const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
+    return { ...s, pd };
+  }).filter((s: any) => {
+    // RSI between 35 and 55 (recovering), MACD > -0.5 (turning up), Pattern Score > 60
+    return s.pd.rsi >= 35 && s.pd.rsi <= 55 && s.pd.macd > -0.5 && s.pd.patternScore >= 60;
+  }).sort((a: any, b: any) => b.pd.patternScore - a.pd.patternScore);
+
+  return (
+    <div style={{ padding: "0 0 20px" }}>
+      <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(191,90,242,0.05) 0%, transparent 100%)" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#bf5af2", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 10 }}>
+          ← Geri
+        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>Yarına Hazırlık</div>
+              <div style={{ background: "#bf5af2", color: "#fff", fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>GÜNLÜK</div>
+            </div>
+            <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>Düzeltmesi biten ve hareket beklenenler</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+            {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>{lastUpdated}</div>}
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {candidates.length > 0 ? candidates.slice(0, 10).map((stock: any) => {
+          const pd = stock.pd;
+          let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
+          if (!Number.isFinite(price)) price = 0;
+          let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
+          if (!Number.isFinite(currentChange)) currentChange = 0;
+          const up = currentChange >= 0;
+          const isCrypto = stock.symbol.includes("-USDT");
+          const currency = isCrypto ? " USDT" : " ₺";
+          const sideColor = "#bf5af2";
+
+          return (
+            <button
+              key={`${stock.symbol}-correction`}
+              onClick={() => onSelect(stock)}
+              style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: `1px solid ${sideColor}33`, cursor: "pointer", textAlign: "left", width: "100%", position: "relative", overflow: "hidden" }}
+            >
+              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: sideColor }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{stock.symbol}</div>
+                    <div style={{ background: "rgba(191,90,242,0.15)", color: sideColor, fontSize: 8, fontWeight: 800, padding: "1px 5px", borderRadius: 4 }}>DÜZELTME BİTTİ</div>
+                  </div>
+                  <div style={{ color: "#8b949e", fontSize: 11 }}>{stock.name}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{price.toFixed(stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2)))}{currency}</div>
+                  <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 12, fontWeight: 700 }}>{up ? "+" : ""}{currentChange.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
+                </div>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {pd.rsi}</span>
+                  <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
+                </div>
+                <div style={{ color: sideColor, fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
+              </div>
+            </button>
+          );
+        }) : (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#8b949e" }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🌙</div>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Şu an düzeltmesi tamamlanmış uygun aday bulunamadı.</div>
           </div>
         )}
       </div>
