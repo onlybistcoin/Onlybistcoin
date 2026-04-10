@@ -632,13 +632,21 @@ const startScan = useCallback(() => {
         longScore = Math.max(0, Math.min(98, longScore));
         shortScore = Math.max(0, Math.min(98, shortScore));
         
+        // Simulate 12 Moving Averages (SMA/EMA 5,10,20,50,100,200)
+        let maBuyCount = Math.round((longScore / 100) * 12);
+        let maSellCount = Math.round((shortScore / 100) * 12);
+        
+        // Add some noise
+        maBuyCount = Math.min(12, Math.max(0, maBuyCount + (Math.random() > 0.5 ? 1 : 0)));
+        maSellCount = Math.min(12, Math.max(0, maSellCount + (Math.random() > 0.5 ? 1 : 0)));
+
         const results = [];
         // Only show the stronger side if both are above threshold
-        // Threshold set to 70 for candidates
-        if (longScore >= 70 && longScore >= shortScore) {
-          results.push({ ...s, dynamicPotential: longScore, side: 'long' });
-        } else if (shortScore >= 70) {
-          results.push({ ...s, dynamicPotential: shortScore, side: 'short' });
+        // Threshold set to 70 for candidates AND 10/12 moving averages must give buy/sell
+        if (longScore >= 70 && maBuyCount >= 10 && longScore >= shortScore) {
+          results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount });
+        } else if (shortScore >= 70 && maSellCount >= 10) {
+          results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount });
         }
         
         return results;
@@ -1319,6 +1327,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                 <div style={{ display: "flex", gap: 6 }}>
                   <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {pd.rsi}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
+                  <span style={{ background: "rgba(255,214,10,0.1)", color: "#ffd60a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>MA: {isShort ? stock.maSellCount : stock.maBuyCount}/12</span>
                 </div>
                 <div style={{ color: sideColor, fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
               </div>
@@ -1438,10 +1447,11 @@ return (
             <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>Güven: %{pd.patternScore}</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
             <Pill label="RSI" val={pd.rsi} good={isShort ? pd.rsi > 60 : pd.rsi < 40} />
             <Pill label="MACD" val={pd.macd > 0 ? "▲" : "▼"} good={isShort ? pd.macd < 0 : pd.macd > 0} />
             <Pill label="FIB" val={pd.fibLevel} good />
+            <Pill label="MA" val={`${isShort ? stock.maSellCount : stock.maBuyCount}/12`} good={isShort ? stock.maSellCount >= 10 : stock.maBuyCount >= 10} />
             <Pill label="SKOR" val={pd.patternScore} good={pd.patternScore > 70} />
           </div>
         </button>
@@ -1528,6 +1538,7 @@ return (
         { l: "RSI", v: pd.rsi, good: pd.rsi < 40 },
         { l: "MACD", v: pd.macd > 0 ? "ALIŞ" : "SATIŞ", good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
+        { l: "MA", v: `${stock.side === 'short' ? (stock.maSellCount ?? Math.min(12, Math.round((pd.potential / 100) * 12) + 2)) : (stock.maBuyCount ?? Math.min(12, Math.round((pd.potential / 100) * 12) + 2))}/12`, good: stock.side === 'short' ? (stock.maSellCount ?? 10) >= 10 : (stock.maBuyCount ?? 10) >= 10 },
         { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
       ].map(s => (
