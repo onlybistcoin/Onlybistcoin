@@ -388,6 +388,15 @@ useEffect(() => {
     };
 
     const fetchPrices = async () => {
+      if (window.location.protocol === 'about:') {
+        console.warn("[App] Running in sandboxed iframe, skipping backend fetch.");
+        setFetchError("Önizleme Modu (Yedekler devrede)");
+        fetchCryptoFallback();
+        fetchBistFallback();
+        setLoading(false);
+        return;
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
@@ -440,6 +449,9 @@ useEffect(() => {
         if (error.name === 'AbortError') {
           console.warn("[App] API fetch timed out");
           setFetchError("Bağlantı Zaman Aşımı (Yedekler devrede)");
+        } else if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
+          console.warn("[App] Invalid URL context, using fallbacks.");
+          setFetchError("Önizleme Modu (Yedekler devrede)");
         } else {
           console.error("[App] API fetch error:", error);
           setFetchError(`Bağlantı Hatası: ${error.message}`);
@@ -452,6 +464,10 @@ useEffect(() => {
     };
 
     const fetchNews = async () => {
+      if (window.location.protocol === 'about:') {
+        console.warn("[App] News fetch skipped in sandboxed iframe.");
+        return;
+      }
       try {
         const res = await fetch('/api/news');
         if (res.ok) {
@@ -460,8 +476,12 @@ useEffect(() => {
         } else {
           console.warn(`[App] News fetch failed: ${res.status}`);
         }
-      } catch (error) {
-        console.error("News fetch error:", error);
+      } catch (error: any) {
+        if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
+          console.warn("[App] News fetch skipped due to invalid URL context.");
+        } else {
+          console.error("News fetch error:", error);
+        }
       }
     };
 
@@ -536,10 +556,10 @@ const startScan = useCallback(() => {
         
         const results = [];
         // Only show the stronger side if both are above threshold
-        // Increased threshold to 75 for more selective candidates
-        if (longScore >= 75 && longScore >= shortScore) {
+        // Threshold set to 70 for candidates
+        if (longScore >= 70 && longScore >= shortScore) {
           results.push({ ...s, dynamicPotential: longScore, side: 'long' });
-        } else if (shortScore >= 75) {
+        } else if (shortScore >= 70) {
           results.push({ ...s, dynamicPotential: shortScore, side: 'short' });
         }
         
@@ -1430,7 +1450,7 @@ return (
         { l: "RSI", v: pd.rsi, good: pd.rsi < 40 },
         { l: "MACD", v: pd.macd > 0 ? "ALIŞ" : "SATIŞ", good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
-        { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 75 },
+        { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
       ].map(s => (
         <div key={s.l} style={{ flexShrink: 0, background: "#131922", borderRadius: 10, padding: "8px 12px", border: s.good ? "1px solid rgba(0,212,170,0.2)" : "1px solid rgba(255,69,58,0.2)" }}>
