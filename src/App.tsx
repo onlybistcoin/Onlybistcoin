@@ -228,14 +228,14 @@ CRDFA: { rsi: 34, macd: 0.85, fibLevel: "0.786", patternScore: 89, pattern: "Dü
 "BTC-USDT": { rsi: 32, macd: 1.2, fibLevel: "0.618", patternScore: 88, pattern: "Bullish Divergence", potential: 22 },
 "ETH-USDT": { rsi: 35, macd: 0.95, fibLevel: "0.5", patternScore: 82, pattern: "Falling Wedge", potential: 18 },
 "SOL-USDT": { rsi: 58, macd: 0.45, fibLevel: "0.236", patternScore: 65, pattern: "Ascending Triangle", potential: 15 },
-"BNB-USDT": { rsi: 52, macd: -0.2, fibLevel: "0.382", patternScore: 48, pattern: "Consolidation", potential: 15 },
-"XRP-USDT": { rsi: 38, macd: 0.8, fibLevel: "0.618", patternScore: 79, pattern: "Double Bottom", potential: 38 },
-"ADA-USDT": { rsi: 35, macd: 0.4, fibLevel: "0.5", patternScore: 65, pattern: "Rounding Bottom", potential: 28 },
+"BNB-USDT": { rsi: 78, macd: -0.8, fibLevel: "0.786", patternScore: 85, pattern: "Aşırı Alım + Negatif Uyumsuzluk (Satış)", potential: 15 },
+"XRP-USDT": { rsi: 82, macd: -1.2, fibLevel: "0.618", patternScore: 89, pattern: "Çift Tepe Formasyonu (Satış)", potential: 22 },
+"ADA-USDT": { rsi: 75, macd: -0.5, fibLevel: "0.5", patternScore: 78, pattern: "Yükselen Kama Kırılımı (Satış)", potential: 18 },
 "AVAX-USDT": { rsi: 31, macd: 1.1, fibLevel: "0.786", patternScore: 89, pattern: "Cup and Handle", potential: 52 },
 "DOGE-USDT": { rsi: 25, macd: 2.5, fibLevel: "0.886", patternScore: 96, pattern: "Meme Momentum 🚀", potential: 120 },
-"DOT-USDT": { rsi: 42, macd: 0.3, fibLevel: "0.5", patternScore: 61, pattern: "Accumulation", potential: 25 },
+"DOT-USDT": { rsi: 85, macd: -1.5, fibLevel: "0.236", patternScore: 92, pattern: "Dirençten Dönüş (Satış)", potential: 25 },
 "LINK-USDT": { rsi: 39, macd: 0.9, fibLevel: "0.618", patternScore: 82, pattern: "Channel Breakout", potential: 48 },
-"MATIC-USDT": { rsi: 48, macd: 0.1, fibLevel: "0.382", patternScore: 52, pattern: "Symmetrical Triangle", potential: 22 },
+"MATIC-USDT": { rsi: 72, macd: -0.9, fibLevel: "0.382", patternScore: 81, pattern: "OBO Formasyonu (Satış)", potential: 28 },
 "NEAR-USDT": { rsi: 29, macd: 1.5, fibLevel: "0.786", patternScore: 92, pattern: "Parabolic Move Potential", potential: 75 },
 "10000PEPE-USDT": { rsi: 22, macd: 3.2, fibLevel: "0.886", patternScore: 98, pattern: "Extreme Oversold 🐸", potential: 250 },
 "FET-USDT": { rsi: 34, macd: 1.4, fibLevel: "0.618", patternScore: 91, pattern: "AI Narrative Hype", potential: 85 },
@@ -603,14 +603,40 @@ const startScan = useCallback(() => {
         const livePrice = prices[s.symbol] || s.price || 0;
         const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
         
-        const pd = PATTERN_DATA[s.symbol] || { 
-          rsi: 50, 
-          macd: 0, 
-          fibLevel: "0.5", 
-          patternScore: 30 + Math.random() * 20, 
-          pattern: "Nötr", 
-          potential: 5 + Math.random() * 5 
-        };
+        let pd = PATTERN_DATA[s.symbol];
+        if (!pd) {
+          const isCrypto = s.symbol.includes("USDT");
+          const volMult = isCrypto ? 2 : 1;
+          
+          if (liveChange > 3 * volMult) {
+            pd = {
+              rsi: 65 + Math.random() * 20,
+              macd: -0.1 - Math.random(),
+              fibLevel: "0.786",
+              patternScore: 60 + Math.random() * 30,
+              pattern: "Aşırı Alım (Düzeltme Beklentisi)",
+              potential: 3 + Math.random() * 5
+            };
+          } else if (liveChange < -3 * volMult) {
+            pd = {
+              rsi: 15 + Math.random() * 20,
+              macd: 0.1 + Math.random(),
+              fibLevel: "0.236",
+              patternScore: 60 + Math.random() * 30,
+              pattern: "Aşırı Satım (Tepki Beklentisi)",
+              potential: 3 + Math.random() * 5
+            };
+          } else {
+            pd = { 
+              rsi: 40 + Math.random() * 20, 
+              macd: (Math.random() - 0.5) * 2, 
+              fibLevel: "0.5", 
+              patternScore: 30 + Math.random() * 20, 
+              pattern: "Yatay Seyir", 
+              potential: 2 + Math.random() * 3 
+            };
+          }
+        }
         
         if (!Number.isFinite(liveChange)) return [];
         
@@ -1351,8 +1377,14 @@ function CorrectionScreen({ stocks, prices, lastUpdated, onBack, onSelect, marke
 }
 
 function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
-  // Filter for stocks with high RSI or specific scalp patterns if needed
-  // For now, we'll use the same candidates but with a scalp-focused UI
+  const [filterSide, setFilterSide] = React.useState<"all" | "long" | "short">("all");
+
+  const filteredCandidates = candidates.filter((stock: any) => {
+    if (filterSide === "long" && stock.side !== "long") return false;
+    if (filterSide === "short" && stock.side !== "short") return false;
+    return true;
+  });
+
   return (
     <div style={{ padding: "0 0 20px" }}>
       <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(0,212,170,0.05) 0%, transparent 100%)" }}>
@@ -1372,9 +1404,15 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
             {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>{lastUpdated}</div>}
           </div>
         </div>
+        
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button onClick={() => setFilterSide("all")} style={{ flex: 1, padding: "8px", borderRadius: 8, background: filterSide === "all" ? "rgba(255,255,255,0.1)" : "transparent", border: "1px solid rgba(255,255,255,0.1)", color: filterSide === "all" ? "#fff" : "#8b949e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>TÜMÜ</button>
+          <button onClick={() => setFilterSide("long")} style={{ flex: 1, padding: "8px", borderRadius: 8, background: filterSide === "long" ? "rgba(0,212,170,0.15)" : "transparent", border: "1px solid rgba(0,212,170,0.3)", color: filterSide === "long" ? "#00d4aa" : "#8b949e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>LONG (AL)</button>
+          <button onClick={() => setFilterSide("short")} style={{ flex: 1, padding: "8px", borderRadius: 8, background: filterSide === "short" ? "rgba(255,69,58,0.15)" : "transparent", border: "1px solid rgba(255,69,58,0.3)", color: filterSide === "short" ? "#ff453a" : "#8b949e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>SHORT (SAT)</button>
+        </div>
       </div>
       <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {candidates.slice(0, 8).map((stock: any) => {
+        {filteredCandidates.slice(0, 8).map((stock: any) => {
           const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
           let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
           if (!Number.isFinite(price)) price = 0;
@@ -1448,48 +1486,59 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
 }
 
 function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
-return (
-<div style={{ padding: "0 0 20px" }}>
-<div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e" }}>
-<button onClick={onBack} style={{ background: "none", border: "none", color: "#00d4aa", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 10 }}>
-← Geri
-</button>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-<div>
-<div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>Adaylar</div>
-<div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>%50+ potansiyel • {candidates.length} hisse</div>
-</div>
-<div style={{ textAlign: "right" }}>
-{market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
-{lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>Güncelleme: {lastUpdated}</div>}
-</div>
-</div>
-</div>
-  <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-    <div style={{ background: "rgba(0,212,170,0.05)", borderRadius: 16, padding: 16, border: "1px solid rgba(0,212,170,0.15)", marginBottom: 4 }}>
-      <div style={{ color: "#00d4aa", fontSize: 13, fontWeight: 800, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-        <span>🎯</span> ADAY BELİRLEME STRATEJİSİ
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {[
-          { l: "RSI", d: "Aşırı Satım (<35)" },
-          { l: "MACD", d: "Pozitif Kesişim" },
-          { l: "FIB", d: "0.618 / 0.786 Destek" },
-          { l: "GÜVEN", d: "%80+ Formasyon" }
-        ].map(s => (
-          <div key={s.l}>
-            <div style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>{s.l}</div>
-            <div style={{ color: "#8b949e", fontSize: 10 }}>{s.d}</div>
+  const [filterSide, setFilterSide] = React.useState<"all" | "long" | "short">("all");
+
+  const filteredCandidates = candidates.filter((stock: any) => {
+    const pd = PATTERN_DATA[stock.symbol] || { patternScore: 30 };
+    if (pd.patternScore < 80) return false;
+    if (filterSide === "long" && stock.side !== "long") return false;
+    if (filterSide === "short" && stock.side !== "short") return false;
+    return true;
+  });
+
+  return (
+    <div style={{ padding: "0 0 20px" }}>
+      <div style={{ padding: "8px 20px 16px", borderBottom: "1px solid #1a1f2e" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#00d4aa", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: 0, marginBottom: 10 }}>
+          ← Geri
+        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>Adaylar</div>
+            <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>%50+ potansiyel • {filteredCandidates.length} hisse</div>
           </div>
-        ))}
+          <div style={{ textAlign: "right" }}>
+            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+            {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>Güncelleme: {lastUpdated}</div>}
+          </div>
+        </div>
+        
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button onClick={() => setFilterSide("all")} style={{ flex: 1, padding: "8px", borderRadius: 8, background: filterSide === "all" ? "rgba(255,255,255,0.1)" : "transparent", border: "1px solid rgba(255,255,255,0.1)", color: filterSide === "all" ? "#fff" : "#8b949e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>TÜMÜ</button>
+          <button onClick={() => setFilterSide("long")} style={{ flex: 1, padding: "8px", borderRadius: 8, background: filterSide === "long" ? "rgba(0,212,170,0.15)" : "transparent", border: "1px solid rgba(0,212,170,0.3)", color: filterSide === "long" ? "#00d4aa" : "#8b949e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>LONG (AL)</button>
+          <button onClick={() => setFilterSide("short")} style={{ flex: 1, padding: "8px", borderRadius: 8, background: filterSide === "short" ? "rgba(255,69,58,0.15)" : "transparent", border: "1px solid rgba(255,69,58,0.3)", color: filterSide === "short" ? "#ff453a" : "#8b949e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>SHORT (SAT)</button>
+        </div>
       </div>
-    </div>
-    {candidates
-      .filter((stock: any) => {
-        const pd = PATTERN_DATA[stock.symbol] || { patternScore: 30 };
-        return pd.patternScore >= 80;
-      })
-      .map((stock: any, idx: number) => {
+      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ background: "rgba(0,212,170,0.05)", borderRadius: 16, padding: 16, border: "1px solid rgba(0,212,170,0.15)", marginBottom: 4 }}>
+          <div style={{ color: "#00d4aa", fontSize: 13, fontWeight: 800, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>🎯</span> ADAY BELİRLEME STRATEJİSİ
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[
+              { l: "RSI", d: "Aşırı Satım / Alım" },
+              { l: "MACD", d: "Kesişimler" },
+              { l: "FIB", d: "Destek / Direnç" },
+              { l: "GÜVEN", d: "%80+ Formasyon" }
+            ].map(s => (
+              <div key={s.l}>
+                <div style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>{s.l}</div>
+                <div style={{ color: "#8b949e", fontSize: 10 }}>{s.d}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {filteredCandidates.map((stock: any, idx: number) => {
       const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
       let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
       if (!Number.isFinite(price)) price = 0;
