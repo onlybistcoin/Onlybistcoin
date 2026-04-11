@@ -38,12 +38,6 @@ import * as finnhub from "finnhub";
 import * as cheerio from "cheerio";
 import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
-// Suppress the survey notice
-try {
-  yahooFinance.setGlobalConfig({ suppressNotices: ['yahooSurvey'] });
-} catch (e) {
-  console.error("Failed to set Yahoo Finance config:", e);
-}
 
 // Initialize Firebase Admin
 try {
