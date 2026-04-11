@@ -286,14 +286,14 @@ const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 13950.45, "XU030": 15820.10, "TRY=X": 34.25, "EURTRY=X": 36.90,
-      "BTC-USDT": 98450.20, "ETH-USDT": 3520.10, "SOL-USDT": 242.40,
-      "GC=F": 2680.30, "GA=F": 2980.15, "GAG=X": 35.25,
-      "THYAO": 319.50, "GARAN": 136.30, "AKBNK": 75.50, "EREGL": 52.40,
-      "KCHOL": 215.20, "SAHOL": 105.40, "BIMAS": 512.00, "TUPRS": 182.30,
-      "ASELS": 78.40, "PGSUS": 245.60, "SISE": 48.20, "YKBNK": 32.40,
-      "MGROS": 485.00, "FROTO": 1120.00, "TOASO": 285.00, "ARCLK": 165.00,
-      "DOHOL": 14.20, "PETKM": 22.40, "TAVHL": 215.00, "EKGYO": 10.80
+      "XU100": 0, "XU030": 0, "TRY=X": 0, "EURTRY=X": 0,
+      "BTC-USDT": 0, "ETH-USDT": 0, "SOL-USDT": 0,
+      "GC=F": 0, "GA=F": 0, "GAG=X": 0,
+      "THYAO": 0, "GARAN": 0, "AKBNK": 0, "EREGL": 0,
+      "KCHOL": 0, "SAHOL": 0, "BIMAS": 0, "TUPRS": 0,
+      "ASELS": 0, "PGSUS": 0, "SISE": 0, "YKBNK": 0,
+      "MGROS": 0, "FROTO": 0, "TOASO": 0, "ARCLK": 0,
+      "DOHOL": 0, "PETKM": 0, "TAVHL": 0, "EKGYO": 0
     };
     
     const initialChanges: Record<string, number> = {
@@ -353,7 +353,8 @@ useEffect(() => {
 
     const fetchCryptoFallback = async () => {
       try {
-        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+        // Use Binance Futures API (fapi) to support futures coins like 10000PEPEUSDT
+        const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
         if (res.ok) {
           const data = await res.json();
           setPrices(prev => {
@@ -366,14 +367,23 @@ useEffect(() => {
                   next[sym] = price;
                   next[`${sym}_change`] = parseFloat(t.priceChangePercent);
                 }
-              } else if (t.symbol === "USDTTRY") {
-                let price = parseFloat(t.lastPrice);
-                if (!isNaN(price)) {
-                  next["USDT-TRY"] = price;
-                  next["USDT-TRY_change"] = parseFloat(t.priceChangePercent);
-                }
               }
             });
+            return next;
+          });
+        }
+        
+        // Fetch USDT-TRY from Spot API as it's not on Futures
+        const spotRes = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY');
+        if (spotRes.ok) {
+          const spotData = await spotRes.json();
+          setPrices(prev => {
+            const next = { ...prev };
+            let price = parseFloat(spotData.lastPrice);
+            if (!isNaN(price)) {
+              next["USDT-TRY"] = price;
+              next["USDT-TRY_change"] = parseFloat(spotData.priceChangePercent);
+            }
             return next;
           });
         }
