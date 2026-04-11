@@ -508,6 +508,13 @@ useEffect(() => {
             setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
           } else {
             setFetchError(null);
+            
+            // Check if crypto data is missing (e.g. Vercel IP blocked by Binance)
+            if (!data["BTC-USDT"]) {
+              console.warn("[App] Backend response missing crypto data, triggering crypto fallback...");
+              fetchCryptoFallback();
+            }
+            
             setPrices(prev => {
               const next = { ...prev };
               for (const [symbol, info] of Object.entries(data)) {
@@ -522,6 +529,7 @@ useEffect(() => {
                   next[symbol] = infoData;
                 }
               }
+              console.log("[App] BTC-USDT price after update:", next["BTC-USDT"]);
               return next;
             });
           }
