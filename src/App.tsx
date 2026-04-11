@@ -666,13 +666,22 @@ const startScan = useCallback(() => {
         maBuyCount = Math.min(12, Math.max(0, maBuyCount + (Math.random() > 0.5 ? 1 : 0)));
         maSellCount = Math.min(12, Math.max(0, maSellCount + (Math.random() > 0.5 ? 1 : 0)));
 
+        // Simulate Whale Activity
+        const isCrypto = s.symbol.includes("USDT");
+        let whale = { action: "YOK", amount: "" };
+        if (longScore >= 70 && Math.random() > 0.3) {
+          whale = { action: "ALIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
+        } else if (shortScore >= 70 && Math.random() > 0.3) {
+          whale = { action: "SATIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
+        }
+
         const results = [];
         // Only show the stronger side if both are above threshold
         // Threshold set to 70 for candidates AND 10/12 moving averages must give buy/sell
         if (longScore >= 70 && maBuyCount >= 10 && longScore >= shortScore) {
-          results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount });
+          results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount, whale });
         } else if (shortScore >= 70 && maSellCount >= 10) {
-          results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount });
+          results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount, whale });
         }
         
         return results;
@@ -1360,6 +1369,11 @@ function CorrectionScreen({ stocks, prices, lastUpdated, onBack, onSelect, marke
                 <div style={{ display: "flex", gap: 6 }}>
                   <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {pd.rsi}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
+                  {stock.whale && stock.whale.action !== "YOK" && (
+                    <span style={{ background: stock.whale.action === "ALIM" ? "rgba(0,212,170,0.1)" : "rgba(255,69,58,0.1)", color: stock.whale.action === "ALIM" ? "#00d4aa" : "#ff453a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>
+                      🐋 {stock.whale.action}: {stock.whale.amount}
+                    </span>
+                  )}
                 </div>
                 <div style={{ color: sideColor, fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
               </div>
@@ -1377,7 +1391,7 @@ function CorrectionScreen({ stocks, prices, lastUpdated, onBack, onSelect, marke
 }
 
 function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
-  const [filterSide, setFilterSide] = React.useState<"all" | "long" | "short">("all");
+  const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
 
   const filteredCandidates = candidates.filter((stock: any) => {
     if (filterSide === "long" && stock.side !== "long") return false;
@@ -1474,6 +1488,11 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                   <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {pd.rsi}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
                   <span style={{ background: "rgba(255,214,10,0.1)", color: "#ffd60a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>MA: {isShort ? stock.maSellCount : stock.maBuyCount}/12</span>
+                  {stock.whale && stock.whale.action !== "YOK" && (
+                    <span style={{ background: stock.whale.action === "ALIM" ? "rgba(0,212,170,0.1)" : "rgba(255,69,58,0.1)", color: stock.whale.action === "ALIM" ? "#00d4aa" : "#ff453a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>
+                      🐋 {stock.whale.amount}
+                    </span>
+                  )}
                 </div>
                 <div style={{ color: sideColor, fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
               </div>
@@ -1486,7 +1505,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
 }
 
 function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, market }: any) {
-  const [filterSide, setFilterSide] = React.useState<"all" | "long" | "short">("all");
+  const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
 
   const filteredCandidates = candidates.filter((stock: any) => {
     const pd = PATTERN_DATA[stock.symbol] || { patternScore: 30 };
@@ -1698,6 +1717,7 @@ return (
         { l: "MA", v: `${stock.side === 'short' ? (stock.maSellCount ?? Math.min(12, Math.round((pd.potential / 100) * 12) + 2)) : (stock.maBuyCount ?? Math.min(12, Math.round((pd.potential / 100) * 12) + 2))}/12`, good: stock.side === 'short' ? (stock.maSellCount ?? 10) >= 10 : (stock.maBuyCount ?? 10) >= 10 },
         { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
+        ...(stock.whale && stock.whale.action !== "YOK" ? [{ l: "BALİNA", v: `${stock.whale.action} (${stock.whale.amount})`, good: stock.whale.action === "ALIM" }] : []),
       ].map(s => (
         <div key={s.l} style={{ flexShrink: 0, background: "#131922", borderRadius: 10, padding: "8px 12px", border: s.good ? "1px solid rgba(0,212,170,0.2)" : "1px solid rgba(255,69,58,0.2)" }}>
           <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700 }}>{s.l}</div>
