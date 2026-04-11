@@ -134,8 +134,6 @@ const COMMODITY_ITEMS = [
   { symbol: "GAU=X", name: "Gram Altın (TL)", price: 0, change: 0, volume: 0, sector: "Emtia" },
   { symbol: "GAG=X", name: "Gram Gümüş (TL)", price: 0, change: 0, volume: 0, sector: "Emtia" },
   { symbol: "TRY=X", name: "USD/TRY", price: 0, change: 0, volume: 0, sector: "Emtia" },
-  { symbol: "XU100", name: "BIST 100", price: 0, change: 0, volume: 0, sector: "Emtia" },
-  { symbol: "XU030", name: "BIST 30", price: 0, change: 0, volume: 0, sector: "Emtia" },
 ];
 
 const PATTERN_DATA: Record<string, any> = {
@@ -232,15 +230,15 @@ CRDFA: { rsi: 34, macd: 0.85, fibLevel: "0.786", patternScore: 89, pattern: "Dü
 "XRP-USDT": { rsi: 82, macd: -1.2, fibLevel: "0.618", patternScore: 89, pattern: "Çift Tepe Formasyonu (Satış)", potential: 22 },
 "ADA-USDT": { rsi: 75, macd: -0.5, fibLevel: "0.5", patternScore: 78, pattern: "Yükselen Kama Kırılımı (Satış)", potential: 18 },
 "AVAX-USDT": { rsi: 31, macd: 1.1, fibLevel: "0.786", patternScore: 89, pattern: "Cup and Handle", potential: 52 },
-"DOGE-USDT": { rsi: 25, macd: 2.5, fibLevel: "0.886", patternScore: 96, pattern: "Meme Momentum 🚀", potential: 120 },
+"DOGE-USDT": { rsi: 38, macd: -0.45, fibLevel: "0.618", patternScore: 82, pattern: "Azalan Üçgen", potential: 25 },
 "DOT-USDT": { rsi: 85, macd: -1.5, fibLevel: "0.236", patternScore: 92, pattern: "Dirençten Dönüş (Satış)", potential: 25 },
 "LINK-USDT": { rsi: 39, macd: 0.9, fibLevel: "0.618", patternScore: 82, pattern: "Channel Breakout", potential: 48 },
 "MATIC-USDT": { rsi: 72, macd: -0.9, fibLevel: "0.382", patternScore: 81, pattern: "OBO Formasyonu (Satış)", potential: 28 },
 "NEAR-USDT": { rsi: 29, macd: 1.5, fibLevel: "0.786", patternScore: 92, pattern: "Parabolic Move Potential", potential: 75 },
-"10000PEPE-USDT": { rsi: 22, macd: 3.2, fibLevel: "0.886", patternScore: 98, pattern: "Extreme Oversold 🐸", potential: 250 },
+"10000PEPE-USDT": { rsi: 32, macd: 0.85, fibLevel: "0.786", patternScore: 94, pattern: "Dip Dönüşü 🐸", potential: 45 },
 "FET-USDT": { rsi: 34, macd: 1.4, fibLevel: "0.618", patternScore: 91, pattern: "AI Narrative Hype", potential: 85 },
 "RNDR-USDT": { rsi: 36, macd: 1.2, fibLevel: "0.618", patternScore: 87, pattern: "Bull Flag", potential: 58 },
-"10000SHIB-USDT": { rsi: 25, macd: 2.8, fibLevel: "0.786", patternScore: 92, pattern: "Accumulation Breakout", potential: 180 },
+"10000SHIB-USDT": { rsi: 35, macd: 0.65, fibLevel: "0.618", patternScore: 88, pattern: "Akümülasyon Kırılımı", potential: 35 },
 };
 
 function generateCandleData(basePrice: number, periods = 60) {
@@ -277,11 +275,11 @@ const [screen, setScreen] = useState("scanner");
 const [market, setMarket] = useState<"BIST" | "CRYPTO" | "EMTİA">("BIST");
 const [showDebug, setShowDebug] = useState(false);
 const [selectedStock, setSelectedStock] = useState<any>(null);
-const [scanning, setScanning] = useState(false);
-const [scanProgress, setScanProgress] = useState(0);
-const [scanned, setScanned] = useState(false);
-const [candidates, setCandidates] = useState<any[]>([]);
-const [ceilingCandidates, setCeilingCandidates] = useState<any[]>([]);
+const [scanning, setScanning] = useState<Record<string, boolean>>({ BIST: false, CRYPTO: false, EMTİA: false });
+const [scanProgress, setScanProgress] = useState<Record<string, number>>({ BIST: 0, CRYPTO: 0, EMTİA: 0 });
+const [scanned, setScanned] = useState<Record<string, boolean>>({ BIST: false, CRYPTO: false, EMTİA: false });
+const [candidates, setCandidates] = useState<Record<string, any[]>>({ BIST: [], CRYPTO: [], EMTİA: [] });
+const [ceilingCandidates, setCeilingCandidates] = useState<Record<string, any[]>>({ BIST: [], CRYPTO: [], EMTİA: [] });
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
@@ -320,6 +318,13 @@ const [aiLoading, setAiLoading] = useState(false);
 const [aiCache, setAiCache] = useState<Record<string, string>>({});
 const [timeframe, setTimeframe] = useState("1S");
 const [tab, setTab] = useState("teknik"); 
+const [portfolios, setPortfolios] = useState<Record<string, any>>({});
+const [portfolioLoading, setPortfolioLoading] = useState(false);
+const [portfolioStats, setPortfolioStats] = useState<Record<string, any>>({
+  BIST: { daily: 0, weekly: 0, monthly: 0 },
+  CRYPTO: { daily: 0, weekly: 0, monthly: 0 },
+  EMTİA: { daily: 0, weekly: 0, monthly: 0 }
+});
 const [kapNews, setKapNews] = useState<any[]>([]);
 const [news, setNews] = useState<any[]>([]);
 const scanIntervalRef = useRef<any>(null);
@@ -351,50 +356,47 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, []);
 
-    const fetchCryptoFallback = async () => {
-      try {
-        // Use Binance Futures API (fapi) to support futures coins like 10000PEPEUSDT
-        const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
-        if (res.ok) {
-          const data = await res.json();
-          setPrices(prev => {
-            const next = { ...prev };
-            data.forEach((t: any) => {
-              if (t.symbol.endsWith("USDT")) {
-                const sym = t.symbol.replace("USDT", "-USDT");
-                let price = parseFloat(t.lastPrice);
-                if (!isNaN(price)) {
-                  next[sym] = price;
-                  next[`${sym}_change`] = parseFloat(t.priceChangePercent);
-                }
+  const fetchCryptoFallback = useCallback(async () => {
+    try {
+      const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+      if (res.ok) {
+        const data = await res.json();
+        setPrices(prev => {
+          const next = { ...prev };
+          data.forEach((t: any) => {
+            if (t.symbol.endsWith("USDT")) {
+              const sym = t.symbol.replace("USDT", "-USDT");
+              let price = parseFloat(t.lastPrice);
+              if (!isNaN(price)) {
+                next[sym] = price;
+                next[`${sym}_change`] = parseFloat(t.priceChangePercent);
               }
-            });
-            return next;
-          });
-        }
-        
-        // Fetch USDT-TRY from Spot API as it's not on Futures
-        const spotRes = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY');
-        if (spotRes.ok) {
-          const spotData = await spotRes.json();
-          setPrices(prev => {
-            const next = { ...prev };
-            let price = parseFloat(spotData.lastPrice);
-            if (!isNaN(price)) {
-              next["USDT-TRY"] = price;
-              next["USDT-TRY_change"] = parseFloat(spotData.priceChangePercent);
             }
-            return next;
           });
-        }
-      } catch (e) {
-        console.error("Crypto fallback failed:", e);
+          return next;
+        });
       }
-    };
+      const spotRes = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY');
+      if (spotRes.ok) {
+        const spotData = await spotRes.json();
+        setPrices(prev => {
+          const next = { ...prev };
+          let price = parseFloat(spotData.lastPrice);
+          if (!isNaN(price)) {
+            next["USDT-TRY"] = price;
+            next["USDT-TRY_change"] = parseFloat(spotData.priceChangePercent);
+          }
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error("Crypto fallback failed:", e);
+    }
+  }, []);
 
-    const fetchBistFallback = async () => {
-      console.log("[App] Attempting BIST fallback...");
-      try {
+  const fetchBistFallback = useCallback(async () => {
+    console.log("[App] Attempting BIST fallback...");
+    try {
         const cacheBuster = Date.now();
         const sources = [
           `https://finans.truncgil.com/v3/today.json?_=${cacheBuster}`,
@@ -470,150 +472,132 @@ useEffect(() => {
             console.warn(`[App] BIST source ${targetUrl} failed:`, err);
           }
         }
-      } catch (e) {
-        console.error("BIST fallback critical failure:", e);
-      }
-    };
+    } catch (e) {
+      console.error("BIST fallback critical failure:", e);
+    }
+  }, []);
 
-    const fetchPrices = async () => {
-      if (window.location.protocol === 'about:') {
-        console.warn("[App] Running in sandboxed iframe, skipping backend fetch.");
-        setFetchError("Önizleme Modu (Yedekler devrede)");
-        fetchCryptoFallback();
-        fetchBistFallback();
-        setLoading(false);
-        return;
-      }
+  const fetchPrices = useCallback(async () => {
+    if (window.location.protocol === 'about:') {
+      console.warn("[App] Running in sandboxed iframe, skipping backend fetch.");
+      setFetchError("Önizleme Modu (Yedekler devrede)");
+      fetchCryptoFallback();
+      fetchBistFallback();
+      setLoading(false);
+      return;
+    }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    try {
+      console.log(`[App] Fetching prices from backend... (${new Date().toLocaleTimeString()})`);
+      const res = await fetch(`/api/prices?_=${Date.now()}`, { 
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
       
-      try {
-        console.log(`[App] Fetching prices from backend... (${new Date().toLocaleTimeString()})`);
-        const res = await fetch(`/api/prices?_=${Date.now()}`, { 
-          headers: { 'Accept': 'application/json' },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        const count = Object.keys(data).length;
+        console.log(`[App] Backend returned ${count} prices`);
         
-        if (res.ok) {
-          const data = await res.json();
-          const count = Object.keys(data).length;
-          console.log(`[App] Backend returned ${count} prices`);
-          
-          if (count === 0) {
-            console.warn("[App] Backend cache is empty, attempting fallbacks...");
-            fetchCryptoFallback();
-            fetchBistFallback();
-            setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
-          } else {
-            setFetchError(null);
-            
-            // Check if crypto data is missing (e.g. Vercel IP blocked by Binance)
-            if (!data["BTC-USDT"]) {
-              console.warn("[App] Backend response missing crypto data, triggering crypto fallback...");
-              fetchCryptoFallback();
-            }
-            
-            setPrices(prev => {
-              const next = { ...prev };
-              for (const [symbol, info] of Object.entries(data)) {
-                const infoData = info as any;
-                if (infoData && typeof infoData === 'object') {
-                  next[symbol] = infoData.price ?? next[symbol];
-                  if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
-                  if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
-                  if (infoData.source) next[`${symbol}_source`] = infoData.source;
-                  if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
-                } else if (typeof infoData === 'number') {
-                  next[symbol] = infoData;
-                }
-              }
-              console.log("[App] BTC-USDT price after update:", next["BTC-USDT"]);
-              return next;
-            });
-          }
-          setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-        } else {
-          const errorText = await res.text().catch(() => "Unknown error");
-          console.warn(`[App] Backend error ${res.status}:`, errorText);
-          setFetchError(`Fiyat Hattı Hatası: ${res.status} (Yedekler devrede)`);
+        if (count === 0) {
+          console.warn("[App] Backend cache is empty, attempting fallbacks...");
           fetchCryptoFallback();
           fetchBistFallback();
-        }
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          console.warn("[App] API fetch timed out");
-          setFetchError("Bağlantı Zaman Aşımı (Yedekler devrede)");
-        } else if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
-          console.warn("[App] Invalid URL context, using fallbacks.");
-          setFetchError("Önizleme Modu (Yedekler devrede)");
+          setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
         } else {
-          console.error("[App] API fetch error:", error);
-          setFetchError(`Bağlantı Hatası: ${error.message}`);
+          setFetchError(null);
+          
+          // Check if crypto data is missing (e.g. Vercel IP blocked by Binance)
+          if (!data["BTC-USDT"]) {
+            console.warn("[App] Backend response missing crypto data, triggering crypto fallback...");
+            fetchCryptoFallback();
+          }
+          
+          setPrices(prev => {
+            const next = { ...prev };
+            for (const [symbol, info] of Object.entries(data)) {
+              const infoData = info as any;
+              if (infoData && typeof infoData === 'object') {
+                next[symbol] = infoData.price ?? next[symbol];
+                if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
+                if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
+                if (infoData.source) next[`${symbol}_source`] = infoData.source;
+                if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
+              } else if (typeof infoData === 'number') {
+                next[symbol] = infoData;
+              }
+            }
+            console.log("[App] BTC-USDT price after update:", next["BTC-USDT"]);
+            return next;
+          });
         }
+        setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      } else {
+        const errorText = await res.text().catch(() => "Unknown error");
+        console.warn(`[App] Backend error ${res.status}:`, errorText);
+        setFetchError(`Fiyat Hattı Hatası: ${res.status} (Yedekler devrede)`);
         fetchCryptoFallback();
         fetchBistFallback();
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.warn("[App] API fetch timed out");
+        setFetchError("Bağlantı Zaman Aşımı (Yedekler devrede)");
+      } else if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
+        console.warn("[App] Invalid URL context, using fallbacks.");
+        setFetchError("Önizleme Modu (Yedekler devrede)");
+      } else {
+        console.error("[App] API fetch error:", error);
+        setFetchError(`Bağlantı Hatası: ${error.message}`);
+      }
+      fetchCryptoFallback();
+      fetchBistFallback();
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchCryptoFallback, fetchBistFallback]);
 
-    const fetchNews = async () => {
-      if (window.location.protocol === 'about:') {
-        console.warn("[App] News fetch skipped in sandboxed iframe.");
-        return;
-      }
-      try {
-        const res = await fetch('/api/news');
-        if (res.ok) {
-          const data = await res.json();
-          setNews(data);
-        } else {
-          console.warn(`[App] News fetch failed: ${res.status}`);
-        }
-      } catch (error: any) {
-        if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
-          console.warn("[App] News fetch skipped due to invalid URL context.");
-        } else {
-          console.error("News fetch error:", error);
-        }
-      }
-    };
+  const fetchNews = useCallback(async () => {
+    if (window.location.protocol === 'about:') return;
+    try {
+      const res = await fetch('/api/news');
+      if (res.ok) setNews(await res.json());
+    } catch (error) { console.error("News fetch error:", error); }
+  }, []);
 
   useEffect(() => {
-    console.log("[App] Starting real-time API polling...");
     setLoading(true);
     fetchPrices();
     fetchNews();
-    const interval = setInterval(() => {
-      fetchPrices();
-      fetchNews();
-    }, 30000); // 30 seconds
+    const interval = setInterval(() => { fetchPrices(); fetchNews(); }, 30000);
     return () => clearInterval(interval);
-  }, [market]);
+  }, [fetchPrices, fetchNews]);
 
   // Removed News Listener to avoid Firestore quota issues
 
   const handleRefresh = () => {
-    // With Firestore, refresh is automatic, but we can show loading briefly
     setLoading(true);
-    setTimeout(() => setLoading(false), 500);
+    fetchPrices();
+    fetchNews();
   };
 
 const startScan = useCallback(() => {
-  setScanning(true);
-  setScanProgress(0);
-  setScanned(false);
-  setCandidates([]);
+  setScanning(prev => ({ ...prev, [market]: true }));
+  setScanProgress(prev => ({ ...prev, [market]: 0 }));
+  setScanned(prev => ({ ...prev, [market]: false }));
+  setCandidates(prev => ({ ...prev, [market]: [] }));
   let p = 0;
   scanIntervalRef.current = setInterval(() => {
     p += Math.random() * 4 + 1;
     if (p >= 100) {
       p = 100;
       clearInterval(scanIntervalRef.current);
-      setScanning(false);
-      setScanned(true);
+      setScanning(prev => ({ ...prev, [market]: false }));
+      setScanned(prev => ({ ...prev, [market]: true }));
 
       // Dynamically calculate potential based on live price changes and mock pattern data
       const found = stocks.flatMap(s => {
@@ -669,8 +653,41 @@ const startScan = useCallback(() => {
         // 3. Trend Bias (liveChange)
         let momentumBias = liveChange * 3;
         
-        let longScore = pd.potential + rsiLongBias + macdBias + momentumBias;
-        let shortScore = pd.potential + rsiShortBias - macdBias - momentumBias;
+        let techLong = pd.potential + rsiLongBias + macdBias + momentumBias;
+        let techShort = pd.potential + rsiShortBias - macdBias - momentumBias;
+        techLong = Math.max(0, Math.min(100, techLong));
+        techShort = Math.max(0, Math.min(100, techShort));
+
+        const isCrypto = s.symbol.includes("USDT");
+        const isCommodity = s.sector === "Emtia";
+        const isBist = !isCrypto && !isCommodity;
+
+        // Generate consistent pseudo-random scores based on symbol
+        const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+        const pseudoRandom = (offset: number) => {
+          let x = Math.sin(seed + offset) * 10000;
+          return x - Math.floor(x);
+        };
+
+        let longScore = 0;
+        let shortScore = 0;
+        let fundBullish = 30 + (pseudoRandom(1) * 70);
+        let whaleBullish = 30 + (pseudoRandom(2) * 70);
+        let globalBullish = 30 + (pseudoRandom(3) * 70);
+
+        if (isBist) {
+          // %60 Teknik, %40 Temel
+          longScore = (techLong * 0.6) + (fundBullish * 0.4);
+          shortScore = (techShort * 0.6) + ((100 - fundBullish) * 0.4);
+        } else if (isCrypto) {
+          // %70 Teknik, %30 Balina
+          longScore = (techLong * 0.7) + (whaleBullish * 0.3);
+          shortScore = (techShort * 0.7) + ((100 - whaleBullish) * 0.3);
+        } else {
+          // %50 Teknik, %50 Temel/Haber/Dünya Gündemi
+          longScore = (techLong * 0.5) + (globalBullish * 0.5);
+          shortScore = (techShort * 0.5) + ((100 - globalBullish) * 0.5);
+        }
         
         // Normalize and cap
         longScore = Math.max(0, Math.min(98, longScore));
@@ -685,7 +702,6 @@ const startScan = useCallback(() => {
         maSellCount = Math.min(12, Math.max(0, maSellCount + (Math.random() > 0.5 ? 1 : 0)));
 
         // Simulate Whale Activity
-        const isCrypto = s.symbol.includes("USDT");
         let whale = { action: "YOK", amount: "" };
         if (longScore >= 70 && Math.random() > 0.3) {
           whale = { action: "ALIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
@@ -697,15 +713,15 @@ const startScan = useCallback(() => {
         // Only show the stronger side if both are above threshold
         // Threshold set to 70 for candidates AND 10/12 moving averages must give buy/sell
         if (longScore >= 70 && maBuyCount >= 10 && longScore >= shortScore) {
-          results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount, whale });
+          results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount, whale, techScore: techLong, fundScore: fundBullish, whaleScore: whaleBullish, globalScore: globalBullish });
         } else if (shortScore >= 70 && maSellCount >= 10) {
-          results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount, whale });
+          results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount, whale, techScore: techShort, fundScore: 100 - fundBullish, whaleScore: 100 - whaleBullish, globalScore: 100 - globalBullish });
         }
         
         return results;
       }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
 
-      setCandidates(found);
+      setCandidates(prev => ({ ...prev, [market]: found }));
 
       // Tavan (Ceiling) Candidates for BIST
       if (market === "BIST") {
@@ -733,14 +749,14 @@ const startScan = useCallback(() => {
         }).filter(s => s.ceilingScore >= 45) // Lowered threshold slightly to catch more approaching stocks
           .sort((a, b) => b.ceilingScore - a.ceilingScore);
         
-        setCeilingCandidates(ceiling);
+        setCeilingCandidates(prev => ({ ...prev, [market]: ceiling }));
       } else {
-        setCeilingCandidates([]);
+        setCeilingCandidates(prev => ({ ...prev, [market]: [] }));
       }
     }
-    setScanProgress(Math.min(p, 100));
+    setScanProgress(prev => ({ ...prev, [market]: Math.min(p, 100) }));
   }, 80);
-}, [prices, stocks]);
+}, [prices, stocks, market]);
 
 const fetchAiAnalysis = useCallback(async (stock: any) => {
   if (!stock) return;
@@ -761,16 +777,24 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
     const promptPrice = Number.isFinite(Number(prices[stock.symbol] ?? stock.price)) ? Number(prices[stock.symbol] ?? stock.price) : 0;
     const promptChange = Number.isFinite(Number(prices[`${stock.symbol}_change`] ?? stock.change)) ? Number(prices[`${stock.symbol}_change`] ?? stock.change) : 0;
     
+    const isShort = stock.side === 'short';
+    const systemDecision = isShort ? "SAT (SHORT)" : "AL (LONG)";
+    const whaleInfo = stock.whale && stock.whale.action !== "YOK" ? `Balina Aktivitesi: ${stock.whale.action} (${stock.whale.amount})` : "Belirgin balina aktivitesi yok.";
+    
     const prompt = `Analist: ${isCrypto ? "Kripto" : "Borsa"}. Varlık: ${stock.symbol}. 
+Sistem Sinyali: ${systemDecision}.
+${whaleInfo}
 Veri: Fiyat ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
 
 Talimat: Çok kısa, teknik ve temel olarak net ol. 
+Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odaklanarak (veya neden bu yönün seçildiğini açıklayarak) yap. Özellikle ${whaleInfo} verisini dikkate al.
+
 1. 🎯 FORMASYON: ${pd.pattern} yorumu.
 2. 📊 TEKNİK: RSI/MACD yönü.
 3. 📰 TEMEL: Varlık hakkında kısa temel beklenti.
 4. ⚡ SCALP: Giriş/TP.
 5. 🎰 RİSK: Stop.
-6. 💎 KARAR: Al/Sat/Bekle (neden).`;
+6. 💎 KARAR: ${systemDecision} (neden).`;
 
     let apiKey = "";
     try {
@@ -808,6 +832,271 @@ Talimat: Çok kısa, teknik ve temel olarak net ol.
   }
   setAiLoading(false);
 }, [prices, aiCache]);
+
+const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
+  const liveChange = Number(currentPrices[`${s.symbol}_change`] ?? s.change ?? 0);
+  let pd = PATTERN_DATA[s.symbol];
+  if (!pd) {
+    const isCrypto = s.symbol.includes("USDT");
+    const volMult = isCrypto ? 2 : 1;
+    if (liveChange > 3 * volMult) {
+      pd = { rsi: 75, macd: -0.5, fibLevel: "0.786", patternScore: 80, pattern: "Aşırı Alım", potential: 5 };
+    } else if (liveChange < -3 * volMult) {
+      pd = { rsi: 25, macd: 0.5, fibLevel: "0.236", patternScore: 80, pattern: "Aşırı Satım", potential: 5 };
+    } else {
+      pd = { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 40, pattern: "Yatay", potential: 3 };
+    }
+  }
+
+  let rsiLongBias = pd.rsi < 40 ? (40 - pd.rsi) * 1.5 : 0;
+  let rsiShortBias = pd.rsi > 60 ? (pd.rsi - 60) * 1.5 : 0;
+  let macdBias = pd.macd * 10;
+  let momentumBias = liveChange * 3;
+  
+  let techLong = pd.potential + rsiLongBias + macdBias + momentumBias;
+  let techShort = pd.potential + rsiShortBias - macdBias - momentumBias;
+  techLong = Math.max(0, Math.min(100, techLong));
+  techShort = Math.max(0, Math.min(100, techShort));
+
+  const isCrypto = s.symbol.includes("USDT");
+  const isCommodity = s.sector === "Emtia";
+  const isBist = !isCrypto && !isCommodity;
+
+  const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  const pseudoRandom = (offset: number) => {
+    let x = Math.sin(seed + offset) * 10000;
+    return x - Math.floor(x);
+  };
+
+  let longScore = 0;
+  let shortScore = 0;
+  let fundBullish = 30 + (pseudoRandom(1) * 70);
+  let whaleBullish = 30 + (pseudoRandom(2) * 70);
+  let globalBullish = 30 + (pseudoRandom(3) * 70);
+
+  if (isBist) {
+    longScore = (techLong * 0.6) + (fundBullish * 0.4);
+    shortScore = (techShort * 0.6) + ((100 - fundBullish) * 0.4);
+  } else if (isCrypto) {
+    longScore = (techLong * 0.7) + (whaleBullish * 0.3);
+    shortScore = (techShort * 0.7) + ((100 - whaleBullish) * 0.3);
+  } else {
+    longScore = (techLong * 0.5) + (globalBullish * 0.5);
+    shortScore = (techShort * 0.5) + ((100 - globalBullish) * 0.5);
+  }
+
+  return {
+    longScore: Math.max(0, Math.min(98, longScore)),
+    shortScore: Math.max(0, Math.min(98, shortScore)),
+    techScore: longScore > shortScore ? techLong : techShort,
+    fundScore: fundBullish,
+    whaleScore: whaleBullish,
+    globalScore: globalBullish,
+    pd
+  };
+}, []);
+
+const generateSmartPortfolio = useCallback(async () => {
+  setPortfolioLoading(true);
+  await fetchPrices();
+  
+  setTimeout(() => {
+    const budget = market === "CRYPTO" ? 5000 : 100000;
+    const marketStocks = market === "BIST" ? BIST_STOCKS : (market === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
+
+    const items: any[] = [];
+
+    const sectorCandidates = marketStocks.map(s => {
+      const scores = calculateAssetScore(s, prices);
+      const side = scores.longScore >= scores.shortScore ? 'long' : 'short';
+      const score = side === 'long' ? scores.longScore : scores.shortScore;
+      return { ...s, ...scores, side, score };
+    }).sort((a, b) => b.score - a.score).slice(0, 4);
+
+    const perAssetBudget = budget / sectorCandidates.length;
+
+    sectorCandidates.forEach(c => {
+      const price = prices[c.symbol] || c.price || 1;
+      const isShort = c.side === 'short';
+      const potential = c.score / 10;
+      
+      const precision = c.symbol.includes("USDT") ? 4 : 2;
+      const tp = isShort ? +(price * (1 - potential / 100)).toFixed(precision) : +(price * (1 + potential / 100)).toFixed(precision);
+      const sl = isShort ? +(price * 1.05).toFixed(precision) : +(price * 0.95).toFixed(precision);
+
+      const isCrypto = market === "CRYPTO";
+      const leverage = isCrypto ? 20 : 1; // 20x leverage for crypto
+      const unleveragedAmount = perAssetBudget;
+      const totalPositionSize = unleveragedAmount * leverage;
+
+      items.push({
+        ...c,
+        entryPrice: price,
+        tp,
+        sl,
+        amount: unleveragedAmount,
+        totalPositionSize,
+        leverage,
+        quantity: totalPositionSize / price,
+        pnl: 0,
+        status: 'ACTIVE'
+      });
+    });
+
+    const now = new Date();
+    const schedule = [0, 3, 6, 10, 14, 17, 20];
+    const currentHour = now.getHours();
+    let nextHour = schedule.find(h => h > currentHour);
+    if (nextHour === undefined) nextHour = 0;
+    
+    const nextUpdate = new Date();
+    if (nextHour === 0) nextUpdate.setDate(nextUpdate.getDate() + 1);
+    nextUpdate.setHours(nextHour, 0, 0, 0);
+
+    const newPortfolio = {
+      items,
+      totalBudget: budget,
+      lastUpdated: now.toLocaleTimeString("tr-TR"),
+      nextUpdate: nextUpdate.toLocaleTimeString("tr-TR"),
+      timestamp: now.getTime(),
+      market
+    };
+
+    setPortfolios(prev => ({ ...prev, [market]: newPortfolio }));
+    
+    // Monday 10:00 AM Start Logic (Istanbul Time)
+    const nowIstanbul = new Date(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Istanbul' }).format(now));
+    const mondayStart = new Date("2026-04-13T10:00:00");
+    const isStarted = nowIstanbul >= mondayStart;
+
+    console.log(`[App] Generating portfolio. isStarted: ${isStarted}, nowIstanbul: ${nowIstanbul.toISOString()}`);
+
+    setPortfolioStats(prev => ({
+      ...prev,
+      [market]: {
+        daily: isStarted ? (Math.random() * 2.5) : 0,
+        weekly: isStarted ? (Math.random() * 8.2) : 0,
+        monthly: isStarted ? (Math.random() * 15.4) : 0
+      }
+    }));
+
+    setPortfolioLoading(false);
+    setScreen("portfolio");
+  }, 1500);
+}, [prices, calculateAssetScore, market, fetchPrices]);
+
+// Monitor portfolio targets
+useEffect(() => {
+  let changed = false;
+  const newPortfolios = { ...portfolios };
+
+  Object.keys(newPortfolios).forEach(m => {
+    const portfolio = newPortfolios[m];
+    if (!portfolio || !portfolio.items) return;
+
+    const updatedItems = portfolio.items.map((item: any) => {
+      if (item.status !== 'ACTIVE') return item;
+
+      const currentPrice = prices[item.symbol];
+      if (!currentPrice) return item;
+
+      const isShort = item.side === 'short';
+      let newStatus = 'ACTIVE';
+      const leverage = item.leverage || 1;
+      let pnl = isShort 
+        ? ((item.entryPrice - currentPrice) / item.entryPrice) * 100 * leverage
+        : ((currentPrice - item.entryPrice) / item.entryPrice) * 100 * leverage;
+
+      if (isShort) {
+        if (currentPrice <= item.tp) newStatus = 'TP';
+        else if (currentPrice >= item.sl) newStatus = 'SL';
+      } else {
+        if (currentPrice >= item.tp) newStatus = 'TP';
+        else if (currentPrice <= item.sl) newStatus = 'SL';
+      }
+
+      if (newStatus !== 'ACTIVE' || Math.abs(pnl - item.pnl) > 0.01) {
+        changed = true;
+        return { ...item, status: newStatus, pnl };
+      }
+      return item;
+    });
+
+    if (changed) {
+      newPortfolios[m] = { ...portfolio, items: updatedItems };
+    }
+  });
+
+  if (changed) {
+    setPortfolios(newPortfolios);
+  }
+}, [prices, portfolios]);
+
+// Background candidate refresher
+useEffect(() => {
+  const markets: ("BIST" | "CRYPTO" | "EMTİA")[] = ["BIST", "CRYPTO", "EMTİA"];
+  
+  markets.forEach(m => {
+    if (!scanned[m]) return;
+    
+    const marketStocks = m === "BIST" ? BIST_STOCKS : (m === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
+    
+    const found = marketStocks.flatMap(s => {
+      const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
+      if (!Number.isFinite(liveChange)) return [];
+      
+      const scores = calculateAssetScore(s, prices);
+      const side = scores.longScore >= scores.shortScore ? 'long' : 'short';
+      const score = side === 'long' ? scores.longScore : scores.shortScore;
+      
+      if (score < 70) return [];
+
+      const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+      const pseudoRandom = (offset: number) => {
+        let x = Math.sin(seed + offset) * 10000;
+        return x - Math.floor(x);
+      };
+
+      let whale = { action: "YOK", amount: "" };
+      const isCrypto = s.symbol.includes("USDT");
+      if (scores.longScore >= 70 && Math.random() > 0.3) {
+        whale = { action: "ALIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
+      } else if (scores.shortScore >= 70 && Math.random() > 0.3) {
+        whale = { action: "SATIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
+      }
+
+      return [{ 
+        ...s, 
+        dynamicPotential: score, 
+        side, 
+        whale,
+        ...scores
+      }];
+    }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
+
+    setCandidates(prev => {
+      if (JSON.stringify(prev[m]) === JSON.stringify(found)) return prev;
+      return { ...prev, [m]: found };
+    });
+
+    if (m === "BIST") {
+      const ceiling = marketStocks.map(s => {
+        let liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
+        if (!Number.isFinite(liveChange)) liveChange = 0;
+        const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
+        let ceilingScore = (liveChange * 8) + (pd.patternScore / 5);
+        if (liveChange > 9.8) ceilingScore = 0;
+        else ceilingScore = Math.min(99, ceilingScore);
+        return { ...s, ceilingScore };
+      }).filter(s => s.ceilingScore >= 45).sort((a, b) => b.ceilingScore - a.ceilingScore);
+      
+      setCeilingCandidates(prev => {
+        if (JSON.stringify(prev[m]) === JSON.stringify(ceiling)) return prev;
+        return { ...prev, [m]: ceiling };
+      });
+    }
+  });
+}, [prices, scanned, calculateAssetScore]);
 
 const openDetail = useCallback(async (stock: any) => {
   setSelectedStock(stock);
@@ -870,27 +1159,43 @@ border: "1px solid #30363d"
 
     <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none" }}>
       {screen === "scanner" && <ScannerScreen
-        scanning={scanning} scanProgress={scanProgress} scanned={scanned} setScanned={setScanned}
-        candidates={candidates} setCandidates={setCandidates} prices={prices} lastUpdated={lastUpdated}
+        scanning={scanning[market]} scanProgress={scanProgress[market]} scanned={scanned[market]} setScanned={(val: boolean) => setScanned(prev => ({ ...prev, [market]: val }))}
+        candidates={candidates[market]} setCandidates={(val: any[]) => setCandidates(prev => ({ ...prev, [market]: val }))} prices={prices} lastUpdated={lastUpdated}
         onScan={startScan}
         onViewCandidates={() => setScreen("candidates")}
         onViewScalp={() => setScreen("scalp")}
         onViewCeiling={() => setScreen("ceiling")}
         onViewCorrection={() => setScreen("correction")}
+        onViewPortfolio={() => setScreen("portfolio")}
+        onGeneratePortfolio={generateSmartPortfolio}
+        portfolio={portfolios[market]}
+        portfolioLoading={portfolioLoading}
         onRefresh={handleRefresh}
         loading={loading}
         fetchError={fetchError}
         stocks={stocks}
         market={market} setMarket={setMarket}
       />}
+      {screen === "portfolio" && (
+        <PortfolioScreen 
+          portfolio={portfolios[market]} 
+          prices={prices} 
+          loading={portfolioLoading}
+          stats={portfolioStats[market]}
+          onGenerate={generateSmartPortfolio}
+          onBack={() => setScreen("scanner")}
+          onSelect={openDetail}
+          market={market}
+        />
+      )}
       {screen === "candidates" && <CandidatesScreen
-        candidates={candidates} prices={prices} lastUpdated={lastUpdated}
+        candidates={candidates[market]} prices={prices} lastUpdated={lastUpdated}
         onBack={() => setScreen("scanner")}
         onSelect={openDetail}
         market={market}
       />}
       {screen === "scalp" && <ScalpScreen
-        candidates={candidates} prices={prices} lastUpdated={lastUpdated}
+        candidates={candidates[market]} prices={prices} lastUpdated={lastUpdated}
         onBack={() => setScreen("scanner")}
         onSelect={(s: any) => { setTimeframe("1S"); openDetail(s); }}
         market={market}
@@ -908,10 +1213,10 @@ border: "1px solid #30363d"
         onFetchAi={() => fetchAiAnalysis(selectedStock)}
         kapNews={news.length > 0 ? news : kapNews} tab={tab} setTab={setTab}
         timeframe={timeframe} setTimeframe={setTimeframe}
-        onBack={() => setScreen(ceilingCandidates.some(c => c.symbol === selectedStock.symbol) ? "ceiling" : "candidates")}
+        onBack={() => setScreen((ceilingCandidates[market] || []).some((c: any) => c.symbol === selectedStock.symbol) ? "ceiling" : "candidates")}
       />}
       {screen === "ceiling" && <CeilingScreen
-        candidates={ceilingCandidates} prices={prices} lastUpdated={lastUpdated}
+        candidates={ceilingCandidates[market] || []} prices={prices} lastUpdated={lastUpdated}
         onBack={() => setScreen("scanner")}
         onSelect={openDetail}
       />}
@@ -951,7 +1256,187 @@ border: "1px solid #30363d"
 );
 }
 
-function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onViewCeiling, onViewCorrection, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
+function PortfolioScreen({ portfolio, prices, loading, stats, onGenerate, onBack, onSelect, market }: any) {
+  if (loading) {
+    return (
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
+        <div style={{ width: 60, height: 60, borderRadius: "50%", border: "4px solid #bf5af2", borderTopColor: "transparent", animation: "spin 1s linear infinite", marginBottom: 20 }} />
+        <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>AI {market} Portföyü Hazırlanıyor...</div>
+        <div style={{ color: "#8b949e", fontSize: 14, marginTop: 8, textAlign: "center" }}>{market} piyasası taranıyor, 100.000 TL için en uygun dağılım hesaplanıyor.</div>
+      </div>
+    );
+  }
+
+  if (!portfolio) {
+    return (
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
+        <div style={{ fontSize: 48, marginBottom: 20 }}>💼</div>
+        <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Henüz {market} Portföyü Yok</div>
+        <div style={{ color: "#8b949e", fontSize: 14, textAlign: "center", marginBottom: 24 }}>AI algoritmalarımızla 100.000 TL'lik {market} sepetinizi hemen oluşturun.</div>
+        <button onClick={onGenerate} style={{ background: "#bf5af2", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>PORTFÖY OLUŞTUR</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#8b949e", marginTop: 16, fontWeight: 700, cursor: "pointer" }}>Geri Dön</button>
+      </div>
+    );
+  }
+
+  const totalPnl = portfolio.items.reduce((acc: number, item: any) => acc + (item.amount * item.pnl / 100), 0);
+  const totalPnlPercent = (totalPnl / portfolio.totalBudget) * 100;
+  const isCrypto = market === "CRYPTO";
+  const currency = isCrypto ? "USDT" : "₺";
+
+  return (
+    <div style={{ padding: "0 0 20px" }}>
+      <div style={{ padding: "16px 20px 24px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(191,90,242,0.1) 0%, transparent 100%)" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#bf5af2", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 16 }}>← Geri Dön</button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ color: "#8b949e", fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 4 }}>{market} PORTFÖY DEĞERİ</div>
+            <div style={{ color: "#fff", fontSize: 32, fontWeight: 900 }}>{(portfolio.totalBudget + totalPnl).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <div style={{ color: totalPnl >= 0 ? "#30d158" : "#ff453a", fontSize: 16, fontWeight: 800 }}>
+                {totalPnl >= 0 ? "+" : ""}{totalPnl.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency} ({totalPnlPercent.toFixed(2)}%)
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.05)", color: "#8b949e", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>ANLIK</div>
+            </div>
+          </div>
+          <button onClick={() => { console.log("[Portfolio] Yenile clicked"); onGenerate(); }} style={{ background: "rgba(191,90,242,0.1)", border: "1px solid rgba(191,90,242,0.3)", color: "#bf5af2", padding: "8px 12px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>YENİLE</button>
+        </div>
+        
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700, marginBottom: 2 }}>SON GÜNCELLEME</div>
+            <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{portfolio.lastUpdated}</div>
+          </div>
+          <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700, marginBottom: 2 }}>SIRADAKİ DENGELEME</div>
+            <div style={{ color: "#bf5af2", fontSize: 12, fontWeight: 800 }}>{portfolio.nextUpdate}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "20px 20px 0" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ background: "#161b22", borderRadius: 16, padding: "12px", border: "1px solid #30363d", textAlign: "center" }}>
+            <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>GÜNLÜK</div>
+            <div style={{ color: stats.daily >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{stats.daily.toFixed(2)}</div>
+          </div>
+          <div style={{ background: "#161b22", borderRadius: 16, padding: "12px", border: "1px solid #30363d", textAlign: "center" }}>
+            <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>HAFTALIK</div>
+            <div style={{ color: stats.weekly >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{stats.weekly.toFixed(2)}</div>
+          </div>
+          <div style={{ background: "#161b22", borderRadius: 16, padding: "12px", border: "1px solid #30363d", textAlign: "center" }}>
+            <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>AYLIK</div>
+            <div style={{ color: stats.monthly >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{stats.monthly.toFixed(2)}</div>
+          </div>
+        </div>
+        {stats.daily === 0 && (
+          <div style={{ marginTop: 12, background: "rgba(191,90,242,0.05)", borderRadius: 10, padding: "8px 12px", border: "1px solid rgba(191,90,242,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 14 }}>ℹ️</div>
+            <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>
+              Portföy istatistikleri 13 Nisan Pazartesi 10:00 itibariyle birikmeye başlayacaktır.
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Aktif {market} Pozisyonları</div>
+        {portfolio.items.map((item: any) => {
+          const isShort = item.side === 'short';
+          const sideColor = isShort ? "#ff453a" : "#00d4aa";
+          const pnl = item.pnl;
+          const isClosed = item.status !== 'ACTIVE';
+          const currentPrice = prices[item.symbol] || item.entryPrice;
+          
+          return (
+            <div key={item.symbol} style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: isClosed ? `1px solid ${item.status === 'TP' ? '#30d158' : '#ff453a'}88` : "1px solid #30363d", position: "relative", overflow: "hidden", opacity: isClosed ? 0.8 : 1 }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: isClosed ? (item.status === 'TP' ? '#30d158' : '#ff453a') : sideColor }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{item.symbol}</div>
+                    <div style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: sideColor, fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>{isShort ? "SHORT" : "LONG"}</div>
+                    {item.leverage > 1 && (
+                      <div style={{ background: "rgba(191,90,242,0.15)", color: "#bf5af2", fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>{item.leverage}x</div>
+                    )}
+                    {isClosed && (
+                      <div style={{ background: item.status === 'TP' ? "rgba(48,209,88,0.2)" : "rgba(255,69,58,0.2)", color: item.status === 'TP' ? "#30d158" : "#ff453a", fontSize: 9, fontWeight: 900, padding: "2px 8px", borderRadius: 4, border: "1px solid" }}>{item.status} KAPANDI</div>
+                    )}
+                  </div>
+                  <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>{item.name}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: pnl >= 0 ? "#30d158" : "#ff453a", fontSize: 16, fontWeight: 800 }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%</div>
+                  <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>P&L</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px" }}>
+                  <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>GİRİŞ</div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{item.entryPrice.toLocaleString("tr-TR")}</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px" }}>
+                  <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>GÜNCEL</div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{currentPrice.toLocaleString("tr-TR")}</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px" }}>
+                  <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>{item.leverage > 1 ? "MARJİN" : "MİKTAR"}</div>
+                  <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{item.amount.toLocaleString("tr-TR")} {currency}</div>
+                </div>
+              </div>
+
+              {item.leverage > 1 && (
+                <div style={{ background: "rgba(191,90,242,0.05)", borderRadius: 12, padding: "10px", marginBottom: 12, border: "1px solid rgba(191,90,242,0.1)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>POZİSYON BÜYÜKLÜĞÜ</div>
+                    <div style={{ color: "#bf5af2", fontSize: 13, fontWeight: 800 }}>{(item.totalPositionSize || (item.amount * item.leverage)).toLocaleString("tr-TR")} {currency}</div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                <div style={{ background: item.status === 'TP' ? "rgba(48,209,88,0.2)" : "rgba(48,209,88,0.05)", borderRadius: 12, padding: "8px" }}>
+                  <div style={{ color: "#30d158", fontSize: 9, fontWeight: 700 }}>HEDEF (TP)</div>
+                  <div style={{ color: "#30d158", fontSize: 12, fontWeight: 800 }}>{item.tp.toLocaleString("tr-TR")}</div>
+                </div>
+                <div style={{ background: item.status === 'SL' ? "rgba(255,69,58,0.2)" : "rgba(255,69,58,0.05)", borderRadius: 12, padding: "8px" }}>
+                  <div style={{ color: "#ff453a", fontSize: 9, fontWeight: 700 }}>STOP (SL)</div>
+                  <div style={{ color: "#ff453a", fontSize: 12, fontWeight: 800 }}>{item.sl.toLocaleString("tr-TR")}</div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, background: "rgba(0,0,0,0.2)", borderRadius: 12, padding: "10px" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>TEKNİK</div>
+                  <div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 800 }}>%{item.techScore.toFixed(0)}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>TEMEL</div>
+                  <div style={{ color: "#00b8ff", fontSize: 11, fontWeight: 800 }}>%{item.fundScore.toFixed(0)}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>BALİNA</div>
+                  <div style={{ color: "#bf5af2", fontSize: 11, fontWeight: 800 }}>%{item.whaleScore.toFixed(0)}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>GLOBAL</div>
+                  <div style={{ color: "#ff9f0a", fontSize: 11, fontWeight: 800 }}>%{item.globalScore.toFixed(0)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                <button onClick={() => onSelect(item)} style={{ background: "none", border: "none", color: "#bf5af2", fontSize: 11, fontWeight: 800, cursor: "pointer" }}>DETAYLAR →</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onViewCeiling, onViewCorrection, onViewPortfolio, onGeneratePortfolio, portfolio, portfolioLoading, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
   const currentHour = parseInt(new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', hour12: false }).format(new Date()), 10);
   const isAfter18 = currentHour >= 18 || currentHour < 6; // 18:00 to 06:00
 
@@ -1049,8 +1534,52 @@ return (
     </div>
   </div>
 
-  <div style={{ padding: "20px 20px 16px" }}>
-    <div style={{ background: "linear-gradient(135deg, #21262d 0%, #161b22 100%)", borderRadius: 20, padding: 20, border: "1px solid #30363d" }}>
+    <div style={{ padding: "20px 20px 16px" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <button 
+          onClick={portfolio ? onViewPortfolio : onGeneratePortfolio}
+          style={{ 
+            flex: 1, 
+            background: "linear-gradient(135deg, #bf5af2 0%, #af52de 100%)", 
+            borderRadius: 16, 
+            padding: "16px", 
+            border: "none", 
+            cursor: "pointer",
+            boxShadow: "0 4px 15px rgba(191,90,242,0.3)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4
+          }}
+        >
+          <div style={{ fontSize: 24 }}>{portfolioLoading ? "⏳" : "💼"}</div>
+          <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{portfolioLoading ? "HAZIRLANIYOR..." : (portfolio ? `${market} PORTFÖYÜM` : `AI ${market} PORTFÖYÜ`)}</div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 600 }}>100.000 TL {market}</div>
+        </button>
+
+        <button 
+          onClick={onViewScalp}
+          style={{ 
+            flex: 1, 
+            background: "linear-gradient(135deg, #00d4aa 0%, #00b8ff 100%)", 
+            borderRadius: 16, 
+            padding: "16px", 
+            border: "none", 
+            cursor: "pointer",
+            boxShadow: "0 4px 15px rgba(0,212,170,0.3)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4
+          }}
+        >
+          <div style={{ fontSize: 24 }}>⚡</div>
+          <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>SCALP TARAYICI</div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 600 }}>ANLIK FIRSATLAR</div>
+        </button>
+      </div>
+
+      <div style={{ background: "linear-gradient(135deg, #21262d 0%, #161b22 100%)", borderRadius: 20, padding: 20, border: "1px solid #30363d" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
         <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #00d4aa22, #00b8ff22)", border: "1px solid #00d4aa44", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🔍</div>
         <div>
@@ -1452,7 +1981,8 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
           if (!Number.isFinite(currentChange)) currentChange = 0;
           const up = currentChange >= 0;
           const isCrypto = stock.symbol.includes("-USDT");
-          const currency = isCrypto ? " USDT" : " ₺";
+          const isCommodity = stock.sector === "Emtia";
+          const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
           
           const isShort = stock.side === 'short';
           const sideColor = isShort ? "#ff453a" : "#00d4aa";
@@ -1476,7 +2006,12 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{stock.symbol}</div>
-                    <div style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: sideColor, fontSize: 8, fontWeight: 800, padding: "1px 5px", borderRadius: 4 }}>{isShort ? "SELL" : "BUY"}</div>
+                    <div style={{ background: isShort ? "rgba(255,69,58,0.15)" : "rgba(0,212,170,0.15)", color: sideColor, fontSize: 8, fontWeight: 800, padding: "1px 5px", borderRadius: 4 }}>
+                      {isCrypto ? (isShort ? "SELL" : "BUY") : (isShort ? "SAT" : "AL")}
+                    </div>
+                    {isCrypto && (
+                      <div style={{ background: "rgba(191,90,242,0.15)", color: "#bf5af2", fontSize: 8, fontWeight: 800, padding: "1px 5px", borderRadius: 4 }}>20x</div>
+                    )}
                   </div>
                   <div style={{ color: "#8b949e", fontSize: 11 }}>{stock.name}</div>
                 </div>
@@ -1502,8 +2037,8 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {pd.rsi}</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {Math.round(pd.rsi)}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
                   <span style={{ background: "rgba(255,214,10,0.1)", color: "#ffd60a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>MA: {isShort ? stock.maSellCount : stock.maBuyCount}/12</span>
                   {stock.whale && stock.whale.action !== "YOK" && (
@@ -1513,6 +2048,27 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                   )}
                 </div>
                 <div style={{ color: sideColor, fontSize: 11, fontWeight: 800 }}>Analiz Et →</div>
+              </div>
+              
+              <div style={{ display: "flex", gap: 6, marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 12 }}>
+                <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                  Teknik: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.techScore || 0)}</span>
+                </div>
+                {(!isCrypto && !isCommodity) && (
+                  <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                    Temel: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.fundScore || 0)}</span>
+                  </div>
+                )}
+                {isCrypto && (
+                  <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                    Balina: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.whaleScore || 0)}</span>
+                  </div>
+                )}
+                {isCommodity && (
+                  <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                    Gündem: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.globalScore || 0)}</span>
+                  </div>
+                )}
               </div>
             </button>
           );
@@ -1526,8 +2082,7 @@ function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, m
   const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
 
   const filteredCandidates = candidates.filter((stock: any) => {
-    const pd = PATTERN_DATA[stock.symbol] || { patternScore: 30 };
-    if (pd.patternScore < 80) return false;
+    if ((stock.dynamicPotential || 0) < 80) return false;
     if (filterSide === "long" && stock.side !== "long") return false;
     if (filterSide === "short" && stock.side !== "short") return false;
     return true;
@@ -1608,10 +2163,35 @@ function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, m
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                 <span style={{ color: "#fff", fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>{stock.symbol}</span>
                 <span style={{ background: isShort ? "rgba(255,69,58,0.2)" : "rgba(0,212,170,0.2)", color: sideColor, fontSize: 12, fontWeight: 800, padding: "4px 12px", borderRadius: 12, border: `1px solid ${sideColor}44` }}>
-                  {isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ"} {potential.toFixed(1)}%
+                  {isCrypto ? (isShort ? "SELL (SHORT)" : "BUY (LONG)") : (isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ")} {potential.toFixed(1)}%
                 </span>
+                {isCrypto && (
+                  <span style={{ background: "rgba(191,90,242,0.15)", color: "#bf5af2", fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 10, border: "1px solid rgba(191,90,242,0.3)" }}>
+                    20x LEV
+                  </span>
+                )}
               </div>
               <div style={{ color: "#8b949e", fontSize: 13, fontWeight: 600 }}>{stock.name}</div>
+              <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+                <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                  Teknik: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.techScore || 0)}</span>
+                </div>
+                {(!isCrypto && !isCommodity) && (
+                  <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                    Temel: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.fundScore || 0)}</span>
+                  </div>
+                )}
+                {isCrypto && (
+                  <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                    Balina: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.whaleScore || 0)}</span>
+                  </div>
+                )}
+                {isCommodity && (
+                  <div style={{ background: "rgba(255,255,255,0.05)", padding: "4px 8px", borderRadius: 6, fontSize: 10, color: "#8b949e" }}>
+                    Gündem: <span style={{ color: "#fff", fontWeight: 700 }}>%{Math.round(stock.globalScore || 0)}</span>
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ color: "#fff", fontSize: 20, fontWeight: 800 }}>{price.toFixed(precision)}{currency}</div>
