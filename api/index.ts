@@ -19,18 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // --- In-Memory Price Cache ---
-const inMemoryPrices: Record<string, any> = {
-  "XU100": { price: 13950.45, change: 0.39, source: "Initial" },
-  "XU030": { price: 15820.10, change: 0.40, source: "Initial" },
-  "BTC-USDT": { price: 98450.20, change: -1.2, source: "Initial" },
-  "TRY=X": { price: 34.25, change: 0.05, source: "Initial" },
-  "GAG=X": { price: 35.25, change: 0.0, source: "Initial" },
-  "THYAO": { price: 319.50, change: 0.79, source: "Initial" },
-  "GARAN": { price: 136.30, change: -1.40, source: "Initial" },
-  "AKBNK": { price: 75.50, change: -0.80, source: "Initial" },
-  "EREGL": { price: 52.40, change: 0.50, source: "Initial" },
-  "KCHOL": { price: 215.20, change: 1.20, source: "Initial" }
-};
+const inMemoryPrices: Record<string, any> = {};
 const inMemoryNews: any[] = [];
 
 import admin from "firebase-admin";
