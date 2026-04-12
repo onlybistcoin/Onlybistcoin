@@ -319,6 +319,17 @@ const [aiCache, setAiCache] = useState<Record<string, string>>({});
 const [timeframe, setTimeframe] = useState("1S");
 const [tab, setTab] = useState("teknik"); 
 const [portfolios, setPortfolios] = useState<Record<string, any>>({});
+const [tradeHistory, setTradeHistory] = useState<any[]>(() => {
+  // Mock history for the last week
+  const now = new Date();
+  return [
+    { symbol: "THYAO", side: "long", pnl: 4.25, status: "TP", market: "BIST", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 2).toISOString() },
+    { symbol: "BTC-USDT", side: "short", pnl: 12.80, status: "TP", market: "CRYPTO", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 1).toISOString() },
+    { symbol: "EREGL", side: "long", pnl: -2.10, status: "SL", market: "BIST", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 3).toISOString() },
+    { symbol: "ETH-USDT", side: "long", pnl: 8.45, status: "TP", market: "CRYPTO", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 4).toISOString() },
+    { symbol: "GC=F", side: "long", pnl: 1.15, status: "TP", market: "EMTİA", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 5).toISOString() },
+  ];
+});
 const [portfolioLoading, setPortfolioLoading] = useState(false);
 const [portfolioStats, setPortfolioStats] = useState<Record<string, any>>({
   BIST: { daily: 0, weekly: 0, monthly: 0 },
@@ -906,6 +917,30 @@ const generateSmartPortfolio = useCallback(async () => {
 
     const items: any[] = [];
 
+    // Capture and close existing active positions before generating new ones
+    const currentPortfolio = portfolios[market];
+    if (currentPortfolio && currentPortfolio.items) {
+      const activeItems = currentPortfolio.items.filter((i: any) => i.status === 'ACTIVE');
+      if (activeItems.length > 0) {
+        const manualClosedItems = activeItems.map((item: any) => {
+          const currentPrice = prices[item.symbol] || item.entryPrice;
+          const isShort = item.side === 'short';
+          const leverage = item.leverage || 1;
+          const pnl = isShort 
+            ? ((item.entryPrice - currentPrice) / item.entryPrice) * 100 * leverage
+            : ((currentPrice - item.entryPrice) / item.entryPrice) * 100 * leverage;
+          return { 
+            ...item, 
+            status: 'CLOSED', 
+            pnl, 
+            closedAt: new Date().toISOString(), 
+            market 
+          };
+        });
+        setTradeHistory(prev => [...manualClosedItems, ...prev].slice(0, 50));
+      }
+    }
+
     const sectorCandidates = marketStocks.map(s => {
       const scores = calculateAssetScore(s, prices);
       const side = scores.longScore >= scores.shortScore ? 'long' : 'short';
@@ -983,12 +1018,13 @@ const generateSmartPortfolio = useCallback(async () => {
     setPortfolioLoading(false);
     setScreen("portfolio");
   }, 1500);
-}, [prices, calculateAssetScore, market, fetchPrices]);
+}, [prices, calculateAssetScore, market, fetchPrices, portfolios]);
 
 // Monitor portfolio targets
 useEffect(() => {
   let changed = false;
   const newPortfolios = { ...portfolios };
+  const newlyClosed: any[] = [];
 
   Object.keys(newPortfolios).forEach(m => {
     const portfolio = newPortfolios[m];
@@ -1015,9 +1051,14 @@ useEffect(() => {
         else if (currentPrice <= item.sl) newStatus = 'SL';
       }
 
-      if (newStatus !== 'ACTIVE' || Math.abs(pnl - item.pnl) > 0.01) {
+      if (newStatus !== 'ACTIVE') {
         changed = true;
-        return { ...item, status: newStatus, pnl };
+        const closedItem = { ...item, status: newStatus, pnl, closedAt: new Date().toISOString(), market: m };
+        newlyClosed.push(closedItem);
+        return closedItem;
+      } else if (Math.abs(pnl - item.pnl) > 0.01) {
+        changed = true;
+        return { ...item, pnl };
       }
       return item;
     });
@@ -1029,6 +1070,9 @@ useEffect(() => {
 
   if (changed) {
     setPortfolios(newPortfolios);
+    if (newlyClosed.length > 0) {
+      setTradeHistory(prev => [...newlyClosed, ...prev].slice(0, 50));
+    }
   }
 }, [prices, portfolios]);
 
@@ -1182,6 +1226,7 @@ border: "1px solid #30363d"
           prices={prices} 
           loading={portfolioLoading}
           stats={portfolioStats[market]}
+          history={tradeHistory}
           onGenerate={generateSmartPortfolio}
           onBack={() => setScreen("scanner")}
           onSelect={openDetail}
@@ -1256,7 +1301,7 @@ border: "1px solid #30363d"
 );
 }
 
-function PortfolioScreen({ portfolio, prices, loading, stats, onGenerate, onBack, onSelect, market }: any) {
+function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerate, onBack, onSelect, market }: any) {
   if (loading) {
     return (
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
@@ -1348,6 +1393,8 @@ function PortfolioScreen({ portfolio, prices, loading, stats, onGenerate, onBack
           const isClosed = item.status !== 'ACTIVE';
           const currentPrice = prices[item.symbol] || item.entryPrice;
           
+          if (isClosed) return null; // Only show active positions in this section
+          
           return (
             <div key={item.symbol} style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: isClosed ? `1px solid ${item.status === 'TP' ? '#30d158' : '#ff453a'}88` : "1px solid #30363d", position: "relative", overflow: "hidden", opacity: isClosed ? 0.8 : 1 }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: isClosed ? (item.status === 'TP' ? '#30d158' : '#ff453a') : sideColor }} />
@@ -1431,6 +1478,64 @@ function PortfolioScreen({ portfolio, prices, loading, stats, onGenerate, onBack
             </div>
           );
         })}
+      </div>
+
+      <TradeHistoryTable history={history} market={market} />
+    </div>
+  );
+}
+
+function TradeHistoryTable({ history, market }: any) {
+  const filtered = history.filter((h: any) => {
+    const isSameMarket = h.market === market;
+    const isRecent = (new Date().getTime() - new Date(h.closedAt).getTime()) < (1000 * 60 * 60 * 24 * 7);
+    return isSameMarket && isRecent;
+  });
+
+  if (filtered.length === 0) return null;
+
+  return (
+    <div style={{ padding: "0 20px 40px" }}>
+      <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, marginBottom: 12 }}>İşlem Geçmişi (Son 7 Gün)</div>
+      <div style={{ background: "#161b22", borderRadius: 20, border: "1px solid #30363d", overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <thead style={{ background: "#21262d" }}>
+            <tr>
+              <th style={{ textAlign: "left", padding: "12px", color: "#8b949e" }}>VARLIK</th>
+              <th style={{ textAlign: "center", padding: "12px", color: "#8b949e" }}>YÖN</th>
+              <th style={{ textAlign: "right", padding: "12px", color: "#8b949e" }}>P&L</th>
+              <th style={{ textAlign: "right", padding: "12px", color: "#8b949e" }}>DURUM</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((item: any, idx: number) => (
+              <tr key={idx} style={{ borderTop: "1px solid #30363d" }}>
+                <td style={{ padding: "12px" }}>
+                  <div style={{ color: "#fff", fontWeight: 700 }}>{item.symbol}</div>
+                  <div style={{ color: "#4a5568", fontSize: 9 }}>{new Date(item.closedAt).toLocaleDateString("tr-TR")}</div>
+                </td>
+                <td style={{ padding: "12px", textAlign: "center" }}>
+                  <span style={{ color: item.side === 'short' ? "#ff453a" : "#00d4aa", fontWeight: 800 }}>{item.side.toUpperCase()}</span>
+                </td>
+                <td style={{ padding: "12px", textAlign: "right", color: item.pnl >= 0 ? "#30d158" : "#ff453a", fontWeight: 800 }}>
+                  {item.pnl >= 0 ? "+" : ""}{item.pnl.toFixed(2)}%
+                </td>
+                <td style={{ padding: "12px", textAlign: "right" }}>
+                  <span style={{ 
+                    background: item.status === 'TP' ? "rgba(48,209,88,0.1)" : (item.status === 'SL' ? "rgba(255,69,58,0.1)" : "rgba(191,90,242,0.1)"), 
+                    color: item.status === 'TP' ? "#30d158" : (item.status === 'SL' ? "#ff453a" : "#bf5af2"), 
+                    padding: "2px 6px", 
+                    borderRadius: 4, 
+                    fontWeight: 900, 
+                    fontSize: 9 
+                  }}>
+                    {item.status === 'CLOSED' ? 'KAPANDI' : item.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
