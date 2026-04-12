@@ -242,10 +242,11 @@ CRDFA: { rsi: 34, macd: 0.85, fibLevel: "0.786", patternScore: 89, pattern: "Dü
 };
 
 function generateCandleData(basePrice: number, periods = 60) {
-  const data = [];
-  const validBasePrice = Number.isFinite(basePrice) ? basePrice : 100; // Fallback to 100 if invalid
+  const data: any[] = [];
+  const validBasePrice = Number.isFinite(basePrice) ? basePrice : 100;
   const precision = validBasePrice < 0.1 ? 6 : (validBasePrice < 1 ? 4 : 2);
   let price = validBasePrice * 0.82;
+
   for (let i = 0; i < periods; i++) {
     const isDown = i < 35;
     const trend = isDown ? -0.003 : 0.008;
@@ -254,6 +255,7 @@ function generateCandleData(basePrice: number, periods = 60) {
     const high = price * (1 + Math.random() * 0.015);
     const low = price * (1 - Math.random() * 0.015);
     const open = price * (1 + (Math.random() - 0.5) * 0.008);
+    
     data.push({
       i,
       price: +price.toFixed(precision),
@@ -265,6 +267,25 @@ function generateCandleData(basePrice: number, periods = 60) {
       macd: i < 35 ? -0.5 + i * 0.01 : (i - 35) * 0.05,
     });
   }
+
+  // Calculate SMA 20 and EMA 50
+  for (let i = 0; i < data.length; i++) {
+    // SMA 20
+    if (i >= 19) {
+      const slice = data.slice(i - 19, i + 1);
+      const sum = slice.reduce((acc, curr) => acc + curr.price, 0);
+      data[i].sma20 = +(sum / 20).toFixed(precision);
+    }
+    
+    // EMA 50 (Simple approximation for the mock data)
+    if (i === 0) {
+      data[i].ema50 = data[i].price;
+    } else {
+      const k = 2 / (50 + 1);
+      data[i].ema50 = +(data[i].price * k + data[i - 1].ema50 * (1 - k)).toFixed(precision);
+    }
+  }
+
   return data;
 }
 
@@ -284,17 +305,20 @@ const [ceilingCandidates, setCeilingCandidates] = useState<Record<string, any[]>
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 0, "XU030": 0, "TRY=X": 0, "EURTRY=X": 0,
-      "BTC-USDT": 0, "ETH-USDT": 0, "SOL-USDT": 0,
-      "GC=F": 0, "GA=F": 0, "GAG=X": 0,
-      "THYAO": 0, "GARAN": 0, "AKBNK": 0, "EREGL": 0,
-      "KCHOL": 0, "SAHOL": 0, "BIMAS": 0, "TUPRS": 0,
-      "ASELS": 0, "PGSUS": 0, "SISE": 0, "YKBNK": 0,
-      "MGROS": 0, "FROTO": 0, "TOASO": 0, "ARCLK": 0,
-      "DOHOL": 0, "PETKM": 0, "TAVHL": 0, "EKGYO": 0
+      "XU100": 9850.45, "XU030": 10650.20, "TRY=X": 32.45, "EURTRY=X": 35.12,
+      "BTC-USDT": 64250.80, "ETH-USDT": 3450.15, "SOL-USDT": 145.60,
+      "GC=F": 2350.40, "GA=F": 2450.15, "GAG=X": 28.45,
+      "THYAO": 295.50, "GARAN": 78.45, "AKBNK": 54.20, "EREGL": 42.15,
+      "KCHOL": 210.40, "SAHOL": 88.60, "BIMAS": 385.20, "TUPRS": 178.40,
+      "ASELS": 56.15, "PGSUS": 845.20, "SISE": 48.45, "YKBNK": 31.20,
+      "MGROS": 445.60, "FROTO": 1050.40, "TOASO": 265.15, "ARCLK": 155.40,
+      "DOHOL": 14.25, "PETKM": 22.15, "TAVHL": 185.40, "EKGYO": 10.15
     };
     
     const initialChanges: Record<string, number> = {
+      "XU100": 0.45, "XU030": 0.32, "TRY=X": -0.12, "EURTRY=X": -0.08,
+      "BTC-USDT": 1.25, "ETH-USDT": 0.85, "SOL-USDT": 2.40,
+      "GC=F": 0.15, "GA=F": 0.12, "GAG=X": 0.45,
       "THYAO": 0.79, "GARAN": -1.40, "AKBNK": -0.80, "EREGL": 0.50,
       "KCHOL": 1.20, "SAHOL": 0.30, "BIMAS": -0.20, "TUPRS": 0.40,
       "ASELS": 1.50, "PGSUS": 0.90, "SISE": -0.50, "YKBNK": -1.10,
@@ -368,17 +392,31 @@ useEffect(() => {
 }, []);
 
   const fetchCryptoFallback = useCallback(async () => {
+    const tryFetch = async (url: string) => {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return await res.json();
+      } catch (e) { return null; }
+      return null;
+    };
+
     try {
-      const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
-      if (res.ok) {
-        const data = await res.json();
+      // Try direct first, then proxy
+      let data = await tryFetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+      if (!data) {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://fapi.binance.com/fapi/v1/ticker/24hr')}`;
+        const proxyRes = await tryFetch(proxyUrl);
+        if (proxyRes) data = JSON.parse(proxyRes.contents);
+      }
+
+      if (data && Array.isArray(data)) {
         setPrices(prev => {
           const next = { ...prev };
           data.forEach((t: any) => {
-            if (t.symbol.endsWith("USDT")) {
+            if (t.symbol && t.symbol.endsWith("USDT")) {
               const sym = t.symbol.replace("USDT", "-USDT");
               let price = parseFloat(t.lastPrice);
-              if (!isNaN(price)) {
+              if (!isNaN(price) && price > 0) {
                 next[sym] = price;
                 next[`${sym}_change`] = parseFloat(t.priceChangePercent);
               }
@@ -387,13 +425,19 @@ useEffect(() => {
           return next;
         });
       }
-      const spotRes = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY');
-      if (spotRes.ok) {
-        const spotData = await spotRes.json();
+
+      let spotData = await tryFetch('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY');
+      if (!spotData) {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY')}`;
+        const proxyRes = await tryFetch(proxyUrl);
+        if (proxyRes) spotData = JSON.parse(proxyRes.contents);
+      }
+
+      if (spotData && spotData.lastPrice) {
         setPrices(prev => {
           const next = { ...prev };
           let price = parseFloat(spotData.lastPrice);
-          if (!isNaN(price)) {
+          if (!isNaN(price) && price > 0) {
             next["USDT-TRY"] = price;
             next["USDT-TRY_change"] = parseFloat(spotData.priceChangePercent);
           }
@@ -434,8 +478,10 @@ useEffect(() => {
                   "XU030": "XU030",
                   "ABD DOLARI": "TRY=X",
                   "USD/TRY": "TRY=X",
+                  "DOLAR": "TRY=X",
                   "EURO": "EURTRY=X",
                   "ONS ALTIN": "GC=F",
+                  "ALTIN": "GC=F",
                   "GRAM ALTIN": "GA=F",
                   "GRAM GÜMÜŞ": "GAG=X",
                   "GÜMÜŞ": "GAG=X"
@@ -463,7 +509,7 @@ useEffect(() => {
                         price = parseFloat(sellingStr);
                       }
 
-                      if (!isNaN(price)) {
+                      if (!isNaN(price) && price > 0) {
                         next[sym] = price;
                         if (item.Change) {
                           let changeStr = item.Change.toString().replace('%', '');
@@ -533,16 +579,18 @@ useEffect(() => {
             for (const [symbol, info] of Object.entries(data)) {
               const infoData = info as any;
               if (infoData && typeof infoData === 'object') {
-                next[symbol] = infoData.price ?? next[symbol];
+                // Only update if we have a valid positive price
+                if (infoData.price && infoData.price > 0) {
+                  next[symbol] = infoData.price;
+                }
                 if (infoData.change !== undefined) next[`${symbol}_change`] = infoData.change;
                 if (infoData.volume !== undefined) next[`${symbol}_volume`] = infoData.volume;
                 if (infoData.source) next[`${symbol}_source`] = infoData.source;
                 if (infoData.lastUpdated) next[`${symbol}_lastUpdated`] = infoData.lastUpdated;
-              } else if (typeof infoData === 'number') {
+              } else if (typeof infoData === 'number' && infoData > 0) {
                 next[symbol] = infoData;
               }
             }
-            console.log("[App] BTC-USDT price after update:", next["BTC-USDT"]);
             return next;
           });
         }
@@ -1604,10 +1652,10 @@ return (
 
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 14 }}>
       {[
-        { sym: "XU100", label: "BIST 100", val: prices["XU100"] > 0 ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: prices["XU100_change"] ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["XU100_change"] >= 0 },
-        { sym: "BTC-USDT", label: "BTC/USDT", val: prices["BTC-USDT"] > 0 ? prices["BTC-USDT"].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDT" : (loading ? "..." : "---"), chg: prices["BTC-USDT_change"] ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["BTC-USDT_change"] >= 0 },
-        { sym: "USDT-TRY", label: "USDT/TRY", val: prices["USDT-TRY"] > 0 ? prices["USDT-TRY"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + " ₺" : (loading ? "..." : "---"), chg: prices["USDT-TRY_change"] ? `${prices["USDT-TRY_change"] > 0 ? "+" : ""}${prices["USDT-TRY_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["USDT-TRY_change"] >= 0 },
-        { sym: "GAG=X", label: "GÜMÜŞ/TL", val: prices["GAG=X"] > 0 ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: prices["GAG=X_change"] ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: prices["GAG=X_change"] >= 0 },
+        { sym: "XU100", label: "BIST 100", val: (prices["XU100"] && prices["XU100"] > 0) ? prices["XU100"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (loading ? "..." : "---"), chg: (prices["XU100_change"] !== undefined) ? `${prices["XU100_change"] > 0 ? "+" : ""}${prices["XU100_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: (prices["XU100_change"] || 0) >= 0 },
+        { sym: "BTC-USDT", label: "BTC/USDT", val: (prices["BTC-USDT"] && prices["BTC-USDT"] > 0) ? prices["BTC-USDT"].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " USDT" : (loading ? "..." : "---"), chg: (prices["BTC-USDT_change"] !== undefined) ? `${prices["BTC-USDT_change"] > 0 ? "+" : ""}${prices["BTC-USDT_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: (prices["BTC-USDT_change"] || 0) >= 0 },
+        { sym: "USDT-TRY", label: "USDT/TRY", val: (prices["USDT-TRY"] && prices["USDT-TRY"] > 0) ? prices["USDT-TRY"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + " ₺" : (loading ? "..." : "---"), chg: (prices["USDT-TRY_change"] !== undefined) ? `${prices["USDT-TRY_change"] > 0 ? "+" : ""}${prices["USDT-TRY_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: (prices["USDT-TRY_change"] || 0) >= 0 },
+        { sym: "GAG=X", label: "GÜMÜŞ/TL", val: (prices["GAG=X"] && prices["GAG=X"] > 0) ? prices["GAG=X"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ₺" : (loading ? "..." : "---"), chg: (prices["GAG=X_change"] !== undefined) ? `${prices["GAG=X_change"] > 0 ? "+" : ""}${prices["GAG=X_change"].toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "", up: (prices["GAG=X_change"] || 0) >= 0 },
       ].map(m => (
         <div key={m.label} style={{ background: "#21262d", borderRadius: 12, padding: "10px 12px", border: "1px solid #30363d", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1632,7 +1680,16 @@ return (
             }}>
               {m.up ? "▲" : "▼"} {m.chg || "%0.00"}
             </div>
-            <div style={{ color: "#4a5568", fontSize: 8, fontWeight: 700 }}>GÜNLÜK</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <div style={{ color: "#4a5568", fontSize: 8, fontWeight: 700 }}>GÜNLÜK</div>
+              {prices[`${m.sym}_lastUpdated`] && (
+                <div style={{ color: "#4a5568", fontSize: 7 }}>
+                  {prices[`${m.sym}_lastUpdated`].includes('T') 
+                    ? prices[`${m.sym}_lastUpdated`].split('T')[1].split('.')[0] 
+                    : prices[`${m.sym}_lastUpdated`]}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ))}
@@ -2356,15 +2413,26 @@ if (!Number.isFinite(price)) price = 0;
 let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
 if (!Number.isFinite(currentChange)) currentChange = 0;
 const up = currentChange >= 0;
+const isShort = stock.side === 'short';
+const sideColor = isShort ? "#ff453a" : "#00d4aa";
 const isCrypto = stock.symbol.includes("-USDT");
 const isCommodity = stock.sector === "Emtia";
 const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
-const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]);
+  const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]);
+  
+  const maScore = useMemo(() => {
+    if (!chartData || chartData.length === 0) return 0;
+    const last = chartData[chartData.length - 1];
+    let score = 0;
+    if (last.price > last.sma20) score += 6;
+    if (last.price > last.ema50) score += 6;
+    // Add some variation based on trend
+    const prev = chartData[chartData.length - 2];
+    if (prev && last.price > prev.price) score = Math.min(12, score + 1);
+    return isShort ? 12 - score : score;
+  }, [chartData, isShort]);
 
 const pricePrecision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
-
-const isShort = stock.side === 'short';
-const sideColor = isShort ? "#ff453a" : "#00d4aa";
 
 const tp1 = isShort ? +(price * 0.85).toFixed(pricePrecision) : +(price * 1.15).toFixed(pricePrecision);
 const tp2 = isShort ? +(price * 0.72).toFixed(pricePrecision) : +(price * 1.28).toFixed(pricePrecision);
@@ -2417,7 +2485,7 @@ return (
         { l: "RSI", v: pd.rsi, good: pd.rsi < 40 },
         { l: "MACD", v: pd.macd > 0 ? "ALIŞ" : "SATIŞ", good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
-        { l: "MA", v: `${stock.side === 'short' ? (stock.maSellCount ?? Math.min(12, Math.round((pd.potential / 100) * 12) + 2)) : (stock.maBuyCount ?? Math.min(12, Math.round((pd.potential / 100) * 12) + 2))}/12`, good: stock.side === 'short' ? (stock.maSellCount ?? 10) >= 10 : (stock.maBuyCount ?? 10) >= 10 },
+        { l: "MA", v: `${maScore}/12`, good: maScore >= 10 },
         { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
         ...(stock.whale && stock.whale.action !== "YOK" ? [{ l: "BALİNA", v: `${stock.whale.action} (${stock.whale.amount})`, good: stock.whale.action === "ALIM" }] : []),
@@ -2443,6 +2511,20 @@ return (
     </div>
 
     <div style={{ background: "#161b22", borderRadius: 16, padding: "10px 0 5px", border: "1px solid #30363d" }}>
+      <div style={{ display: "flex", gap: 10, paddingLeft: 14, marginBottom: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ width: 8, height: 2, background: "#00d4aa" }} />
+          <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700 }}>FİYAT</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ width: 8, height: 2, background: "#ff9f0a" }} />
+          <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700 }}>SMA 20</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ width: 8, height: 2, background: "#5e5ce6" }} />
+          <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700 }}>EMA 50</div>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height={140}>
         <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -30, bottom: 5 }}>
           <defs>
@@ -2453,10 +2535,12 @@ return (
           </defs>
           <XAxis dataKey="i" tick={false} axisLine={false} />
           <YAxis tick={{ fontSize: 9, fill: "#8b949e" }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#8b949e" }} itemStyle={{ color: "#00d4aa" }} formatter={(v: any) => [`${v.toFixed(2)} ${currency}`, "Fiyat"]} labelFormatter={() => ""} />
+          <Tooltip contentStyle={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#8b949e" }} itemStyle={{ color: "#00d4aa" }} formatter={(v: any) => [`${v.toFixed(2)} ${currency}`, ""]} labelFormatter={() => ""} />
           <ReferenceLine y={timeframe === "1S" ? scalpTp1 : tp1} stroke="#30d158" strokeDasharray="3 3" strokeWidth={1} label={{ value: timeframe === "1S" ? `Scalp TP: ${scalpTp1}` : `TP1: ${tp1}`, position: "right", fontSize: 9, fill: "#30d158" }} />
           <ReferenceLine y={timeframe === "1S" ? scalpSl : sl} stroke="#ff453a" strokeDasharray="3 3" strokeWidth={1} label={{ value: timeframe === "1S" ? `Scalp SL: ${scalpSl}` : `SL: ${sl}`, position: "right", fontSize: 9, fill: "#ff453a" }} />
-          <Area type="monotone" dataKey="price" stroke="#00d4aa" strokeWidth={1.5} fill="url(#colorUp)" dot={false} />
+          <Area type="monotone" dataKey="price" stroke="#00d4aa" strokeWidth={1.5} fill="url(#colorUp)" dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="sma20" stroke="#ff9f0a" strokeWidth={1} dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="ema50" stroke="#5e5ce6" strokeWidth={1} dot={false} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
