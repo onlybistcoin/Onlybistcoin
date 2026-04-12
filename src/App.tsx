@@ -645,18 +645,24 @@ useEffect(() => {
   };
 
 const startScan = useCallback(() => {
-  setScanning(prev => ({ ...prev, [market]: true }));
-  setScanProgress(prev => ({ ...prev, [market]: 0 }));
-  setScanned(prev => ({ ...prev, [market]: false }));
-  setCandidates(prev => ({ ...prev, [market]: [] }));
+  const targetMarket = market;
+  if (scanning[targetMarket]) return;
+
+  if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+
+  setScanning(prev => ({ ...prev, [targetMarket]: true }));
+  setScanProgress(prev => ({ ...prev, [targetMarket]: 0 }));
+  setScanned(prev => ({ ...prev, [targetMarket]: false }));
+  setCandidates(prev => ({ ...prev, [targetMarket]: [] }));
+  
   let p = 0;
   scanIntervalRef.current = setInterval(() => {
-    p += Math.random() * 4 + 1;
+    p += Math.random() * 5 + 2;
     if (p >= 100) {
       p = 100;
       clearInterval(scanIntervalRef.current);
-      setScanning(prev => ({ ...prev, [market]: false }));
-      setScanned(prev => ({ ...prev, [market]: true }));
+      setScanning(prev => ({ ...prev, [targetMarket]: false }));
+      setScanned(prev => ({ ...prev, [targetMarket]: true }));
 
       // Dynamically calculate potential based on live price changes and mock pattern data
       const found = stocks.flatMap(s => {
@@ -770,34 +776,28 @@ const startScan = useCallback(() => {
 
         const results = [];
         // Only show the stronger side if both are above threshold
-        // Threshold set to 70 for candidates AND 10/12 moving averages must give buy/sell
-        if (longScore >= 70 && maBuyCount >= 10 && longScore >= shortScore) {
+        // Threshold set to 65 for candidates AND 8/12 moving averages must give buy/sell
+        if (longScore >= 65 && maBuyCount >= 8 && longScore >= shortScore) {
           results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount, whale, techScore: techLong, fundScore: fundBullish, whaleScore: whaleBullish, globalScore: globalBullish });
-        } else if (shortScore >= 70 && maSellCount >= 10) {
+        } else if (shortScore >= 65 && maSellCount >= 8) {
           results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount, whale, techScore: techShort, fundScore: 100 - fundBullish, whaleScore: 100 - whaleBullish, globalScore: 100 - globalBullish });
         }
         
         return results;
       }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
 
-      setCandidates(prev => ({ ...prev, [market]: found }));
+      setCandidates(prev => ({ ...prev, [targetMarket]: found }));
 
       // Tavan (Ceiling) Candidates for BIST
-      if (market === "BIST") {
+      if (targetMarket === "BIST") {
         const ceiling = stocks.map(s => {
           let liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
           if (!Number.isFinite(liveChange)) liveChange = 0;
           
-          // Ceiling probability logic:
-          // 1. Price change is already high (5% to 9.5%)
-          // 2. High volume (simulated)
-          // 3. Positive news sentiment (simulated)
           const pd = PATTERN_DATA[s.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
           
           let ceilingScore = (liveChange * 8) + (pd.patternScore / 5);
           
-          // If already at ceiling (> 9.8%), we don't show it as a "candidate" for hitting the ceiling
-          // because it's already there. We focus on those approaching it.
           if (liveChange > 9.8) {
             ceilingScore = 0; 
           } else {
@@ -805,17 +805,17 @@ const startScan = useCallback(() => {
           }
           
           return { ...s, ceilingScore };
-        }).filter(s => s.ceilingScore >= 45) // Lowered threshold slightly to catch more approaching stocks
+        }).filter(s => s.ceilingScore >= 45)
           .sort((a, b) => b.ceilingScore - a.ceilingScore);
         
-        setCeilingCandidates(prev => ({ ...prev, [market]: ceiling }));
+        setCeilingCandidates(prev => ({ ...prev, [targetMarket]: ceiling }));
       } else {
-        setCeilingCandidates(prev => ({ ...prev, [market]: [] }));
+        setCeilingCandidates(prev => ({ ...prev, [targetMarket]: [] }));
       }
     }
-    setScanProgress(prev => ({ ...prev, [market]: Math.min(p, 100) }));
+    setScanProgress(prev => ({ ...prev, [targetMarket]: Math.min(p, 100) }));
   }, 80);
-}, [prices, stocks, market]);
+}, [prices, stocks, market, scanning]);
 
 const fetchAiAnalysis = useCallback(async (stock: any) => {
   if (!stock) return;
@@ -955,18 +955,20 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
   };
 }, []);
 
-const generateSmartPortfolio = useCallback(async () => {
+const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
   setPortfolioLoading(true);
   await fetchPrices();
   
+  const activeMarket = targetMarket || market;
+
   setTimeout(() => {
-    const budget = market === "CRYPTO" ? 5000 : 100000;
-    const marketStocks = market === "BIST" ? BIST_STOCKS : (market === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
+    const budget = activeMarket === "CRYPTO" ? 5000 : 100000;
+    const marketStocks = activeMarket === "BIST" ? BIST_STOCKS : (activeMarket === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
 
     const items: any[] = [];
 
     // Capture and close existing active positions before generating new ones
-    const currentPortfolio = portfolios[market];
+    const currentPortfolio = portfolios[activeMarket];
     if (currentPortfolio && currentPortfolio.items) {
       const activeItems = currentPortfolio.items.filter((i: any) => i.status === 'ACTIVE');
       if (activeItems.length > 0) {
@@ -982,7 +984,7 @@ const generateSmartPortfolio = useCallback(async () => {
             status: 'CLOSED', 
             pnl, 
             closedAt: new Date().toISOString(), 
-            market 
+            market: activeMarket 
           };
         });
         setTradeHistory(prev => [...manualClosedItems, ...prev].slice(0, 50));
@@ -1007,7 +1009,7 @@ const generateSmartPortfolio = useCallback(async () => {
       const tp = isShort ? +(price * (1 - potential / 100)).toFixed(precision) : +(price * (1 + potential / 100)).toFixed(precision);
       const sl = isShort ? +(price * 1.05).toFixed(precision) : +(price * 0.95).toFixed(precision);
 
-      const isCrypto = market === "CRYPTO";
+      const isCrypto = activeMarket === "CRYPTO";
       const leverage = isCrypto ? 20 : 1; // 20x leverage for crypto
       const unleveragedAmount = perAssetBudget;
       const totalPositionSize = unleveragedAmount * leverage;
@@ -1041,11 +1043,12 @@ const generateSmartPortfolio = useCallback(async () => {
       totalBudget: budget,
       lastUpdated: now.toLocaleTimeString("tr-TR"),
       nextUpdate: nextUpdate.toLocaleTimeString("tr-TR"),
+      nextUpdateTimestamp: nextUpdate.getTime(),
       timestamp: now.getTime(),
-      market
+      market: activeMarket
     };
 
-    setPortfolios(prev => ({ ...prev, [market]: newPortfolio }));
+    setPortfolios(prev => ({ ...prev, [activeMarket]: newPortfolio }));
     
     // Monday 10:00 AM Start Logic (Istanbul Time)
     const nowIstanbul = new Date(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Istanbul' }).format(now));
@@ -1056,7 +1059,7 @@ const generateSmartPortfolio = useCallback(async () => {
 
     setPortfolioStats(prev => ({
       ...prev,
-      [market]: {
+      [activeMarket]: {
         daily: isStarted ? (Math.random() * 2.5) : 0,
         weekly: isStarted ? (Math.random() * 8.2) : 0,
         monthly: isStarted ? (Math.random() * 15.4) : 0
@@ -1068,7 +1071,30 @@ const generateSmartPortfolio = useCallback(async () => {
   }, 1500);
 }, [prices, calculateAssetScore, market, fetchPrices, portfolios]);
 
+// Auto-generate portfolio if empty when visiting portfolio screen
+useEffect(() => {
+  if (screen === "portfolio" && !portfolios[market] && !portfolioLoading) {
+    console.log(`[App] Auto-generating ${market} portfolio as it is empty.`);
+    generateSmartPortfolio(market);
+  }
+}, [screen, market, portfolios, portfolioLoading, generateSmartPortfolio]);
+
 // Monitor portfolio targets
+useEffect(() => {
+  const checkSchedule = () => {
+    const now = Date.now();
+    Object.keys(portfolios).forEach(m => {
+      const p = portfolios[m];
+      if (p && p.nextUpdateTimestamp && now >= p.nextUpdateTimestamp) {
+        console.log(`[App] Scheduled update reached for ${m}. Re-generating portfolio...`);
+        generateSmartPortfolio(m);
+      }
+    });
+  };
+  const interval = setInterval(checkSchedule, 60000); // Check every minute
+  return () => clearInterval(interval);
+}, [portfolios, generateSmartPortfolio]);
+
 useEffect(() => {
   let changed = false;
   const newPortfolios = { ...portfolios };
@@ -1141,7 +1167,7 @@ useEffect(() => {
       const side = scores.longScore >= scores.shortScore ? 'long' : 'short';
       const score = side === 'long' ? scores.longScore : scores.shortScore;
       
-      if (score < 70) return [];
+      if (score < 65) return [];
 
       const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
       const pseudoRandom = (offset: number) => {
@@ -1276,6 +1302,7 @@ border: "1px solid #30363d"
           stats={portfolioStats[market]}
           history={tradeHistory}
           onGenerate={generateSmartPortfolio}
+          onRefresh={handleRefresh}
           onBack={() => setScreen("scanner")}
           onSelect={openDetail}
           market={market}
@@ -1315,7 +1342,7 @@ border: "1px solid #30363d"
       />}
     </div>
 
-    <BottomNav screen={screen} setScreen={setScreen} candidates={candidates} market={market} />
+    <BottomNav screen={screen} setScreen={setScreen} candidates={candidates[market] || []} market={market} />
 
     {/* Debug Panel Toggle */}
     <div style={{ position: "fixed", bottom: 80, right: 16, zIndex: 1000 }}>
@@ -1349,13 +1376,16 @@ border: "1px solid #30363d"
 );
 }
 
-function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerate, onBack, onSelect, market }: any) {
+function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerate, onRefresh, onBack, onSelect, market }: any) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const budgetText = market === "CRYPTO" ? "5.000 USDT" : "100.000 TL";
+
   if (loading) {
     return (
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
         <div style={{ width: 60, height: 60, borderRadius: "50%", border: "4px solid #bf5af2", borderTopColor: "transparent", animation: "spin 1s linear infinite", marginBottom: 20 }} />
         <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>AI {market} Portföyü Hazırlanıyor...</div>
-        <div style={{ color: "#8b949e", fontSize: 14, marginTop: 8, textAlign: "center" }}>{market} piyasası taranıyor, 100.000 TL için en uygun dağılım hesaplanıyor.</div>
+        <div style={{ color: "#8b949e", fontSize: 14, marginTop: 8, textAlign: "center" }}>{market} piyasası taranıyor, {budgetText} için en uygun dağılım hesaplanıyor.</div>
       </div>
     );
   }
@@ -1365,8 +1395,8 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
         <div style={{ fontSize: 48, marginBottom: 20 }}>💼</div>
         <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Henüz {market} Portföyü Yok</div>
-        <div style={{ color: "#8b949e", fontSize: 14, textAlign: "center", marginBottom: 24 }}>AI algoritmalarımızla 100.000 TL'lik {market} sepetinizi hemen oluşturun.</div>
-        <button onClick={onGenerate} style={{ background: "#bf5af2", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>PORTFÖY OLUŞTUR</button>
+        <div style={{ color: "#8b949e", fontSize: 14, textAlign: "center", marginBottom: 24 }}>AI algoritmalarımızla {budgetText}'lik {market} sepetinizi hemen oluşturun.</div>
+        <button onClick={() => onGenerate(market)} style={{ background: "#bf5af2", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>PORTFÖY OLUŞTUR</button>
         <button onClick={onBack} style={{ background: "none", border: "none", color: "#8b949e", marginTop: 16, fontWeight: 700, cursor: "pointer" }}>Geri Dön</button>
       </div>
     );
@@ -1392,7 +1422,7 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
               <div style={{ background: "rgba(255,255,255,0.05)", color: "#8b949e", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>ANLIK</div>
             </div>
           </div>
-          <button onClick={() => { console.log("[Portfolio] Yenile clicked"); onGenerate(); }} style={{ background: "rgba(191,90,242,0.1)", border: "1px solid rgba(191,90,242,0.3)", color: "#bf5af2", padding: "8px 12px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>YENİLE</button>
+          <button onClick={() => { console.log("[Portfolio] Yenile clicked"); onRefresh(); }} style={{ background: "rgba(191,90,242,0.1)", border: "1px solid rgba(191,90,242,0.3)", color: "#bf5af2", padding: "8px 12px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>YENİLE</button>
         </div>
         
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
@@ -1528,6 +1558,57 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
         })}
       </div>
 
+      <div style={{ padding: "0 20px 20px", textAlign: "center" }}>
+        <button 
+          onClick={() => setShowResetConfirm(true)}
+          style={{ 
+            background: "rgba(255,69,58,0.1)", 
+            border: "1px solid rgba(255,69,58,0.3)", 
+            color: "#ff453a", 
+            padding: "10px 20px", 
+            borderRadius: 12, 
+            fontSize: 12, 
+            fontWeight: 800, 
+            cursor: "pointer",
+            width: "100%"
+          }}
+        >
+          🔄 PORTFÖYÜ SIFIRLA VE YENİDEN OLUŞTUR
+        </button>
+        <div style={{ color: "#4a5568", fontSize: 10, marginTop: 8 }}>
+          * Bu işlem mevcut tüm aktif pozisyonları o anki fiyattan kapatır.
+        </div>
+      </div>
+
+      {showResetConfirm && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.85)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(10px)" }}>
+          <div style={{ background: "#1c2128", borderRadius: 24, padding: 24, width: "100%", maxWidth: 320, border: "1px solid #30363d", textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+            <div style={{ color: "#fff", fontSize: 18, fontWeight: 800, marginBottom: 12 }}>Emin misiniz?</div>
+            <div style={{ color: "#8b949e", fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>
+              {market} portföyünüzü sıfırlayıp yeniden oluşturmak üzeresiniz. Mevcut tüm aktif pozisyonlar kapatılacaktır.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button 
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  onGenerate(market);
+                }}
+                style={{ background: "#ff453a", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}
+              >
+                EVET, SIFIRLA
+              </button>
+              <button 
+                onClick={() => setShowResetConfirm(false)}
+                style={{ background: "#30363d", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}
+              >
+                İPTAL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <TradeHistoryTable history={history} market={market} />
     </div>
   );
@@ -1642,7 +1723,7 @@ return (
 
     <div style={{ display: "flex", background: "#21262d", borderRadius: 12, padding: 3, marginTop: 14 }}>
       {[["BIST", "🇹🇷 BİST"], ["CRYPTO", "₿ KRİPTO"], ["EMTİA", "⚒️ EMTİA"]].map(([key, label]) => (
-        <button key={key} onClick={() => { setMarket(key as any); setScanned(false); setCandidates([]); }} style={{
+        <button key={key} onClick={() => { setMarket(key as any); }} style={{
           flex: 1, padding: "8px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
           background: market === key ? "#00d4aa" : "transparent", color: market === key ? "#000" : "#8b949e",
           transition: "all 0.2s"
@@ -1716,7 +1797,7 @@ return (
         >
           <div style={{ fontSize: 24 }}>{portfolioLoading ? "⏳" : "💼"}</div>
           <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{portfolioLoading ? "HAZIRLANIYOR..." : (portfolio ? `${market} PORTFÖYÜM` : `AI ${market} PORTFÖYÜ`)}</div>
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 600 }}>100.000 TL {market}</div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 600 }}>{market === "CRYPTO" ? "5.000 USDT" : "100.000 TL"} {market}</div>
         </button>
 
         <button 
@@ -1812,17 +1893,16 @@ return (
       )}
       {scanned && (
         <button
-          onClick={isAfter18 ? onViewCorrection : undefined}
+          onClick={onViewCorrection}
           style={{
             width: "100%", marginTop: 8, padding: "12px", borderRadius: 14,
-            background: isAfter18 ? "rgba(191,90,242,0.15)" : "rgba(255,255,255,0.05)", 
-            color: isAfter18 ? "#bf5af2" : "#6b7280", 
-            border: isAfter18 ? "1px solid rgba(191,90,242,0.4)" : "1px solid #30363d",
-            cursor: isAfter18 ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            opacity: isAfter18 ? 1 : 0.7
+            background: "rgba(191,90,242,0.15)", 
+            color: "#bf5af2", 
+            border: "1px solid rgba(191,90,242,0.4)",
+            cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}
         >
-          {isAfter18 ? "🌙 Yarına Hazırlık (Düzeltmesi Bitenler)" : "🔒 Yarına Hazırlık (18:00'de Açılır)"}
+          🌙 Yarına Hazırlık (Düzeltmesi Bitenler)
         </button>
       )}
       {scanned && (
@@ -2244,7 +2324,7 @@ function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, m
   const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
 
   const filteredCandidates = candidates.filter((stock: any) => {
-    if ((stock.dynamicPotential || 0) < 80) return false;
+    if ((stock.dynamicPotential || 0) < 65) return false;
     if (filterSide === "long" && stock.side !== "long") return false;
     if (filterSide === "short" && stock.side !== "short") return false;
     return true;
@@ -2715,12 +2795,12 @@ return (
 );
 }
 
-function BottomNav({ screen, setScreen, candidates, market }: any) {
+function BottomNav({ screen, setScreen, candidates = [], market }: any) {
 const navItems = [
   { key: "scanner", icon: "🔍", label: "Tarayıcı" },
   { key: "scalp", icon: "⚡", label: "Scalp" },
   ...(market === "BIST" ? [{ key: "ceiling", icon: "🚀", label: "Tavan" }] : []),
-  { key: "candidates", icon: "⭐", label: "Adaylar", badge: candidates.length },
+  { key: "candidates", icon: "⭐", label: "Adaylar", badge: Array.isArray(candidates) ? candidates.length : 0 },
   { key: "detail", icon: "📊", label: "Analiz" },
 ];
 
