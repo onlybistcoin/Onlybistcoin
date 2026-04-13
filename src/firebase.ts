@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { isSandboxed } from './utils';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
@@ -61,7 +62,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 // Validate Connection to Firestore
-async function testConnection() {
+export async function testConnection() {
+  if (isSandboxed()) {
+    console.warn("[Firebase] Skipping connection test in sandboxed environment.");
+    return;
+  }
+  
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
@@ -70,4 +76,4 @@ async function testConnection() {
     }
   }
 }
-testConnection();
+// Do not call automatically at top level

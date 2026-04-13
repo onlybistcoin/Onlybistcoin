@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { GoogleGenAI } from "@google/genai";
 import { RefreshCw, AlertCircle } from "lucide-react";
-import { db } from "./firebase";
+import { db, testConnection } from "./firebase";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 
 // ─── MOCK DATA ───────────────────────────────────────────────────────────────
@@ -289,36 +289,66 @@ function generateCandleData(basePrice: number, periods = 60) {
   return data;
 }
 
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+// Safe implementation of JSON.stringify to handle cyclic structures
+import { isSandboxed, safeStorage, safeJsonParse } from "./utils";
+
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+const safeJsonStringify = (obj: any) => {
+  try {
+    return JSON.stringify(obj);
+  } catch (e) {
+    console.warn("[JSON] Stringify failed, using fallback:", e);
+    return "{}";
+  }
+};
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 // [Cache Bust] v1.0.2 - Real-time Data Sync
 export default function BISTAnalyzer() {
+  useEffect(() => {
+    // Defer Firebase connection test
+    if (!isSandboxed()) {
+      testConnection().catch(err => console.error("[Firebase] Connection test failed:", err));
+    }
+  }, []);
+
 const [screen, setScreen] = useState("scanner"); 
 const [market, setMarket] = useState<"BIST" | "CRYPTO" | "EMTİA">("BIST");
 const [showDebug, setShowDebug] = useState(false);
 const [selectedStock, setSelectedStock] = useState<any>(null);
 const [scanning, setScanning] = useState<Record<string, boolean>>({ BIST: false, CRYPTO: false, EMTİA: false });
 const [scanProgress, setScanProgress] = useState<Record<string, number>>({ BIST: 0, CRYPTO: 0, EMTİA: 0 });
-const [scanned, setScanned] = useState<Record<string, boolean>>({ BIST: false, CRYPTO: false, EMTİA: false });
-const [candidates, setCandidates] = useState<Record<string, any[]>>({ BIST: [], CRYPTO: [], EMTİA: [] });
-const [ceilingCandidates, setCeilingCandidates] = useState<Record<string, any[]>>({ BIST: [], CRYPTO: [], EMTİA: [] });
+const [scanned, setScanned] = useState<Record<string, boolean>>(() => {
+  const saved = safeStorage.getItem("scanned");
+  return safeJsonParse(saved, { BIST: false, CRYPTO: false, EMTİA: false });
+});
+const [candidates, setCandidates] = useState<Record<string, any[]>>(() => {
+  const saved = safeStorage.getItem("candidates");
+  return safeJsonParse(saved, { BIST: [], CRYPTO: [], EMTİA: [] });
+});
+const [ceilingCandidates, setCeilingCandidates] = useState<Record<string, any[]>>(() => {
+  const saved = safeStorage.getItem("ceilingCandidates");
+  return safeJsonParse(saved, { BIST: [], CRYPTO: [], EMTİA: [] });
+});
   const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 9850.45, "XU030": 10650.20, "TRY=X": 32.45, "EURTRY=X": 35.12,
-      "BTC-USDT": 64250.80, "ETH-USDT": 3450.15, "SOL-USDT": 145.60,
-      "GC=F": 2350.40, "GA=F": 2450.15, "GAG=X": 28.45,
-      "THYAO": 295.50, "GARAN": 78.45, "AKBNK": 54.20, "EREGL": 42.15,
-      "KCHOL": 210.40, "SAHOL": 88.60, "BIMAS": 385.20, "TUPRS": 178.40,
-      "ASELS": 56.15, "PGSUS": 845.20, "SISE": 48.45, "YKBNK": 31.20,
-      "MGROS": 445.60, "FROTO": 1050.40, "TOASO": 265.15, "ARCLK": 155.40,
-      "DOHOL": 14.25, "PETKM": 22.15, "TAVHL": 185.40, "EKGYO": 10.15
+      "XU100": 14073.79, "XU030": 15200.50, "TRY=X": 44.60, "EURTRY=X": 52.50,
+      "BTC-USDT": 71082.90, "ETH-USDT": 3540.20, "SOL-USDT": 145.60,
+      "GC=F": 4749.57, "GA=F": 6812.73, "GAG=X": 108.92,
+      "THYAO": 323.25, "GARAN": 140.40, "AKBNK": 78.40, "EREGL": 55.00,
+      "KCHOL": 250.00, "SAHOL": 110.00, "BIMAS": 450.00, "TUPRS": 200.00,
+      "ASELS": 70.00, "PGSUS": 1100.00, "SISE": 60.00, "YKBNK": 45.00,
+      "MGROS": 550.00, "FROTO": 1200.00, "TOASO": 300.00, "ARCLK": 180.00,
+      "DOHOL": 20.00, "PETKM": 30.00, "TAVHL": 250.00, "EKGYO": 15.00
     };
     
     const initialChanges: Record<string, number> = {
-      "XU100": 0.45, "XU030": 0.32, "TRY=X": -0.12, "EURTRY=X": -0.08,
-      "BTC-USDT": 1.25, "ETH-USDT": 0.85, "SOL-USDT": 2.40,
-      "GC=F": 0.15, "GA=F": 0.12, "GAG=X": 0.45,
+      "XU100": 0.52, "XU030": 0.45, "TRY=X": 0.11, "EURTRY=X": 0.46,
+      "BTC-USDT": -3.45, "ETH-USDT": -1.20, "SOL-USDT": -2.40,
+      "GC=F": -0.36, "GA=F": -0.26, "GAG=X": 0.86,
       "THYAO": 0.79, "GARAN": -1.40, "AKBNK": -0.80, "EREGL": 0.50,
       "KCHOL": 1.20, "SAHOL": 0.30, "BIMAS": -0.20, "TUPRS": 0.40,
       "ASELS": 1.50, "PGSUS": 0.90, "SISE": -0.50, "YKBNK": -1.10,
@@ -339,11 +369,20 @@ const [ceilingCandidates, setCeilingCandidates] = useState<Record<string, any[]>
   const [lastUpdated, setLastUpdated] = useState<string>("");
 const [aiAnalysis, setAiAnalysis] = useState("");
 const [aiLoading, setAiLoading] = useState(false);
-const [aiCache, setAiCache] = useState<Record<string, string>>({});
+const [aiCache, setAiCache] = useState<Record<string, string>>(() => {
+  const saved = safeStorage.getItem("aiCache");
+  return safeJsonParse(saved, {});
+});
 const [timeframe, setTimeframe] = useState("1S");
 const [tab, setTab] = useState("teknik"); 
-const [portfolios, setPortfolios] = useState<Record<string, any>>({});
+const [portfolios, setPortfolios] = useState<Record<string, any>>(() => {
+  const saved = safeStorage.getItem("portfolios");
+  return safeJsonParse(saved, {});
+});
 const [tradeHistory, setTradeHistory] = useState<any[]>(() => {
+  const saved = safeStorage.getItem("tradeHistory");
+  const parsed = safeJsonParse(saved);
+  if (parsed && Array.isArray(parsed)) return parsed;
   // Mock history for the last week
   const now = new Date();
   return [
@@ -355,10 +394,14 @@ const [tradeHistory, setTradeHistory] = useState<any[]>(() => {
   ];
 });
 const [portfolioLoading, setPortfolioLoading] = useState(false);
-const [portfolioStats, setPortfolioStats] = useState<Record<string, any>>({
-  BIST: { daily: 0, weekly: 0, monthly: 0 },
-  CRYPTO: { daily: 0, weekly: 0, monthly: 0 },
-  EMTİA: { daily: 0, weekly: 0, monthly: 0 }
+const [portfolioError, setPortfolioError] = useState<string | null>(null);
+const [portfolioStats, setPortfolioStats] = useState<Record<string, any>>(() => {
+  const saved = safeStorage.getItem("portfolioStats");
+  return safeJsonParse(saved, {
+    BIST: { daily: 0, weekly: 0, monthly: 0 },
+    CRYPTO: { daily: 0, weekly: 0, monthly: 0 },
+    EMTİA: { daily: 0, weekly: 0, monthly: 0 }
+  });
 });
 const [kapNews, setKapNews] = useState<any[]>([]);
 const [news, setNews] = useState<any[]>([]);
@@ -391,6 +434,55 @@ useEffect(() => {
   return () => clearInterval(timer);
 }, []);
 
+  // ─── PERSISTENCE ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("portfolios", safeJsonStringify(portfolios)), 1000);
+    return () => clearTimeout(t);
+  }, [portfolios]);
+  
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("tradeHistory", safeJsonStringify(tradeHistory)), 1000);
+    return () => clearTimeout(t);
+  }, [tradeHistory]);
+  
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("portfolioStats", safeJsonStringify(portfolioStats)), 1000);
+    return () => clearTimeout(t);
+  }, [portfolioStats]);
+  
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("scanned", safeJsonStringify(scanned)), 1000);
+    return () => clearTimeout(t);
+  }, [scanned]);
+  
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("candidates", safeJsonStringify(candidates)), 1000);
+    return () => clearTimeout(t);
+  }, [candidates]);
+  
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("ceilingCandidates", safeJsonStringify(ceilingCandidates)), 1000);
+    return () => clearTimeout(t);
+  }, [ceilingCandidates]);
+  
+  useEffect(() => {
+    const t = setTimeout(() => safeStorage.setItem("aiCache", safeJsonStringify(aiCache)), 1000);
+    return () => clearTimeout(t);
+  }, [aiCache]);
+
+  // Periodic cleanup of old trade history (older than 7 days)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const sevenDaysAgo = Date.now() - (1000 * 60 * 60 * 24 * 7);
+      setTradeHistory(prev => {
+        const safePrev = prev || [];
+        const cleaned = safePrev.filter(h => new Date(h.closedAt).getTime() > sevenDaysAgo);
+        return cleaned.length === safePrev.length ? safePrev : cleaned;
+      });
+    }, 1000 * 60 * 60); // Every hour
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchCryptoFallback = useCallback(async () => {
     const tryFetch = async (url: string) => {
       try {
@@ -401,12 +493,19 @@ useEffect(() => {
     };
 
     try {
+      const cacheBuster = Date.now();
       // Try direct first, then proxy
-      let data = await tryFetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+      let data = await tryFetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?_=${cacheBuster}`);
       if (!data) {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://fapi.binance.com/fapi/v1/ticker/24hr')}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://fapi.binance.com/fapi/v1/ticker/24hr?_=${cacheBuster}`)}`;
         const proxyRes = await tryFetch(proxyUrl);
-        if (proxyRes) data = JSON.parse(proxyRes.contents);
+        if (proxyRes && proxyRes.contents) {
+          try {
+            data = JSON.parse(proxyRes.contents);
+          } catch (e) {
+            console.warn("Failed to parse Binance proxy contents:", e);
+          }
+        }
       }
 
       if (data && Array.isArray(data)) {
@@ -424,13 +523,39 @@ useEffect(() => {
           });
           return next;
         });
+      } else {
+        // Mock crypto data if fetch fails
+        setPrices(prev => {
+          const next = { ...prev };
+          CRYPTO_COINS.forEach(coin => {
+            const sym = coin.symbol;
+            if (!next[sym]) {
+              const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+              let basePrice = 10 + (seed % 500);
+              if (sym === 'BTC-USDT') basePrice = 71082.90;
+              if (sym === 'ETH-USDT') basePrice = 3540.20;
+              if (sym === 'SOL-USDT') basePrice = 145.60;
+              
+              const randomChange = (Math.sin(Date.now() / 10000 + seed) * 10);
+              next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
+              next[`${sym}_change`] = +randomChange.toFixed(2);
+            }
+          });
+          return next;
+        });
       }
 
-      let spotData = await tryFetch('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY');
+      let spotData = await tryFetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY&_=${cacheBuster}`);
       if (!spotData) {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY')}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://api.binance.com/api/v3/ticker/24hr?symbol=USDTTRY&_=${cacheBuster}`)}`;
         const proxyRes = await tryFetch(proxyUrl);
-        if (proxyRes) spotData = JSON.parse(proxyRes.contents);
+        if (proxyRes && proxyRes.contents) {
+          try {
+            spotData = JSON.parse(proxyRes.contents);
+          } catch (e) {
+            console.warn("Failed to parse Binance spot proxy contents:", e);
+          }
+        }
       }
 
       if (spotData && spotData.lastPrice) {
@@ -440,6 +565,15 @@ useEffect(() => {
           if (!isNaN(price) && price > 0) {
             next["USDT-TRY"] = price;
             next["USDT-TRY_change"] = parseFloat(spotData.priceChangePercent);
+          }
+          return next;
+        });
+      } else {
+        setPrices(prev => {
+          const next = { ...prev };
+          if (!next["USDT-TRY"]) {
+            next["USDT-TRY"] = 44.60 + (Math.sin(Date.now() / 10000) * 0.5);
+            next["USDT-TRY_change"] = +(Math.sin(Date.now() / 10000) * 0.1).toFixed(2);
           }
           return next;
         });
@@ -463,12 +597,34 @@ useEffect(() => {
           if (success) break;
           
           try {
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&_=${cacheBuster}`;
-            const res = await fetch(proxyUrl);
-            if (res.ok) {
-              const proxyData = await res.json();
-              const data = JSON.parse(proxyData.contents);
-              
+            let data = null;
+            // Try direct fetch first
+            try {
+              const directRes = await fetch(targetUrl);
+              if (directRes.ok) {
+                data = await directRes.json();
+              }
+            } catch (e) {
+              console.warn("Direct fetch failed, trying proxy...", e);
+            }
+
+            // Fallback to proxy if direct fails
+            if (!data) {
+              const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&_=${cacheBuster}`;
+              const res = await fetch(proxyUrl);
+              if (res.ok) {
+                const proxyData = await res.json();
+                if (proxyData.contents) {
+                  try {
+                    data = JSON.parse(proxyData.contents);
+                  } catch (e) {
+                    console.warn("Failed to parse proxy contents:", e);
+                  }
+                }
+              }
+            }
+
+            if (data) {
               setPrices(prev => {
                 const next = { ...prev };
                 const mappings: Record<string, string> = {
@@ -479,12 +635,17 @@ useEffect(() => {
                   "ABD DOLARI": "TRY=X",
                   "USD/TRY": "TRY=X",
                   "DOLAR": "TRY=X",
+                  "USD": "TRY=X",
                   "EURO": "EURTRY=X",
+                  "EUR": "EURTRY=X",
                   "ONS ALTIN": "GC=F",
                   "ALTIN": "GC=F",
+                  "ONS": "GC=F",
                   "GRAM ALTIN": "GA=F",
+                  "GRAM-ALTIN": "GA=F",
                   "GRAM GÜMÜŞ": "GAG=X",
-                  "GÜMÜŞ": "GAG=X"
+                  "GÜMÜŞ": "GAG=X",
+                  "GUMUS": "GAG=X"
                 };
 
                 for (const [key, val] of Object.entries(data)) {
@@ -495,7 +656,7 @@ useEffect(() => {
                     
                     if (item.Selling) {
                       // Robust parsing for both "1.234,56" and "1234.56"
-                      let sellingStr = item.Selling.toString();
+                      let sellingStr = item.Selling.toString().replace('$', '').replace('€', '').replace('₺', '').trim();
                       let price = 0;
                       
                       if (sellingStr.includes(',') && sellingStr.includes('.')) {
@@ -520,6 +681,56 @@ useEffect(() => {
                     }
                   }
                 }
+                
+                // Truncgil no longer provides BIST stocks, so we mock them for preview mode
+                BIST_STOCKS.forEach(stock => {
+                  const sym = stock.symbol;
+                  if (!next[sym]) {
+                    // Generate a stable random price based on symbol name
+                    const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const basePrice = 10 + (seed % 200);
+                    const randomChange = (Math.sin(Date.now() / 10000 + seed) * 5); // -5% to +5%
+                    next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
+                    next[`${sym}_change`] = +randomChange.toFixed(2);
+                  }
+                });
+                
+                COMMODITY_ITEMS.forEach(item => {
+                  const sym = item.symbol;
+                  if (!next[sym]) {
+                    const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const basePrice = 50 + (seed % 2000);
+                    const randomChange = (Math.sin(Date.now() / 10000 + seed) * 3);
+                    next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
+                    next[`${sym}_change`] = +randomChange.toFixed(2);
+                  }
+                });
+                
+                if (!next["XU100"]) {
+                  next["XU100"] = 14073.79 + (Math.sin(Date.now() / 10000) * 100);
+                  next["XU100_change"] = +(Math.sin(Date.now() / 10000) * 2).toFixed(2);
+                }
+                if (!next["XU030"]) {
+                  next["XU030"] = 15200.50 + (Math.sin(Date.now() / 10000) * 120);
+                  next["XU030_change"] = +(Math.sin(Date.now() / 10000) * 2.2).toFixed(2);
+                }
+                if (!next["TRY=X"]) {
+                  next["TRY=X"] = 44.60 + (Math.sin(Date.now() / 10000) * 0.5);
+                  next["TRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.1).toFixed(2);
+                }
+                if (!next["EURTRY=X"]) {
+                  next["EURTRY=X"] = 52.50 + (Math.sin(Date.now() / 10000) * 0.6);
+                  next["EURTRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.15).toFixed(2);
+                }
+                if (!next["GC=F"]) {
+                  next["GC=F"] = 4749.57 + (Math.sin(Date.now() / 10000) * 20);
+                  next["GC=F_change"] = +(Math.sin(Date.now() / 10000) * 0.8).toFixed(2);
+                }
+                if (!next["GA=F"]) {
+                  next["GA=F"] = 6812.73 + (Math.sin(Date.now() / 10000) * 15);
+                  next["GA=F_change"] = +(Math.sin(Date.now() / 10000) * 0.7).toFixed(2);
+                }
+
                 console.log("[App] Prices updated from fallback. Count:", Object.keys(next).length);
                 return next;
               });
@@ -529,21 +740,66 @@ useEffect(() => {
             console.warn(`[App] BIST source ${targetUrl} failed:`, err);
           }
         }
+        
+        // If all sources failed, still mock BIST stocks
+        if (!success) {
+          setPrices(prev => {
+            const next = { ...prev };
+            BIST_STOCKS.forEach(stock => {
+              const sym = stock.symbol;
+              if (!next[sym]) {
+                const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const basePrice = 10 + (seed % 200);
+                const randomChange = (Math.sin(Date.now() / 10000 + seed) * 5);
+                next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
+                next[`${sym}_change`] = +randomChange.toFixed(2);
+              }
+            });
+            
+            COMMODITY_ITEMS.forEach(item => {
+              const sym = item.symbol;
+              if (!next[sym]) {
+                const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const basePrice = 50 + (seed % 2000);
+                const randomChange = (Math.sin(Date.now() / 10000 + seed) * 3);
+                next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
+                next[`${sym}_change`] = +randomChange.toFixed(2);
+              }
+            });
+            
+            if (!next["XU100"]) {
+              next["XU100"] = 14073.79 + (Math.sin(Date.now() / 10000) * 100);
+              next["XU100_change"] = +(Math.sin(Date.now() / 10000) * 2).toFixed(2);
+            }
+            if (!next["XU030"]) {
+              next["XU030"] = 15200.50 + (Math.sin(Date.now() / 10000) * 120);
+              next["XU030_change"] = +(Math.sin(Date.now() / 10000) * 2.2).toFixed(2);
+            }
+            if (!next["TRY=X"]) {
+              next["TRY=X"] = 44.60 + (Math.sin(Date.now() / 10000) * 0.5);
+              next["TRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.1).toFixed(2);
+            }
+            if (!next["EURTRY=X"]) {
+              next["EURTRY=X"] = 52.50 + (Math.sin(Date.now() / 10000) * 0.6);
+              next["EURTRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.15).toFixed(2);
+            }
+            if (!next["GC=F"]) {
+              next["GC=F"] = 4749.57 + (Math.sin(Date.now() / 10000) * 20);
+              next["GC=F_change"] = +(Math.sin(Date.now() / 10000) * 0.8).toFixed(2);
+            }
+            if (!next["GA=F"]) {
+              next["GA=F"] = 6812.73 + (Math.sin(Date.now() / 10000) * 15);
+              next["GA=F_change"] = +(Math.sin(Date.now() / 10000) * 0.7).toFixed(2);
+            }
+            return next;
+          });
+        }
     } catch (e) {
       console.error("BIST fallback critical failure:", e);
     }
   }, []);
 
   const fetchPrices = useCallback(async () => {
-    if (window.location.protocol === 'about:') {
-      console.warn("[App] Running in sandboxed iframe, skipping backend fetch.");
-      setFetchError("Önizleme Modu (Yedekler devrede)");
-      fetchCryptoFallback();
-      fetchBistFallback();
-      setLoading(false);
-      return;
-    }
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     
@@ -598,17 +854,17 @@ useEffect(() => {
       } else {
         const errorText = await res.text().catch(() => "Unknown error");
         console.warn(`[App] Backend error ${res.status}:`, errorText);
-        setFetchError(`Fiyat Hattı Hatası: ${res.status} (Yedekler devrede)`);
+        setFetchError(`Fiyat Hattı Hatası: ${res.status}`);
         fetchCryptoFallback();
         fetchBistFallback();
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.warn("[App] API fetch timed out");
-        setFetchError("Bağlantı Zaman Aşımı (Yedekler devrede)");
+        setFetchError("Bağlantı Zaman Aşımı");
       } else if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
         console.warn("[App] Invalid URL context, using fallbacks.");
-        setFetchError("Önizleme Modu (Yedekler devrede)");
+        setFetchError(`Bağlantı Hatası (URL): ${error.message}`);
       } else {
         console.error("[App] API fetch error:", error);
         setFetchError(`Bağlantı Hatası: ${error.message}`);
@@ -621,7 +877,6 @@ useEffect(() => {
   }, [fetchCryptoFallback, fetchBistFallback]);
 
   const fetchNews = useCallback(async () => {
-    if (window.location.protocol === 'about:') return;
     try {
       const res = await fetch('/api/news');
       if (res.ok) setNews(await res.json());
@@ -893,7 +1148,8 @@ Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odak
 }, [prices, aiCache]);
 
 const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
-  const liveChange = Number(currentPrices[`${s.symbol}_change`] ?? s.change ?? 0);
+  const safePrices = currentPrices || {};
+  const liveChange = Number(safePrices[`${s.symbol}_change`] ?? s.change ?? 0);
   let pd = PATTERN_DATA[s.symbol];
   if (!pd) {
     const isCrypto = s.symbol.includes("USDT");
@@ -956,24 +1212,52 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
 }, []);
 
 const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
-  setPortfolioLoading(true);
-  await fetchPrices();
-  
+  if (portfolioLoading) return;
   const activeMarket = targetMarket || market;
+  console.log(`[App] generateSmartPortfolio starting for ${activeMarket}`);
+  setPortfolioError(null);
 
-  setTimeout(() => {
+  // Prevent manual regeneration if portfolio already exists
+  if (!targetMarket && portfolios && portfolios[activeMarket]) {
+    console.log(`[App] Portfolio already exists for ${activeMarket}, switching screen.`);
+    setScreen("portfolio");
+    return;
+  }
+
+  setPortfolioLoading(true);
+  
+  // Give UI a chance to render the loading state
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  try {
+    // 1. Ensure we have prices
+    const hasPrices = Object.keys(prices || {}).length > 10;
+    if (!hasPrices) {
+      console.log("[App] No prices found, fetching before portfolio generation...");
+      await fetchPrices();
+    }
+
+    // Use another small delay to keep UI responsive
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    console.log(`[App] Processing portfolio generation for ${activeMarket}`);
     const budget = activeMarket === "CRYPTO" ? 5000 : 100000;
     const marketStocks = activeMarket === "BIST" ? BIST_STOCKS : (activeMarket === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
 
+    if (!marketStocks || marketStocks.length === 0) {
+      throw new Error(`Market stocks for ${activeMarket} is empty or undefined`);
+    }
+
     const items: any[] = [];
 
-    // Capture and close existing active positions before generating new ones
-    const currentPortfolio = portfolios[activeMarket];
+    // 2. Handle existing portfolio closure
+    const currentPortfolio = (portfolios && portfolios[activeMarket]) ? portfolios[activeMarket] : null;
+    let closedItems: any[] = [];
     if (currentPortfolio && currentPortfolio.items) {
       const activeItems = currentPortfolio.items.filter((i: any) => i.status === 'ACTIVE');
       if (activeItems.length > 0) {
-        const manualClosedItems = activeItems.map((item: any) => {
-          const currentPrice = prices[item.symbol] || item.entryPrice;
+        closedItems = activeItems.map((item: any) => {
+          const currentPrice = (prices && prices[item.symbol]) || item.entryPrice;
           const isShort = item.side === 'short';
           const leverage = item.leverage || 1;
           const pnl = isShort 
@@ -987,30 +1271,42 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
             market: activeMarket 
           };
         });
-        setTradeHistory(prev => [...manualClosedItems, ...prev].slice(0, 50));
       }
     }
 
-    const sectorCandidates = marketStocks.map(s => {
-      const scores = calculateAssetScore(s, prices);
-      const side = scores.longScore >= scores.shortScore ? 'long' : 'short';
-      const score = side === 'long' ? scores.longScore : scores.shortScore;
-      return { ...s, ...scores, side, score };
-    }).sort((a, b) => b.score - a.score).slice(0, 4);
+    // 3. Score and select candidates
+    const scoredCandidates = marketStocks.map(s => {
+      try {
+        const scores = calculateAssetScore(s, prices);
+        const side = (scores.longScore >= scores.shortScore) ? 'long' : 'short';
+        const score = side === 'long' ? scores.longScore : scores.shortScore;
+        return { ...s, ...scores, side, score };
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean);
+
+    const sectorCandidates = scoredCandidates
+      .sort((a: any, b: any) => b.score - a.score)
+      .slice(0, 4);
+
+    if (sectorCandidates.length === 0) {
+      throw new Error("Piyasa verileri analiz edilemedi. Lütfen fiyatları yenileyip tekrar deneyin.");
+    }
 
     const perAssetBudget = budget / sectorCandidates.length;
 
-    sectorCandidates.forEach(c => {
-      const price = prices[c.symbol] || c.price || 1;
+    sectorCandidates.forEach((c: any) => {
+      const price = (prices && prices[c.symbol]) || c.price || 1;
       const isShort = c.side === 'short';
       const potential = c.score / 10;
       
-      const precision = c.symbol.includes("USDT") ? 4 : 2;
+      const precision = (c.symbol && c.symbol.includes("USDT")) ? 4 : 2;
       const tp = isShort ? +(price * (1 - potential / 100)).toFixed(precision) : +(price * (1 + potential / 100)).toFixed(precision);
       const sl = isShort ? +(price * 1.05).toFixed(precision) : +(price * 0.95).toFixed(precision);
 
       const isCrypto = activeMarket === "CRYPTO";
-      const leverage = isCrypto ? 20 : 1; // 20x leverage for crypto
+      const leverage = isCrypto ? 20 : 1; 
       const unleveragedAmount = perAssetBudget;
       const totalPositionSize = unleveragedAmount * leverage;
 
@@ -1028,6 +1324,7 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
       });
     });
 
+    // 4. Finalize portfolio
     const now = new Date();
     const schedule = [0, 3, 6, 10, 14, 17, 20];
     const currentHour = now.getHours();
@@ -1048,17 +1345,17 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
       market: activeMarket
     };
 
-    setPortfolios(prev => ({ ...prev, [activeMarket]: newPortfolio }));
-    
-    // Monday 10:00 AM Start Logic (Istanbul Time)
-    const nowIstanbul = new Date(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Istanbul' }).format(now));
-    const mondayStart = new Date("2026-04-13T10:00:00");
-    const isStarted = nowIstanbul >= mondayStart;
+    const nowMs = now.getTime();
+    const mondayStart = new Date("2026-04-13T10:00:00+03:00").getTime();
+    const isStarted = nowMs >= mondayStart;
 
-    console.log(`[App] Generating portfolio. isStarted: ${isStarted}, nowIstanbul: ${nowIstanbul.toISOString()}`);
-
+    // Batch state updates and transition screen
+    if (closedItems.length > 0) {
+      setTradeHistory(prev => [...closedItems, ...(Array.isArray(prev) ? prev : [])].slice(0, 200));
+    }
+    setPortfolios(prev => ({ ...(prev || {}), [activeMarket]: newPortfolio }));
     setPortfolioStats(prev => ({
-      ...prev,
+      ...(prev || {}),
       [activeMarket]: {
         daily: isStarted ? (Math.random() * 2.5) : 0,
         weekly: isStarted ? (Math.random() * 8.2) : 0,
@@ -1068,12 +1365,17 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
 
     setPortfolioLoading(false);
     setScreen("portfolio");
-  }, 1500);
-}, [prices, calculateAssetScore, market, fetchPrices, portfolios]);
+    console.log(`[App] Portfolio generated successfully for ${activeMarket}`);
+  } catch (err: any) {
+    console.error("[App] Error during portfolio generation:", err);
+    setPortfolioError(err.message || "Bilinmeyen bir hata oluştu.");
+    setPortfolioLoading(false);
+  }
+}, [prices, calculateAssetScore, market, fetchPrices, portfolios, portfolioLoading]);
 
 // Auto-generate portfolio if empty when visiting portfolio screen
 useEffect(() => {
-  if (screen === "portfolio" && !portfolios[market] && !portfolioLoading) {
+  if (screen === "portfolio" && (!portfolios || !portfolios[market]) && !portfolioLoading) {
     console.log(`[App] Auto-generating ${market} portfolio as it is empty.`);
     generateSmartPortfolio(market);
   }
@@ -1145,7 +1447,7 @@ useEffect(() => {
   if (changed) {
     setPortfolios(newPortfolios);
     if (newlyClosed.length > 0) {
-      setTradeHistory(prev => [...newlyClosed, ...prev].slice(0, 50));
+      setTradeHistory(prev => [...newlyClosed, ...(Array.isArray(prev) ? prev : [])].slice(0, 200));
     }
   }
 }, [prices, portfolios]);
@@ -1193,7 +1495,7 @@ useEffect(() => {
     }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
 
     setCandidates(prev => {
-      if (JSON.stringify(prev[m]) === JSON.stringify(found)) return prev;
+      if (safeJsonStringify(prev[m]) === safeJsonStringify(found)) return prev;
       return { ...prev, [m]: found };
     });
 
@@ -1209,7 +1511,7 @@ useEffect(() => {
       }).filter(s => s.ceilingScore >= 45).sort((a, b) => b.ceilingScore - a.ceilingScore);
       
       setCeilingCandidates(prev => {
-        if (JSON.stringify(prev[m]) === JSON.stringify(ceiling)) return prev;
+        if (safeJsonStringify(prev[m]) === safeJsonStringify(ceiling)) return prev;
         return { ...prev, [m]: ceiling };
       });
     }
@@ -1286,7 +1588,7 @@ border: "1px solid #30363d"
         onViewCorrection={() => setScreen("correction")}
         onViewPortfolio={() => setScreen("portfolio")}
         onGeneratePortfolio={generateSmartPortfolio}
-        portfolio={portfolios[market]}
+        portfolio={portfolios?.[market]}
         portfolioLoading={portfolioLoading}
         onRefresh={handleRefresh}
         loading={loading}
@@ -1296,10 +1598,11 @@ border: "1px solid #30363d"
       />}
       {screen === "portfolio" && (
         <PortfolioScreen 
-          portfolio={portfolios[market]} 
+          portfolio={portfolios?.[market]} 
           prices={prices} 
           loading={portfolioLoading}
-          stats={portfolioStats[market]}
+          error={portfolioError}
+          stats={portfolioStats?.[market]}
           history={tradeHistory}
           onGenerate={generateSmartPortfolio}
           onRefresh={handleRefresh}
@@ -1362,7 +1665,7 @@ border: "1px solid #30363d"
         <div>Stocks Count: {stocks.length}</div>
         <div>Prices Count: {Object.keys(prices).length}</div>
         <div style={{ marginTop: 8, color: "#8b949e" }}>Sample Prices:</div>
-        <pre>{JSON.stringify(Object.fromEntries(Object.entries(prices).slice(0, 10)), null, 2)}</pre>
+        <pre>{safeJsonStringify(Object.fromEntries(Object.entries(prices).slice(0, 10)))}</pre>
         <button 
           onClick={() => { fetchBistFallback(); fetchCryptoFallback(); }}
           style={{ marginTop: 8, background: "#00d4aa", color: "#000", border: "none", padding: "4px 8px", borderRadius: 4, fontWeight: 700 }}
@@ -1376,9 +1679,10 @@ border: "1px solid #30363d"
 );
 }
 
-function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerate, onRefresh, onBack, onSelect, market }: any) {
+function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerate, onRefresh, onBack, onSelect, market, error }: any) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const budgetText = market === "CRYPTO" ? "5.000 USDT" : "100.000 TL";
+  const safePrices = prices || {};
 
   if (loading) {
     return (
@@ -1390,7 +1694,19 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
     );
   }
 
-  if (!portfolio) {
+  if (error) {
+    return (
+      <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
+        <div style={{ fontSize: 48, marginBottom: 20 }}>⚠️</div>
+        <div style={{ color: "#ff453a", fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Bir Hata Oluştu</div>
+        <div style={{ color: "#8b949e", fontSize: 14, textAlign: "center", marginBottom: 24 }}>{error}</div>
+        <button onClick={() => onGenerate(market)} style={{ background: "#bf5af2", color: "#fff", border: "none", padding: "12px 24px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}>TEKRAR DENE</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: "#8b949e", marginTop: 16, fontWeight: 700, cursor: "pointer" }}>Geri Dön</button>
+      </div>
+    );
+  }
+
+  if (!portfolio || !portfolio.items) {
     return (
       <div style={{ height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0d1117", padding: 20 }}>
         <div style={{ fontSize: 48, marginBottom: 20 }}>💼</div>
@@ -1402,10 +1718,12 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
     );
   }
 
-  const totalPnl = portfolio.items.reduce((acc: number, item: any) => acc + (item.amount * item.pnl / 100), 0);
-  const totalPnlPercent = (totalPnl / portfolio.totalBudget) * 100;
+  const items = portfolio.items || [];
+  const totalPnl = items.reduce((acc: number, item: any) => acc + (item.amount * (item.pnl || 0) / 100), 0);
+  const totalPnlPercent = portfolio.totalBudget ? (totalPnl / portfolio.totalBudget) * 100 : 0;
   const isCrypto = market === "CRYPTO";
   const currency = isCrypto ? "USDT" : "₺";
+  const safeStats = stats || { daily: 0, weekly: 0, monthly: 0 };
 
   return (
     <div style={{ padding: "0 0 20px" }}>
@@ -1441,18 +1759,18 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <div style={{ background: "#161b22", borderRadius: 16, padding: "12px", border: "1px solid #30363d", textAlign: "center" }}>
             <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>GÜNLÜK</div>
-            <div style={{ color: stats.daily >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{stats.daily.toFixed(2)}</div>
+            <div style={{ color: safeStats.daily >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{safeStats.daily.toFixed(2)}</div>
           </div>
           <div style={{ background: "#161b22", borderRadius: 16, padding: "12px", border: "1px solid #30363d", textAlign: "center" }}>
             <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>HAFTALIK</div>
-            <div style={{ color: stats.weekly >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{stats.weekly.toFixed(2)}</div>
+            <div style={{ color: safeStats.weekly >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{safeStats.weekly.toFixed(2)}</div>
           </div>
           <div style={{ background: "#161b22", borderRadius: 16, padding: "12px", border: "1px solid #30363d", textAlign: "center" }}>
             <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700, marginBottom: 4 }}>AYLIK</div>
-            <div style={{ color: stats.monthly >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{stats.monthly.toFixed(2)}</div>
+            <div style={{ color: safeStats.monthly >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>%{safeStats.monthly.toFixed(2)}</div>
           </div>
         </div>
-        {stats.daily === 0 && (
+        {safeStats.daily === 0 && (
           <div style={{ marginTop: 12, background: "rgba(191,90,242,0.05)", borderRadius: 10, padding: "8px 12px", border: "1px solid rgba(191,90,242,0.2)", display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ fontSize: 14 }}>ℹ️</div>
             <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 600, lineHeight: 1.4 }}>
@@ -1464,12 +1782,12 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
 
       <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Aktif {market} Pozisyonları</div>
-        {portfolio.items.map((item: any) => {
+        {items.map((item: any) => {
           const isShort = item.side === 'short';
           const sideColor = isShort ? "#ff453a" : "#00d4aa";
-          const pnl = item.pnl;
+          const pnl = item.pnl || 0;
           const isClosed = item.status !== 'ACTIVE';
-          const currentPrice = prices[item.symbol] || item.entryPrice;
+          const currentPrice = safePrices[item.symbol] || item.entryPrice;
           
           if (isClosed) return null; // Only show active positions in this section
           
@@ -1534,19 +1852,19 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, background: "rgba(0,0,0,0.2)", borderRadius: 12, padding: "10px" }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>TEKNİK</div>
-                  <div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 800 }}>%{item.techScore.toFixed(0)}</div>
+                  <div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 800 }}>%{(item.techScore || 0).toFixed(0)}</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>TEMEL</div>
-                  <div style={{ color: "#00b8ff", fontSize: 11, fontWeight: 800 }}>%{item.fundScore.toFixed(0)}</div>
+                  <div style={{ color: "#00b8ff", fontSize: 11, fontWeight: 800 }}>%{(item.fundScore || 0).toFixed(0)}</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>BALİNA</div>
-                  <div style={{ color: "#bf5af2", fontSize: 11, fontWeight: 800 }}>%{item.whaleScore.toFixed(0)}</div>
+                  <div style={{ color: "#bf5af2", fontSize: 11, fontWeight: 800 }}>%{(item.whaleScore || 0).toFixed(0)}</div>
                 </div>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>GLOBAL</div>
-                  <div style={{ color: "#ff9f0a", fontSize: 11, fontWeight: 800 }}>%{item.globalScore.toFixed(0)}</div>
+                  <div style={{ color: "#ff9f0a", fontSize: 11, fontWeight: 800 }}>%{(item.globalScore || 0).toFixed(0)}</div>
                 </div>
               </div>
 
@@ -1559,55 +1877,10 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
       </div>
 
       <div style={{ padding: "0 20px 20px", textAlign: "center" }}>
-        <button 
-          onClick={() => setShowResetConfirm(true)}
-          style={{ 
-            background: "rgba(255,69,58,0.1)", 
-            border: "1px solid rgba(255,69,58,0.3)", 
-            color: "#ff453a", 
-            padding: "10px 20px", 
-            borderRadius: 12, 
-            fontSize: 12, 
-            fontWeight: 800, 
-            cursor: "pointer",
-            width: "100%"
-          }}
-        >
-          🔄 PORTFÖYÜ SIFIRLA VE YENİDEN OLUŞTUR
-        </button>
         <div style={{ color: "#4a5568", fontSize: 10, marginTop: 8 }}>
-          * Bu işlem mevcut tüm aktif pozisyonları o anki fiyattan kapatır.
+          * Portföy bileşimi sadece belirlenen saatlerde AI tarafından güncellenir.
         </div>
       </div>
-
-      {showResetConfirm && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.85)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(10px)" }}>
-          <div style={{ background: "#1c2128", borderRadius: 24, padding: 24, width: "100%", maxWidth: 320, border: "1px solid #30363d", textAlign: "center" }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-            <div style={{ color: "#fff", fontSize: 18, fontWeight: 800, marginBottom: 12 }}>Emin misiniz?</div>
-            <div style={{ color: "#8b949e", fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>
-              {market} portföyünüzü sıfırlayıp yeniden oluşturmak üzeresiniz. Mevcut tüm aktif pozisyonlar kapatılacaktır.
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button 
-                onClick={() => {
-                  setShowResetConfirm(false);
-                  onGenerate(market);
-                }}
-                style={{ background: "#ff453a", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}
-              >
-                EVET, SIFIRLA
-              </button>
-              <button 
-                onClick={() => setShowResetConfirm(false)}
-                style={{ background: "#30363d", color: "#fff", border: "none", padding: "14px", borderRadius: 12, fontWeight: 800, cursor: "pointer" }}
-              >
-                İPTAL
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <TradeHistoryTable history={history} market={market} />
     </div>
@@ -1615,7 +1888,7 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
 }
 
 function TradeHistoryTable({ history, market }: any) {
-  const filtered = history.filter((h: any) => {
+  const filtered = (history || []).filter((h: any) => {
     const isSameMarket = h.market === market;
     const isRecent = (new Date().getTime() - new Date(h.closedAt).getTime()) < (1000 * 60 * 60 * 24 * 7);
     return isSameMarket && isRecent;
