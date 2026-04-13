@@ -151,7 +151,7 @@ SISE: { rsi: 35, macd: 0.82, fibLevel: "0.786", patternScore: 91, pattern: "Dü�
 DOHOL: { rsi: 33, macd: 0.91, fibLevel: "0.786", patternScore: 93, pattern: "Düşen Kama + RSI Ayrışma ✦", potential: 38 },
 PETKM: { rsi: 37, macd: 0.61, fibLevel: "0.618", patternScore: 82, pattern: "Düşen Kama Kırılımı ✦", potential: 28 },
 FROTO: { rsi: 58, macd: 0.12, fibLevel: "0.236", patternScore: 42, pattern: "Yükseliş Kanalı", potential: 12 },
-ASELS: { rsi: 34, macd: 0.95, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 42 },
+ASELS: { rsi: 48, macd: 0.95, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 42 },
 MGROS: { rsi: 55, macd: -0.08, fibLevel: "0.5", patternScore: 32, pattern: "Konsolidasyon", potential: 10 },
 PGSUS: { rsi: 36, macd: 0.88, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Kama Kırılımı ✦", potential: 34 },
 TAVHL: { rsi: 43, macd: 0.48, fibLevel: "0.618", patternScore: 74, pattern: "Çift Dip + MACD Kesişim", potential: 22 },
@@ -294,6 +294,31 @@ function generateCandleData(basePrice: number, periods = 60) {
 import { isSandboxed, safeStorage, safeJsonParse } from "./utils";
 
 // ─── UTILS ──────────────────────────────────────────────────────────────────
+const getAdjustedTechnicals = (symbol: string, liveChange: number) => {
+  let pd = { ...PATTERN_DATA[symbol] };
+  if (!pd || Object.keys(pd).length === 0) {
+    const isCrypto = symbol.includes("-USDT");
+    const volMult = isCrypto ? 2 : 1;
+    if (liveChange > 3 * volMult) {
+      pd = { rsi: 72, macd: 0.8, fibLevel: "0.786", patternScore: 80, pattern: "Yükseliş Trendi", potential: 5 };
+    } else if (liveChange < -3 * volMult) {
+      pd = { rsi: 28, macd: -0.6, fibLevel: "0.236", patternScore: 80, pattern: "Aşırı Satım", potential: 5 };
+    } else {
+      pd = { rsi: 50, macd: 0.1, fibLevel: "0.5", patternScore: 40, pattern: "Yatay Konsolidasyon", potential: 3 };
+    }
+  }
+
+  // Dynamic Nudge: Adjust RSI/MACD based on daily change to feel "live"
+  // If stock is up 5%, RSI should be higher than its baseline
+  const rsiNudge = liveChange * 2.5;
+  const macdNudge = liveChange * 0.05;
+  
+  pd.rsi = Math.max(10, Math.min(95, +(pd.rsi + rsiNudge).toFixed(1)));
+  pd.macd = +(pd.macd + macdNudge).toFixed(2);
+  
+  return pd;
+};
+
 const safeJsonStringify = (obj: any) => {
   try {
     return JSON.stringify(obj);
@@ -1150,18 +1175,7 @@ Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odak
 const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
   const safePrices = currentPrices || {};
   const liveChange = Number(safePrices[`${s.symbol}_change`] ?? s.change ?? 0);
-  let pd = PATTERN_DATA[s.symbol];
-  if (!pd) {
-    const isCrypto = s.symbol.includes("USDT");
-    const volMult = isCrypto ? 2 : 1;
-    if (liveChange > 3 * volMult) {
-      pd = { rsi: 75, macd: -0.5, fibLevel: "0.786", patternScore: 80, pattern: "Aşırı Alım", potential: 5 };
-    } else if (liveChange < -3 * volMult) {
-      pd = { rsi: 25, macd: 0.5, fibLevel: "0.236", patternScore: 80, pattern: "Aşırı Satım", potential: 5 };
-    } else {
-      pd = { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 40, pattern: "Yatay", potential: 3 };
-    }
-  }
+  const pd = getAdjustedTechnicals(s.symbol, liveChange);
 
   let rsiLongBias = pd.rsi < 40 ? (40 - pd.rsi) * 1.5 : 0;
   let rsiShortBias = pd.rsi > 60 ? (pd.rsi - 60) * 1.5 : 0;
@@ -1190,14 +1204,14 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
   let globalBullish = 30 + (pseudoRandom(3) * 70);
 
   if (isBist) {
-    longScore = (techLong * 0.6) + (fundBullish * 0.4);
-    shortScore = (techShort * 0.6) + ((100 - fundBullish) * 0.4);
+    longScore = (techLong * 0.4) + (fundBullish * 0.6);
+    shortScore = (techShort * 0.4) + ((100 - fundBullish) * 0.6);
   } else if (isCrypto) {
-    longScore = (techLong * 0.7) + (whaleBullish * 0.3);
-    shortScore = (techShort * 0.7) + ((100 - whaleBullish) * 0.3);
+    longScore = (techLong * 0.85) + (whaleBullish * 0.15);
+    shortScore = (techShort * 0.85) + ((100 - whaleBullish) * 0.15);
   } else {
-    longScore = (techLong * 0.5) + (globalBullish * 0.5);
-    shortScore = (techShort * 0.5) + ((100 - globalBullish) * 0.5);
+    longScore = (techLong * 0.6) + (globalBullish * 0.4);
+    shortScore = (techShort * 0.6) + ((100 - globalBullish) * 0.4);
   }
 
   return {
@@ -1284,14 +1298,14 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
       } catch (e) {
         return null;
       }
-    }).filter(Boolean);
+    }).filter((c: any) => c && c.score >= 85);
 
     const sectorCandidates = scoredCandidates
       .sort((a: any, b: any) => b.score - a.score)
       .slice(0, 4);
 
     if (sectorCandidates.length === 0) {
-      throw new Error("Piyasa verileri analiz edilemedi. Lütfen fiyatları yenileyip tekrar deneyin.");
+      throw new Error("Piyasa verileri analiz edilemedi veya %85 güven puanı üzerinde aday bulunamadı. Lütfen fiyatları yenileyip tekrar deneyin.");
     }
 
     const perAssetBudget = budget / sectorCandidates.length;
@@ -1469,7 +1483,7 @@ useEffect(() => {
       const side = scores.longScore >= scores.shortScore ? 'long' : 'short';
       const score = side === 'long' ? scores.longScore : scores.shortScore;
       
-      if (score < 65) return [];
+      if (score < 75) return [];
 
       const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
       const pseudoRandom = (offset: number) => {
@@ -2458,6 +2472,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
   const filteredCandidates = candidates.filter((stock: any) => {
     if (filterSide === "long" && stock.side !== "long") return false;
     if (filterSide === "short" && stock.side !== "short") return false;
+    if (stock.dynamicPotential < 80) return false;
     return true;
   });
 
@@ -2760,11 +2775,14 @@ return (
 );
 }
 
-function DetailScreen({ stock, prices, patternData: pd, aiAnalysis, aiLoading, onFetchAi, kapNews, tab, setTab, timeframe, setTimeframe, onBack }: any) {
-let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
-if (!Number.isFinite(price)) price = 0;
+function DetailScreen({ stock, prices, patternData: initialPd, aiAnalysis, aiLoading, onFetchAi, kapNews, tab, setTab, timeframe, setTimeframe, onBack }: any) {
 let currentChange = Number(prices[`${stock.symbol}_change`] ?? stock.change ?? 0);
 if (!Number.isFinite(currentChange)) currentChange = 0;
+
+// Use adjusted technicals for the detail screen to match live price action
+const pd = useMemo(() => getAdjustedTechnicals(stock.symbol, currentChange), [stock.symbol, currentChange]);
+
+let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
 const up = currentChange >= 0;
 const isShort = stock.side === 'short';
 const sideColor = isShort ? "#ff453a" : "#00d4aa";
@@ -2838,7 +2856,8 @@ return (
         { l: "RSI", v: pd.rsi, good: pd.rsi < 40 },
         { l: "MACD", v: pd.macd > 0 ? "ALIŞ" : "SATIŞ", good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
-        { l: "MA", v: `${maScore}/12`, good: maScore >= 10 },
+        { l: "SMA 20", v: chartData[chartData.length-1]?.sma20?.toFixed(pricePrecision) || "---", good: price > (chartData[chartData.length-1]?.sma20 || 0) },
+        { l: "EMA 50", v: chartData[chartData.length-1]?.ema50?.toFixed(pricePrecision) || "---", good: price > (chartData[chartData.length-1]?.ema50 || 0) },
         { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
         ...(stock.whale && stock.whale.action !== "YOK" ? [{ l: "BALİNA", v: `${stock.whale.action} (${stock.whale.amount})`, good: stock.whale.action === "ALIM" }] : []),
