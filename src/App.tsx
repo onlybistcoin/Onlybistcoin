@@ -2060,7 +2060,11 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, background: "rgba(0,0,0,0.2)", borderRadius: 12, padding: "10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, background: "rgba(0,0,0,0.2)", borderRadius: 12, padding: "10px" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ color: "#00d4aa", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>GÜVEN</div>
+                  <div style={{ color: "#fff", fontSize: 11, fontWeight: 800 }}>%{(item.score || 0).toFixed(0)}</div>
+                </div>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700, marginBottom: 2 }}>TEKNİK</div>
                   <div style={{ color: "#00d4aa", fontSize: 11, fontWeight: 800 }}>%{(item.techScore || 0).toFixed(0)}</div>
@@ -2886,6 +2890,7 @@ function ScalpScreen({ candidates = [], prices = {}, lastUpdated, onBack, onSele
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ background: "rgba(0,212,170,0.15)", color: "#00d4aa", fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 6, border: "1px solid rgba(0,212,170,0.3)" }}>GÜVEN: %{Math.round(stock.dynamicPotential || 0)}</span>
                   <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {Math.round(pd.rsi)}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
                   <span style={{ background: "rgba(255,214,10,0.1)", color: "#ffd60a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>MA: {isShort ? (stock.maSellCount || 0) : (stock.maBuyCount || 0)}/12</span>
@@ -3074,7 +3079,7 @@ function CandidatesScreen({ candidates = [], prices = {}, lastUpdated, onBack, o
 
           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: "10px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ color: sideColor, fontSize: 13, fontWeight: 700 }}>📐 {pd.pattern}</div>
-            <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>Güven: %{pd.patternScore}</div>
+            <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>Güven: %{Math.round(potential)}</div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
@@ -3183,7 +3188,7 @@ return (
         { l: "MACD", v: `${pd.macd > 0 ? "▲" : "▼"} ${pd.macd}`, good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
         { l: "MA", v: `${(isShort ? stock.maSellCount : stock.maBuyCount) ?? Math.round((stock.techScore || 50) / 100 * 12)}/12`, good: isShort ? (stock.maSellCount || 0) >= 10 : (stock.maBuyCount || 0) >= 10 },
-        { l: "SKOR", v: `${Math.round(pd.patternScore)}`, good: pd.patternScore > 70 },
+        { l: "SKOR", v: `${Math.round(potential)}`, good: potential > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, good: true },
         ...(stock.whale && stock.whale.action !== "YOK" ? [{ l: "BALİNA", v: `${stock.whale.action} (${stock.whale.amount})`, good: stock.whale.action === "ALIM" }] : []),
       ].map(s => (
