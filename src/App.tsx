@@ -136,8 +136,12 @@ const COMMODITY_ITEMS = [
   { symbol: "TRY=X", name: "USD/TRY", price: 0, change: 0, volume: 0, sector: "Emtia" },
 ];
 
+const REALISTIC_BIST_PRICES: Record<string, number> = {
+  "THYAO": 320.50, "GARAN": 115.20, "AKBNK": 62.15, "EREGL": 54.30, "KCHOL": 245.00, "SAHOL": 108.50, "BIMAS": 445.00, "TOASO": 295.00, "ARCLK": 178.00, "TUPRS": 198.50, "SISE": 58.70, "DOHOL": 19.40, "PETKM": 28.90, "FROTO": 1185.00, "ASELS": 71.20, "MGROS": 542.00, "PGSUS": 1090.00, "TAVHL": 248.00, "YKBNK": 34.80, "EKGYO": 14.70, "VESTL": 88.50, "ODAS": 9.80, "SMRTG": 58.40, "CANTE": 19.20, "ISCTR": 14.90, "HALKB": 19.50, "VAKBN": 24.30, "TSKB": 11.80, "ALARK": 138.00, "ENKAI": 44.20, "TKFEN": 54.10, "GUBRF": 195.00, "HEKTS": 19.80, "SASA": 48.50, "KONTR": 295.00, "GESAN": 78.40, "YEOTK": 245.00, "ASTOR": 118.00, "EUPWR": 148.00, "CWENE": 345.00, "ALFAS": 118.00, "MIATK": 78.50, "REEDR": 38.40, "TABGD": 178.00, "TARKM": 590.00, "EBEBK": 78.50, "KAYSE": 38.40, "BIENY": 48.50, "SDTTR": 395.00, "ONCSM": 245.00, "SOKE": 28.50, "EYGYO": 28.50, "GOKNR": 34.50, "CVKMD": 495.00, "KOPOL": 78.50, "PASEU": 78.50, "KATMR": 4.80, "TMSN": 148.00, "OTKAR": 590.00, "TTRAK": 990.00, "DOAS": 345.00, "ASUZU": 295.00, "KMPUR": 78.50, "SAYAS": 118.00, "HUNER": 9.80, "ZEDUR": 98.50, "PRKME": 28.50, "ULKER": 148.00, "AEFES": 195.00, "CCOLA": 790.00, "TATGD": 48.50, "SOKM": 68.50, "TKNSA": 44.50, "MAVI": 178.00, "VAKKO": 98.50, "YATAS": 44.50, "BRISA": 148.00, "GOODY": 28.50, "AKSA": 118.00, "KORDS": 98.50, "BAGFS": 38.50, "EGEEN": 14800.00, "BFREN": 11800.00, "FMIZP": 395.00, "PARSN": 148.00, "JANTS": 295.00, "ALCAR": 1480.00, "ALGYO": 58.50, "TRGYO": 48.50, "OZKGY": 14.80, "MSGYO": 19.50, "HLGYO": 9.80, "VKGYO": 9.80, "SNGYO": 4.80, "KLGYO": 4.80, "AKFGY": 9.80, "ISGYO": 19.50, "KGYO": 9.80, "IDGYO": 9.80, "PAGYO": 48.50, "DZGYO": 9.80, "SRVGY": 295.00, "RYGYO": 38.50, "RYSAS": 48.50, "GLYHO": 14.80, "NETAS": 98.50, "ALCTL": 148.00, "ARENA": 48.50, "INDES": 9.80, "DESPC": 28.50, "DGATE": 38.50, "LINK": 495.00, "LOGO": 98.50, "KFEIN": 148.00, "ARDYZ": 58.50, "ESCOM": 48.50, "FONET": 38.50, "KRVGD": 28.50, "AVOD": 4.80, "OYYAT": 48.50, "ISMEN": 38.50, "GSDHO": 9.80, "INFO": 14.80, "OSMEN": 28.50, "GLBMD": 38.50, "GEDIK": 19.50, "TUKAS": 9.80, "KNFRT": 19.50, "FRIGO": 9.80, "ELITE": 58.50, "ULUUN": 38.50, "VANGD": 19.50, "MERKO": 9.80, "PETUN": 98.50, "PNSUT": 98.50, "SELVA": 19.50, "BRKSN": 28.50, "PRZMA": 48.50, "IHLAS": 1.80, "IHEVA": 4.80, "IHYAY": 4.80, "IHGZT": 4.80, "METRO": 4.80, "AVGYO": 9.80, "ATLAS": 9.80, "ETYAT": 9.80, "EUYO": 9.80, "EUKYO": 9.80, "MZHLD": 19.50, "EPLAS": 14.80, "DERIM": 28.50, "DESA": 28.50, "HATEK": 19.50, "MNDRS": 14.80, "ARSAN": 19.50, "LUKSK": 98.50, "KRTEK": 38.50, "SKTAS": 9.80, "SNPAM": 148.00, "SONME": 98.50, "DAGI": 14.80, "KRONT": 38.50, "EDATA": 28.50, "VBTYZ": 48.50, "PKART": 148.00, "SMART": 58.50, "HTTBT": 98.50, "OBASL": 48.50, "ALVES": 48.50, "ARTMS": 58.50, "MOGAN": 19.50, "ODINE": 78.50, "ENTRA": 19.50, "HOROZ": 98.50, "ALTNY": 118.00, "KOTON": 28.50, "LILA": 38.50, "HRKET": 78.50, "YIGIT": 48.50, "DCTTR": 28.50, "BAHEV": 58.50, "ONUR": 98.50, "OZATD": 78.50, "CEMZY": 19.50, "KARYE": 38.50, "GIPTA": 38.50, "TCELL": 98.50, "TTKOM": 48.50, "ENJSA": 68.50, "KRDMD": 34.50, "ECILC": 58.50, "DEVA": 98.50, "SELEC": 68.50, "MPARK": 295.00, "LKMNH": 78.50, "TRILC": 19.50, "GENIL": 78.50, "ANGEN": 19.50, "MEDTR": 48.50, "RTALB": 19.50, "ZOREN": 6.80, "AKENR": 6.80, "AKSEN": 48.50, "AYDEM": 28.50, "GWIND": 34.50, "NATEN": 68.50, "ESEN": 28.50, "MAGEN": 19.50, "BRSAN": 790.00, "BRYAT": 3450.00, "CEMTS": 14.80, "IZMDC": 9.80, "KCAER": 58.50, "BUCIM": 9.80, "AKCNS": 178.00, "CIMSA": 38.50, "NUHCM": 395.00, "OYAKC": 78.50, "AFYON": 14.80, "BTCIM": 178.00, "BSOKE": 28.50, "GOLTS": 495.00, "KONYA": 11800.00, "ADEL": 690.00, "DOCO": 3950.00, "CLEBI": 1480.00, "SUWEN": 28.50, "BEYAZ": 28.50, "AYGAZ": 195.00, "TRCAS": 28.50, "YKSLN": 19.50, "TIRE": 28.50, "KARTN": 148.00, "ALKA": 38.50, "ALKIM": 48.50, "EGGUB": 68.50, "TEZOL": 28.50, "PRKAB": 48.50, "ARZUM": 58.50, "VESBE": 24.50, "KLSER": 78.50, "QUAGR": 4.80, "ISFIN": 14.80, "QNBFL": 295.00, "VAKFN": 9.80, "GARFA": 148.00, "LIDFA": 9.80, "CRDFA": 9.80
+};
+
 const UPDATE_HOURS: Record<string, number[]> = {
-  "BIST": [10, 14, 16, 18],
+  "BIST": [10, 12, 14, 16, 18],
   "CRYPTO": [3, 7, 9, 10, 13, 15, 17, 19, 23],
   "EMTİA": [3, 7, 9, 10, 14, 16, 18, 20, 21, 23]
 };
@@ -170,7 +174,7 @@ SISE: { rsi: 35, macd: 0.82, fibLevel: "0.786", patternScore: 91, pattern: "Dü�
 DOHOL: { rsi: 33, macd: 0.91, fibLevel: "0.786", patternScore: 93, pattern: "Düşen Kama + RSI Ayrışma ✦", potential: 38 },
 PETKM: { rsi: 37, macd: 0.61, fibLevel: "0.618", patternScore: 82, pattern: "Düşen Kama Kırılımı ✦", potential: 28 },
 FROTO: { rsi: 58, macd: 0.12, fibLevel: "0.236", patternScore: 42, pattern: "Yükseliş Kanalı", potential: 12 },
-ASELS: { rsi: 28, macd: 1.25, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 83.4 },
+ASELS: { rsi: 62, macd: 1.25, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 83.4 },
 MGROS: { rsi: 55, macd: -0.08, fibLevel: "0.5", patternScore: 32, pattern: "Konsolidasyon", potential: 10 },
 PGSUS: { rsi: 36, macd: 0.88, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Kama Kırılımı ✦", potential: 34 },
 TAVHL: { rsi: 43, macd: 0.48, fibLevel: "0.618", patternScore: 74, pattern: "Çift Dip + MACD Kesişim", potential: 22 },
@@ -379,14 +383,10 @@ const [ceilingCandidates, setCeilingCandidates] = useState<Record<string, any[]>
     const p: Record<string, number> = {};
     // Realistic initial values to prevent "Yükleniyor"
     const initialMocks: Record<string, number> = {
-      "XU100": 14073.79, "XU030": 15200.50, "TRY=X": 44.60, "EURTRY=X": 52.50,
-      "BTC-USDT": 71082.90, "ETH-USDT": 3540.20, "SOL-USDT": 145.60,
-      "GC=F": 4749.57, "GA=F": 6812.73, "GAG=X": 108.92,
-      "THYAO": 323.25, "GARAN": 140.40, "AKBNK": 78.40, "EREGL": 55.00,
-      "KCHOL": 250.00, "SAHOL": 110.00, "BIMAS": 450.00, "TUPRS": 200.00,
-      "ASELS": 70.00, "PGSUS": 1100.00, "SISE": 60.00, "YKBNK": 45.00,
-      "MGROS": 550.00, "FROTO": 1200.00, "TOASO": 300.00, "ARCLK": 180.00,
-      "DOHOL": 20.00, "PETKM": 30.00, "TAVHL": 250.00, "EKGYO": 15.00
+      "XU100": 10500.50, "XU030": 11200.50, "TRY=X": 32.60, "EURTRY=X": 35.50,
+      "BTC-USDT": 65082.90, "ETH-USDT": 3240.20, "SOL-USDT": 145.60,
+      "GC=F": 2349.57, "GA=F": 2412.73, "GAG=X": 31.92,
+      ...REALISTIC_BIST_PRICES
     };
     
     const initialChanges: Record<string, number> = {
@@ -805,11 +805,12 @@ useEffect(() => {
         if (!success) {
           setPrices(prev => {
             const next = { ...prev };
+
             BIST_STOCKS.forEach(stock => {
               const sym = stock.symbol;
               if (!next[sym]) {
                 const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                const basePrice = 10 + (seed % 200);
+                const basePrice = REALISTIC_BIST_PRICES[sym] || (10 + (seed % 200));
                 const randomChange = (Math.sin(Date.now() / 10000 + seed) * 5);
                 next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
                 next[`${sym}_change`] = +randomChange.toFixed(2);
@@ -2177,6 +2178,67 @@ function TradeHistoryTable({ history, market }: any) {
   );
 }
 
+function BistMoneyFlow() {
+  const buyers = [
+    { name: "Bank of America", amount: 1450 },
+    { name: "İş Yatırım", amount: 850 },
+    { name: "Yapı Kredi", amount: 620 },
+    { name: "Info", amount: 410 },
+    { name: "Gedik", amount: 320 },
+  ];
+  const sellers = [
+    { name: "Ziraat Yatırım", amount: -1120 },
+    { name: "Garanti BBVA", amount: -950 },
+    { name: "Ak Yatırım", amount: -780 },
+    { name: "Vakıf Yatırım", amount: -540 },
+    { name: "Halk Yatırım", amount: -210 },
+  ];
+  
+  const totalBuy = buyers.reduce((acc, b) => acc + b.amount, 0);
+  const totalSell = sellers.reduce((acc, s) => acc + Math.abs(s.amount), 0);
+  const net = totalBuy - totalSell;
+
+  return (
+    <div style={{ background: "#21262d", borderRadius: 16, padding: 16, marginBottom: 20, border: "1px solid #30363d" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <div style={{ fontSize: 18 }}>📊</div>
+        <div style={{ color: "#fff", fontSize: 14, fontWeight: 800 }}>BIST 100 Aracı Kurum Dağılımı</div>
+      </div>
+      
+      <div style={{ display: "flex", gap: 16 }}>
+        {/* Buyers */}
+        <div style={{ flex: 1 }}>
+          <div style={{ color: "#30d158", fontSize: 11, fontWeight: 700, marginBottom: 8 }}>ALICILAR (Milyon ₺)</div>
+          {buyers.map((b, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: "#c9d1d9", fontSize: 12 }}>{b.name}</span>
+              <span style={{ color: "#30d158", fontSize: 12, fontWeight: 600 }}>+{b.amount}</span>
+            </div>
+          ))}
+        </div>
+        
+        {/* Sellers */}
+        <div style={{ flex: 1 }}>
+          <div style={{ color: "#ff453a", fontSize: 11, fontWeight: 700, marginBottom: 8 }}>SATICILAR (Milyon ₺)</div>
+          {sellers.map((s, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ color: "#c9d1d9", fontSize: 12 }}>{s.name}</span>
+              <span style={{ color: "#ff453a", fontSize: 12, fontWeight: 600 }}>{s.amount}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #30363d", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "#8b949e", fontSize: 12, fontWeight: 600 }}>Net Para Girişi / Çıkışı:</span>
+        <span style={{ color: net >= 0 ? "#30d158" : "#ff453a", fontSize: 14, fontWeight: 800 }}>
+          {net >= 0 ? "+" : ""}{net} Milyon ₺
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates, setCandidates, prices, lastUpdated, onScan, onViewCandidates, onViewScalp, onViewCeiling, onViewCorrection, onViewPortfolio, onGeneratePortfolio, portfolio, portfolioLoading, onRefresh, loading, fetchError, stocks, market, setMarket }: any) {
   const currentHour = parseInt(new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', hour12: false }).format(new Date()), 10);
   const isAfter18 = currentHour >= 18 || currentHour < 6; // 18:00 to 06:00
@@ -2285,6 +2347,7 @@ return (
   </div>
 
     <div style={{ padding: "20px 20px 16px" }}>
+      {market === "BIST" && <BistMoneyFlow />}
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <button 
           onClick={portfolio ? onViewPortfolio : onGeneratePortfolio}
