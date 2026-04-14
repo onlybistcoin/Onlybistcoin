@@ -137,6 +137,19 @@ app.get("/api/prices", async (req, res) => {
 
 app.get("/api/news", (req, res) => {
   res.set('Cache-Control', 'no-store');
+  
+  // If inMemoryNews is empty, provide some default mock news
+  if (inMemoryNews.length === 0) {
+    const mockNews = [
+      { id: 1, title: "BIST 100 endeksi güne yükselişle başladı.", source: "Bloomberg HT", time: "10 dk önce", category: "BIST" },
+      { id: 2, title: "Bitcoin 70.000 dolar sınırını zorluyor.", source: "CoinDesk", time: "25 dk önce", category: "CRYPTO" },
+      { id: 3, title: "Altın fiyatlarında küresel talep artışı sürüyor.", source: "Reuters", time: "45 dk önce", category: "COMMODITY" },
+      { id: 4, title: "FED faiz kararı öncesi piyasalarda bekleyiş hakim.", source: "CNBC", time: "1 saat önce", category: "GLOBAL" },
+      { id: 5, title: "Teknoloji hisselerinde alım dalgası.", source: "Finans Gündem", time: "2 saat önce", category: "BIST" }
+    ];
+    return res.json(mockNews);
+  }
+  
   res.json(inMemoryNews);
 });
 

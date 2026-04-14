@@ -136,6 +136,25 @@ const COMMODITY_ITEMS = [
   { symbol: "TRY=X", name: "USD/TRY", price: 0, change: 0, volume: 0, sector: "Emtia" },
 ];
 
+const UPDATE_HOURS: Record<string, number[]> = {
+  "BIST": [10, 14, 16, 18],
+  "CRYPTO": [3, 7, 9, 10, 13, 15, 17, 19, 23],
+  "EMTİA": [3, 7, 9, 10, 14, 16, 18, 20, 21, 23]
+};
+
+function getNextUpdateDisplay(market: string) {
+  const now = new Date();
+  const turkeyTime = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + (3 * 60 * 60 * 1000));
+  const currentHour = turkeyTime.getHours();
+  const hours = UPDATE_HOURS[market] || [23];
+  let nextHour = hours.find(h => h > currentHour);
+  if (nextHour !== undefined) {
+    return `${nextHour.toString().padStart(2, '0')}:00`;
+  } else {
+    return `${hours[0].toString().padStart(2, '0')}:00`;
+  }
+}
+
 const PATTERN_DATA: Record<string, any> = {
 THYAO: { rsi: 32, macd: 0.85, fibLevel: "0.786", patternScore: 98, pattern: "Düşen Kama Kırılımı ✦✦", potential: 98 },
 GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 12 },
@@ -151,7 +170,7 @@ SISE: { rsi: 35, macd: 0.82, fibLevel: "0.786", patternScore: 91, pattern: "Dü�
 DOHOL: { rsi: 33, macd: 0.91, fibLevel: "0.786", patternScore: 93, pattern: "Düşen Kama + RSI Ayrışma ✦", potential: 38 },
 PETKM: { rsi: 37, macd: 0.61, fibLevel: "0.618", patternScore: 82, pattern: "Düşen Kama Kırılımı ✦", potential: 28 },
 FROTO: { rsi: 58, macd: 0.12, fibLevel: "0.236", patternScore: 42, pattern: "Yükseliş Kanalı", potential: 12 },
-ASELS: { rsi: 48, macd: 0.95, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 42 },
+ASELS: { rsi: 28, macd: 1.25, fibLevel: "0.786", patternScore: 96, pattern: "Düşen Kama + Hacim ✦✦", potential: 83.4 },
 MGROS: { rsi: 55, macd: -0.08, fibLevel: "0.5", patternScore: 32, pattern: "Konsolidasyon", potential: 10 },
 PGSUS: { rsi: 36, macd: 0.88, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Kama Kırılımı ✦", potential: 34 },
 TAVHL: { rsi: 43, macd: 0.48, fibLevel: "0.618", patternScore: 74, pattern: "Çift Dip + MACD Kesişim", potential: 22 },
@@ -401,26 +420,43 @@ const [aiCache, setAiCache] = useState<Record<string, string>>(() => {
 const [timeframe, setTimeframe] = useState("1S");
 const [tab, setTab] = useState("teknik"); 
 const [portfolios, setPortfolios] = useState<Record<string, any>>(() => {
+  // Hard reset for v3 to clear any corrupted data
+  const isReset = safeStorage.getItem("portfolioReset_20260413_v3");
+  if (!isReset) {
+    safeStorage.setItem("portfolioReset_20260413_v3", "true");
+    safeStorage.removeItem("portfolios");
+    return {};
+  }
   const saved = safeStorage.getItem("portfolios");
   return safeJsonParse(saved, {});
 });
 const [tradeHistory, setTradeHistory] = useState<any[]>(() => {
+  // Hard reset for v4 to clear any corrupted data and start fresh today
+  const isReset = safeStorage.getItem("historyReset_20260413_v4");
+  if (!isReset) {
+    safeStorage.setItem("historyReset_20260413_v4", "true");
+    safeStorage.removeItem("tradeHistory");
+    return [];
+  }
   const saved = safeStorage.getItem("tradeHistory");
   const parsed = safeJsonParse(saved);
   if (parsed && Array.isArray(parsed)) return parsed;
-  // Mock history for the last week
-  const now = new Date();
-  return [
-    { symbol: "THYAO", side: "long", pnl: 4.25, status: "TP", market: "BIST", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 2).toISOString() },
-    { symbol: "BTC-USDT", side: "short", pnl: 12.80, status: "TP", market: "CRYPTO", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 1).toISOString() },
-    { symbol: "EREGL", side: "long", pnl: -2.10, status: "SL", market: "BIST", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 3).toISOString() },
-    { symbol: "ETH-USDT", side: "long", pnl: 8.45, status: "TP", market: "CRYPTO", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 4).toISOString() },
-    { symbol: "GC=F", side: "long", pnl: 1.15, status: "TP", market: "EMTİA", closedAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 5).toISOString() },
-  ];
+  return [];
 });
 const [portfolioLoading, setPortfolioLoading] = useState(false);
 const [portfolioError, setPortfolioError] = useState<string | null>(null);
 const [portfolioStats, setPortfolioStats] = useState<Record<string, any>>(() => {
+  // Hard reset for stats as well
+  const isReset = safeStorage.getItem("statsReset_20260413_v4");
+  if (!isReset) {
+    safeStorage.setItem("statsReset_20260413_v4", "true");
+    safeStorage.removeItem("portfolioStats");
+    return {
+      BIST: { daily: 0, weekly: 0, monthly: 0 },
+      CRYPTO: { daily: 0, weekly: 0, monthly: 0 },
+      EMTİA: { daily: 0, weekly: 0, monthly: 0 }
+    };
+  }
   const saved = safeStorage.getItem("portfolioStats");
   return safeJsonParse(saved, {
     BIST: { daily: 0, weekly: 0, monthly: 0 },
@@ -452,7 +488,7 @@ const stocks = useMemo(() => {
 useEffect(() => {
   const updateTime = () => {
     const now = new Date();
-    setCurrentTime(now.toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' }));
+    setCurrentTime(now.toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul", hour: '2-digit', minute: '2-digit' }));
   };
   updateTime();
   const timer = setInterval(updateTime, 10000);
@@ -495,16 +531,15 @@ useEffect(() => {
     return () => clearTimeout(t);
   }, [aiCache]);
 
-  // Periodic cleanup of old trade history (older than 7 days)
+  // Periodic cleanup of old trade history (Monthly cleanup on the 1st)
   useEffect(() => {
     const interval = setInterval(() => {
-      const sevenDaysAgo = Date.now() - (1000 * 60 * 60 * 24 * 7);
-      setTradeHistory(prev => {
-        const safePrev = prev || [];
-        const cleaned = safePrev.filter(h => new Date(h.closedAt).getTime() > sevenDaysAgo);
-        return cleaned.length === safePrev.length ? safePrev : cleaned;
-      });
-    }, 1000 * 60 * 60); // Every hour
+      const now = new Date();
+      if (now.getDate() === 1) {
+        console.log("[App] Monthly cleanup: Resetting trade history.");
+        setTradeHistory([]);
+      }
+    }, 1000 * 60 * 60 * 12); // Check every 12 hours
     return () => clearInterval(interval);
   }, []);
 
@@ -830,7 +865,25 @@ useEffect(() => {
     
     try {
       console.log(`[App] Fetching prices from backend... (${new Date().toLocaleTimeString()})`);
-      const res = await fetch(`/api/prices?_=${Date.now()}`, { 
+      
+      // Robust URL construction for sandboxed environments
+      let apiUrl = `/api/prices?_=${Date.now()}`;
+      try {
+        const origin = window.location.origin;
+        if (origin && origin !== 'null' && window.location.protocol.startsWith('http')) {
+          apiUrl = new URL(apiUrl, origin).href;
+        } else {
+          // Try to derive from current script or just use absolute path if relative fails
+          const base = document.baseURI || window.location.href;
+          if (base && base.startsWith('http')) {
+            apiUrl = new URL(apiUrl, base).href;
+          }
+        }
+      } catch (e) {
+        console.warn("[App] Failed to construct absolute API URL, using relative path.");
+      }
+
+      const res = await fetch(apiUrl, { 
         headers: { 'Accept': 'application/json' },
         signal: controller.signal
       });
@@ -903,18 +956,31 @@ useEffect(() => {
 
   const fetchNews = useCallback(async () => {
     try {
-      const res = await fetch('/api/news');
-      if (res.ok) setNews(await res.json());
-    } catch (error) { console.error("News fetch error:", error); }
-  }, []);
+      let newsUrl = '/api/news';
+      try {
+        const origin = window.location.origin;
+        if (origin && origin !== 'null' && window.location.protocol.startsWith('http')) {
+          newsUrl = new URL(newsUrl, origin).href;
+        } else {
+          const base = document.baseURI || window.location.href;
+          if (base && base.startsWith('http')) {
+            newsUrl = new URL(newsUrl, base).href;
+          }
+        }
+      } catch (e) {}
 
-  useEffect(() => {
-    setLoading(true);
-    fetchPrices();
-    fetchNews();
-    const interval = setInterval(() => { fetchPrices(); fetchNews(); }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchPrices, fetchNews]);
+      const res = await fetch(newsUrl);
+      if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          if (Array.isArray(data)) setNews(data);
+        }
+      }
+    } catch (error) { 
+      console.error("News fetch error:", error); 
+    }
+  }, []);
 
   // Removed News Listener to avoid Firestore quota issues
 
@@ -987,65 +1053,11 @@ const startScan = useCallback(() => {
         
         if (!Number.isFinite(liveChange)) return [];
         
-        // --- Improved Logic ---
-        // 1. RSI Bias
-        let rsiLongBias = pd.rsi < 40 ? (40 - pd.rsi) * 1.5 : 0;
-        let rsiShortBias = pd.rsi > 60 ? (pd.rsi - 60) * 1.5 : 0;
-        
-        // 2. MACD Bias
-        let macdBias = pd.macd * 10; // Positive MACD favors long
-        
-        // 3. Trend Bias (liveChange)
-        let momentumBias = liveChange * 3;
-        
-        let techLong = pd.potential + rsiLongBias + macdBias + momentumBias;
-        let techShort = pd.potential + rsiShortBias - macdBias - momentumBias;
-        techLong = Math.max(0, Math.min(100, techLong));
-        techShort = Math.max(0, Math.min(100, techShort));
-
+        // Use unified scores from calculateAssetScore
+        const scores = calculateAssetScore(s, prices);
+        const { longScore, shortScore, techLong, techShort, fundBullish, whaleBullish, globalBullish, maBuyCount, maSellCount } = scores;
         const isCrypto = s.symbol.includes("USDT");
-        const isCommodity = s.sector === "Emtia";
-        const isBist = !isCrypto && !isCommodity;
-
-        // Generate consistent pseudo-random scores based on symbol
-        const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-        const pseudoRandom = (offset: number) => {
-          let x = Math.sin(seed + offset) * 10000;
-          return x - Math.floor(x);
-        };
-
-        let longScore = 0;
-        let shortScore = 0;
-        let fundBullish = 30 + (pseudoRandom(1) * 70);
-        let whaleBullish = 30 + (pseudoRandom(2) * 70);
-        let globalBullish = 30 + (pseudoRandom(3) * 70);
-
-        if (isBist) {
-          // %60 Teknik, %40 Temel
-          longScore = (techLong * 0.6) + (fundBullish * 0.4);
-          shortScore = (techShort * 0.6) + ((100 - fundBullish) * 0.4);
-        } else if (isCrypto) {
-          // %70 Teknik, %30 Balina
-          longScore = (techLong * 0.7) + (whaleBullish * 0.3);
-          shortScore = (techShort * 0.7) + ((100 - whaleBullish) * 0.3);
-        } else {
-          // %50 Teknik, %50 Temel/Haber/Dünya Gündemi
-          longScore = (techLong * 0.5) + (globalBullish * 0.5);
-          shortScore = (techShort * 0.5) + ((100 - globalBullish) * 0.5);
-        }
         
-        // Normalize and cap
-        longScore = Math.max(0, Math.min(98, longScore));
-        shortScore = Math.max(0, Math.min(98, shortScore));
-        
-        // Simulate 12 Moving Averages (SMA/EMA 5,10,20,50,100,200)
-        let maBuyCount = Math.round((longScore / 100) * 12);
-        let maSellCount = Math.round((shortScore / 100) * 12);
-        
-        // Add some noise
-        maBuyCount = Math.min(12, Math.max(0, maBuyCount + (Math.random() > 0.5 ? 1 : 0)));
-        maSellCount = Math.min(12, Math.max(0, maSellCount + (Math.random() > 0.5 ? 1 : 0)));
-
         // Simulate Whale Activity
         let whale = { action: "YOK", amount: "" };
         if (longScore >= 70 && Math.random() > 0.3) {
@@ -1121,12 +1133,14 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
     const whaleInfo = stock.whale && stock.whale.action !== "YOK" ? `Balina Aktivitesi: ${stock.whale.action} (${stock.whale.amount})` : "Belirgin balina aktivitesi yok.";
     
     const prompt = `Analist: ${isCrypto ? "Kripto" : "Borsa"}. Varlık: ${stock.symbol}. 
+Zaman Dilimi: 4 SAATLİK (4H).
 Sistem Sinyali: ${systemDecision}.
 ${whaleInfo}
 Veri: Fiyat ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
 
 Talimat: Çok kısa, teknik ve temel olarak net ol. 
-Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odaklanarak (veya neden bu yönün seçildiğini açıklayarak) yap. Özellikle ${whaleInfo} verisini dikkate al.
+Analizini 4H zaman dilimine göre yap.
+Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odaklanarak yap. Özellikle ${whaleInfo} verisini dikkate al.
 
 1. 🎯 FORMASYON: ${pd.pattern} yorumu.
 2. 📊 TEKNİK: RSI/MACD yönü.
@@ -1176,16 +1190,24 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
   const safePrices = currentPrices || {};
   const liveChange = Number(safePrices[`${s.symbol}_change`] ?? s.change ?? 0);
   const pd = getAdjustedTechnicals(s.symbol, liveChange);
-
-  let rsiLongBias = pd.rsi < 40 ? (40 - pd.rsi) * 1.5 : 0;
-  let rsiShortBias = pd.rsi > 60 ? (pd.rsi - 60) * 1.5 : 0;
-  let macdBias = pd.macd * 10;
-  let momentumBias = liveChange * 3;
+  
+  // 4H Timeframe Adjustments
+  // 4H is more stable, so we increase the weight of RSI and MACD slightly
+  let rsiLongBias = pd.rsi < 35 ? (35 - pd.rsi) * 2.0 : 0;
+  let rsiShortBias = pd.rsi > 65 ? (pd.rsi - 65) * 2.0 : 0;
+  let macdBias = pd.macd * 15;
+  let momentumBias = liveChange * 2.5;
   
   let techLong = pd.potential + rsiLongBias + macdBias + momentumBias;
   let techShort = pd.potential + rsiShortBias - macdBias - momentumBias;
   techLong = Math.max(0, Math.min(100, techLong));
   techShort = Math.max(0, Math.min(100, techShort));
+
+  // Calculate MA counts here to unify logic
+  let maBuyCount = Math.round((techLong / 100) * 12);
+  let maSellCount = Math.round((techShort / 100) * 12);
+  maBuyCount = Math.min(12, Math.max(0, Math.round(maBuyCount + (Math.random() > 0.5 ? 1 : -1))));
+  maSellCount = Math.min(12, Math.max(0, Math.round(maSellCount + (Math.random() > 0.5 ? 1 : -1))));
 
   const isCrypto = s.symbol.includes("USDT");
   const isCommodity = s.sector === "Emtia";
@@ -1199,9 +1221,9 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
 
   let longScore = 0;
   let shortScore = 0;
-  let fundBullish = 30 + (pseudoRandom(1) * 70);
-  let whaleBullish = 30 + (pseudoRandom(2) * 70);
-  let globalBullish = 30 + (pseudoRandom(3) * 70);
+  let fundBullish = 45 + (pseudoRandom(1) * 55);
+  let whaleBullish = 45 + (pseudoRandom(2) * 55);
+  let globalBullish = 45 + (pseudoRandom(3) * 55);
 
   if (isBist) {
     longScore = (techLong * 0.4) + (fundBullish * 0.6);
@@ -1221,6 +1243,8 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
     fundScore: fundBullish,
     whaleScore: whaleBullish,
     globalScore: globalBullish,
+    maBuyCount,
+    maSellCount,
     pd
   };
 }, []);
@@ -1231,9 +1255,22 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
   console.log(`[App] generateSmartPortfolio starting for ${activeMarket}`);
   setPortfolioError(null);
 
-  // Prevent manual regeneration if portfolio already exists
-  if (!targetMarket && portfolios && portfolios[activeMarket]) {
-    console.log(`[App] Portfolio already exists for ${activeMarket}, switching screen.`);
+  const currentPortfolio = (portfolios && portfolios[activeMarket]) ? portfolios[activeMarket] : null;
+  const now = new Date();
+  const nowMs = now.getTime();
+  const isSessionActive = currentPortfolio && currentPortfolio.nextUpdateTimestamp && nowMs < currentPortfolio.nextUpdateTimestamp;
+
+  // If user clicks "Generate" but session is active, just refresh prices and switch screen
+  if (!targetMarket && isSessionActive) {
+    console.log(`[App] Session active for ${activeMarket}. Refreshing prices instead of regenerating.`);
+    setLoading(true);
+    await fetchPrices();
+    setScreen("portfolio");
+    return;
+  }
+
+  // Prevent manual regeneration if portfolio already exists (legacy check, kept for safety)
+  if (!targetMarket && portfolios && portfolios[activeMarket] && isSessionActive) {
     setScreen("portfolio");
     return;
   }
@@ -1255,7 +1292,12 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     console.log(`[App] Processing portfolio generation for ${activeMarket}`);
-    const budget = activeMarket === "CRYPTO" ? 5000 : 100000;
+    
+    // Set budgets based on market
+    let budget = 1000000; // BIST: 1M TL
+    if (activeMarket === "CRYPTO") budget = 5000; // CRYPTO: 5K USD
+    else if (activeMarket === "EMTİA") budget = 300000; // EMTİA: 300K TL
+    
     const marketStocks = activeMarket === "BIST" ? BIST_STOCKS : (activeMarket === "CRYPTO" ? CRYPTO_COINS : COMMODITY_ITEMS);
 
     if (!marketStocks || marketStocks.length === 0) {
@@ -1267,21 +1309,53 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     // 2. Handle existing portfolio closure
     const currentPortfolio = (portfolios && portfolios[activeMarket]) ? portfolios[activeMarket] : null;
     let closedItems: any[] = [];
+    
+    const now = new Date();
+    const turkeyTime = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + (3 * 60 * 60 * 1000));
+    const nowMs = turkeyTime.getTime();
+
+    // Market Start Logic
+    const bistStartTime = new Date("2026-04-13T16:25:00+03:00").getTime();
+    if (activeMarket === "BIST" && nowMs < bistStartTime) {
+      throw new Error("BİST Portföyü bugün saat 16:25 itibariyle aktif olacaktır.");
+    }
+
     if (currentPortfolio && currentPortfolio.items) {
       const activeItems = currentPortfolio.items.filter((i: any) => i.status === 'ACTIVE');
+      
+      // Session expired (or forced), close all active items
       if (activeItems.length > 0) {
         closedItems = activeItems.map((item: any) => {
           const currentPrice = (prices && prices[item.symbol]) || item.entryPrice;
           const isShort = item.side === 'short';
           const leverage = item.leverage || 1;
-          const pnl = isShort 
-            ? ((item.entryPrice - currentPrice) / item.entryPrice) * 100 * leverage
-            : ((currentPrice - item.entryPrice) / item.entryPrice) * 100 * leverage;
+
+          // Safety check for entryPrice
+          const safeEntryPrice = (item.entryPrice && item.entryPrice > 0.0001) ? item.entryPrice : currentPrice;
+
+          let pnl = isShort 
+            ? ((safeEntryPrice - currentPrice) / safeEntryPrice) * 100 * leverage
+            : ((currentPrice - safeEntryPrice) / safeEntryPrice) * 100 * leverage;
+          
+          const maxPnl = (activeMarket === "BIST") ? 20 : 500;
+          if (Math.abs(pnl) > maxPnl) pnl = Math.sign(pnl) * maxPnl;
+          
+          // Check if we should keep it (TUT) or close it
+          // BIST 18:00 Kapanış: Keep if score is still good
+          // EMTİA 23:00 Kapanış: Keep if score is still good
+          const scores = calculateAssetScore(item, prices);
+          const currentScore = item.side === 'long' ? scores.longScore : scores.shortScore;
+          const shouldKeep = currentScore >= 75;
+
+          if (shouldKeep) {
+            return { ...item, pnl }; // Keep as ACTIVE
+          }
+
           return { 
             ...item, 
             status: 'CLOSED', 
             pnl, 
-            closedAt: new Date().toISOString(), 
+            closedAt: now.toISOString(), 
             market: activeMarket 
           };
         });
@@ -1289,7 +1363,7 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     }
 
     // 3. Score and select candidates
-    const scoredCandidates = marketStocks.map(s => {
+    let scoredCandidates = marketStocks.map(s => {
       try {
         const scores = calculateAssetScore(s, prices);
         const side = (scores.longScore >= scores.shortScore) ? 'long' : 'short';
@@ -1298,20 +1372,55 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
       } catch (e) {
         return null;
       }
-    }).filter((c: any) => c && c.score >= 85);
+    }).filter(Boolean);
 
-    const sectorCandidates = scoredCandidates
-      .sort((a: any, b: any) => b.score - a.score)
-      .slice(0, 4);
+    // How many new items do we need?
+    const stayingItems = closedItems.filter(i => i.status === 'ACTIVE');
+    const stayingSymbols = stayingItems.map(i => i.symbol);
+    const slotsNeeded = 4 - stayingItems.length;
+    let newSectorCandidates: any[] = [];
 
-    if (sectorCandidates.length === 0) {
-      throw new Error("Piyasa verileri analiz edilemedi veya %85 güven puanı üzerinde aday bulunamadı. Lütfen fiyatları yenileyip tekrar deneyin.");
+    if (slotsNeeded > 0) {
+      // Filter out symbols already in the staying list
+      const availableCandidates = scoredCandidates.filter((c: any) => !stayingSymbols.includes(c.symbol));
+
+      // Try to get 85+ first
+      newSectorCandidates = availableCandidates
+        .filter((c: any) => c.score >= 85)
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, slotsNeeded);
+
+      if (newSectorCandidates.length < Math.min(slotsNeeded, 1)) {
+        console.log("[App] Not enough 85+ candidates, falling back to best available (70+)");
+        newSectorCandidates = availableCandidates
+          .filter((c: any) => c.score >= 70)
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, slotsNeeded);
+      }
+
+      if (newSectorCandidates.length === 0 && slotsNeeded > 0) {
+        console.log("[App] No candidates found above 70, taking top available regardless of score");
+        newSectorCandidates = availableCandidates
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, slotsNeeded);
+      }
     }
 
-    const perAssetBudget = budget / sectorCandidates.length;
+    if (newSectorCandidates.length === 0 && stayingItems.length === 0) {
+      throw new Error("Piyasa verileri analiz edilemedi. Lütfen fiyatları yenileyip tekrar deneyin.");
+    }
 
-    sectorCandidates.forEach((c: any) => {
-      const price = (prices && prices[c.symbol]) || c.price || 1;
+    const perAssetBudget = budget / 4; // Budget is split by 4 slots
+    
+    newSectorCandidates.forEach((c: any) => {
+      const price = (prices && prices[c.symbol]) || c.price || 0;
+      
+      // Safety check: Don't add items with invalid prices
+      if (price <= 0) {
+        console.warn(`[App] Skipping ${c.symbol} due to invalid price: ${price}`);
+        return;
+      }
+
       const isShort = c.side === 'short';
       const potential = c.score / 10;
       
@@ -1334,46 +1443,59 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
         leverage,
         quantity: totalPositionSize / price,
         pnl: 0,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        createdAt: now.toISOString()
       });
     });
 
     // 4. Finalize portfolio
-    const now = new Date();
-    const schedule = [0, 3, 6, 10, 14, 17, 20];
-    const currentHour = now.getHours();
-    let nextHour = schedule.find(h => h > currentHour);
-    if (nextHour === undefined) nextHour = 0;
+    const nextUpdate = new Date(turkeyTime.getTime());
+    const displayTime = turkeyTime.toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul", hour: '2-digit', minute: '2-digit' });
     
-    const nextUpdate = new Date();
-    if (nextHour === 0) nextUpdate.setDate(nextUpdate.getDate() + 1);
-    nextUpdate.setHours(nextHour, 0, 0, 0);
+    // Use UPDATE_HOURS for all markets
+    const hours = UPDATE_HOURS[activeMarket] || [23];
+    const currentHour = nextUpdate.getHours();
+    
+    let nextHour = hours.find(h => h > currentHour);
+    
+    if (nextHour !== undefined) {
+      nextUpdate.setHours(nextHour, 0, 0, 0);
+    } else {
+      nextUpdate.setDate(nextUpdate.getDate() + 1);
+      nextUpdate.setHours(hours[0], 0, 0, 0);
+    }
+
+    // Keep existing active items that were marked to stay
+    const finalItems = [
+      ...items,
+      ...(closedItems.filter(i => i.status === 'ACTIVE'))
+    ];
 
     const newPortfolio = {
-      items,
+      items: finalItems,
       totalBudget: budget,
-      lastUpdated: now.toLocaleTimeString("tr-TR"),
-      nextUpdate: nextUpdate.toLocaleTimeString("tr-TR"),
+      lastUpdated: displayTime,
+      nextUpdate: nextUpdate.toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul", hour: '2-digit', minute: '2-digit' }),
       nextUpdateTimestamp: nextUpdate.getTime(),
-      timestamp: now.getTime(),
+      timestamp: turkeyTime.getTime(),
       market: activeMarket
     };
 
-    const nowMs = now.getTime();
-    const mondayStart = new Date("2026-04-13T10:00:00+03:00").getTime();
-    const isStarted = nowMs >= mondayStart;
+    const bistStartTs = new Date("2026-04-13T16:00:00+03:00").getTime();
+    const isStarted = nowMs >= bistStartTs;
 
     // Batch state updates and transition screen
-    if (closedItems.length > 0) {
-      setTradeHistory(prev => [...closedItems, ...(Array.isArray(prev) ? prev : [])].slice(0, 200));
+    const trulyClosed = closedItems.filter(i => i.status === 'CLOSED');
+    if (trulyClosed.length > 0) {
+      setTradeHistory(prev => [...trulyClosed, ...(Array.isArray(prev) ? prev : [])].slice(0, 1000));
     }
     setPortfolios(prev => ({ ...(prev || {}), [activeMarket]: newPortfolio }));
     setPortfolioStats(prev => ({
       ...(prev || {}),
       [activeMarket]: {
-        daily: isStarted ? (Math.random() * 2.5) : 0,
-        weekly: isStarted ? (Math.random() * 8.2) : 0,
-        monthly: isStarted ? (Math.random() * 15.4) : 0
+        daily: 0, // Reset to 0 since we just started today at 16:00
+        weekly: 0,
+        monthly: 0
       }
     }));
 
@@ -1387,84 +1509,166 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
   }
 }, [prices, calculateAssetScore, market, fetchPrices, portfolios, portfolioLoading]);
 
-// Auto-generate portfolio if empty when visiting portfolio screen
-useEffect(() => {
-  if (screen === "portfolio" && (!portfolios || !portfolios[market]) && !portfolioLoading) {
-    console.log(`[App] Auto-generating ${market} portfolio as it is empty.`);
-    generateSmartPortfolio(market);
-  }
-}, [screen, market, portfolios, portfolioLoading, generateSmartPortfolio]);
+const portfoliosRef = useRef(portfolios);
+const portfolioLoadingRef = useRef(portfolioLoading);
+const generateSmartPortfolioRef = useRef(generateSmartPortfolio);
+const isFetchingRef = useRef(false);
 
-// Monitor portfolio targets
 useEffect(() => {
-  const checkSchedule = () => {
-    const now = Date.now();
-    Object.keys(portfolios).forEach(m => {
-      const p = portfolios[m];
-      if (p && p.nextUpdateTimestamp && now >= p.nextUpdateTimestamp) {
-        console.log(`[App] Scheduled update reached for ${m}. Re-generating portfolio...`);
-        generateSmartPortfolio(m);
-      }
-    });
+  portfoliosRef.current = portfolios;
+}, [portfolios]);
+
+useEffect(() => {
+  portfolioLoadingRef.current = portfolioLoading;
+}, [portfolioLoading]);
+
+useEffect(() => {
+  generateSmartPortfolioRef.current = generateSmartPortfolio;
+}, [generateSmartPortfolio]);
+
+// Consolidated Automatic Market & Portfolio Management
+useEffect(() => {
+  const checkAll = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    try {
+      // 1. Refresh Live Data
+      await fetchPrices();
+      await fetchNews();
+
+      // 2. Manage Portfolios
+      const now = new Date();
+      const nowObj = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + (3 * 60 * 60 * 1000));
+      const nowMs = nowObj.getTime();
+      const currentHour = nowObj.getHours();
+      const currentMinute = nowObj.getMinutes();
+      const markets = ["BIST", "CRYPTO", "EMTİA"];
+      
+      // Define update hours for each market
+      const updateHours = UPDATE_HOURS;
+      
+      markets.forEach(m => {
+        const p = portfoliosRef.current[m];
+        const isEmpty = !p;
+        
+        // Check if we are at or past an update hour
+        const hours = updateHours[m] || [];
+        const lastUpdate = p && p.timestamp ? new Date(p.timestamp) : null;
+        const lastUpdateHour = lastUpdate ? lastUpdate.getHours() : -1;
+        const lastUpdateDay = lastUpdate ? lastUpdate.getDate() : -1;
+        
+        let shouldUpdate = isEmpty;
+        if (!isEmpty && lastUpdate) {
+          const isSameDay = lastUpdateDay === nowObj.getDate();
+          // Check if we passed an update hour today that we haven't processed yet
+          for (const hour of hours) {
+            if (currentHour >= hour && (lastUpdateHour < hour || !isSameDay)) {
+              shouldUpdate = true;
+              break;
+            }
+          }
+        }
+        
+        // Market Start Logic
+        if (m === "BIST") {
+          const bistStartTime = new Date("2026-04-13T16:25:00+03:00").getTime();
+          if (now.getTime() < bistStartTime) return; 
+        }
+        
+        if (shouldUpdate && !portfolioLoadingRef.current) {
+          console.log(`[App] Auto-managing ${m} portfolio (ShouldUpdate: ${shouldUpdate})`);
+          generateSmartPortfolioRef.current(m);
+        }
+      });
+    } catch (e) {
+      console.error("[App] checkAll error:", e);
+    } finally {
+      isFetchingRef.current = false;
+    }
   };
-  const interval = setInterval(checkSchedule, 60000); // Check every minute
+
+  // Initial load - only set loading if we have no data
+  if (Object.keys(prices).length < 5) {
+    setLoading(true);
+  }
+  checkAll();
+
+  // Run every 5 seconds as requested by user
+  const interval = setInterval(checkAll, 5000);
   return () => clearInterval(interval);
-}, [portfolios, generateSmartPortfolio]);
+}, [fetchPrices, fetchNews]);
 
 useEffect(() => {
-  let changed = false;
-  const newPortfolios = { ...portfolios };
-  const newlyClosed: any[] = [];
+  if (!prices || Object.keys(prices).length === 0) return;
+  
+  setPortfolios(prev => {
+    if (!prev) return prev;
+    let globalChanged = false;
+    const next = { ...prev };
+    const newlyClosed: any[] = [];
 
-  Object.keys(newPortfolios).forEach(m => {
-    const portfolio = newPortfolios[m];
-    if (!portfolio || !portfolio.items) return;
+    Object.keys(next).forEach(m => {
+      const portfolio = next[m];
+      if (!portfolio || !portfolio.items) return;
 
-    const updatedItems = portfolio.items.map((item: any) => {
-      if (item.status !== 'ACTIVE') return item;
+      let marketChanged = false;
+      const updatedItems = portfolio.items.map((item: any) => {
+        if (item.status !== 'ACTIVE') return item;
 
-      const currentPrice = prices[item.symbol];
-      if (!currentPrice) return item;
+        const currentPrice = prices[item.symbol];
+        if (!currentPrice) return item;
 
-      const isShort = item.side === 'short';
-      let newStatus = 'ACTIVE';
-      const leverage = item.leverage || 1;
-      let pnl = isShort 
-        ? ((item.entryPrice - currentPrice) / item.entryPrice) * 100 * leverage
-        : ((currentPrice - item.entryPrice) / item.entryPrice) * 100 * leverage;
+        const isShort = item.side === 'short';
+        const leverage = item.leverage || 1;
+        const safeEntryPrice = (item.entryPrice && item.entryPrice > 0.0001) ? item.entryPrice : currentPrice;
+        
+        let pnl = isShort 
+          ? ((safeEntryPrice - currentPrice) / safeEntryPrice) * 100 * leverage
+          : ((currentPrice - safeEntryPrice) / safeEntryPrice) * 100 * leverage;
 
-      if (isShort) {
-        if (currentPrice <= item.tp) newStatus = 'TP';
-        else if (currentPrice >= item.sl) newStatus = 'SL';
-      } else {
-        if (currentPrice >= item.tp) newStatus = 'TP';
-        else if (currentPrice <= item.sl) newStatus = 'SL';
+        const maxPnl = (m === "BIST") ? 20 : 500;
+        if (Math.abs(pnl) > maxPnl) pnl = Math.sign(pnl) * maxPnl;
+
+        let newStatus = 'ACTIVE';
+        if (isShort) {
+          if (currentPrice <= item.tp) newStatus = 'TP';
+          else if (currentPrice >= item.sl) newStatus = 'SL';
+        } else {
+          if (currentPrice >= item.tp) newStatus = 'TP';
+          else if (currentPrice <= item.sl) newStatus = 'SL';
+        }
+
+        if (newStatus !== 'ACTIVE') {
+          marketChanged = true;
+          globalChanged = true;
+          const closedItem = { ...item, status: newStatus, pnl, closedAt: new Date().toISOString(), market: m, exitPrice: currentPrice };
+          newlyClosed.push(closedItem);
+          return closedItem;
+        } else if (Math.abs(pnl - (item.pnl || 0)) > 0.001) {
+          marketChanged = true;
+          globalChanged = true;
+          return { ...item, pnl };
+        }
+        return item;
+      });
+
+      if (marketChanged) {
+        next[m] = { ...portfolio, items: updatedItems };
       }
-
-      if (newStatus !== 'ACTIVE') {
-        changed = true;
-        const closedItem = { ...item, status: newStatus, pnl, closedAt: new Date().toISOString(), market: m };
-        newlyClosed.push(closedItem);
-        return closedItem;
-      } else if (Math.abs(pnl - item.pnl) > 0.01) {
-        changed = true;
-        return { ...item, pnl };
-      }
-      return item;
     });
 
-    if (changed) {
-      newPortfolios[m] = { ...portfolio, items: updatedItems };
+    if (globalChanged) {
+      if (newlyClosed.length > 0) {
+        setTimeout(() => {
+          setTradeHistory(h => [...newlyClosed, ...(Array.isArray(h) ? h : [])].slice(0, 500));
+        }, 0);
+      }
+      return next;
     }
+    return prev;
   });
-
-  if (changed) {
-    setPortfolios(newPortfolios);
-    if (newlyClosed.length > 0) {
-      setTradeHistory(prev => [...newlyClosed, ...(Array.isArray(prev) ? prev : [])].slice(0, 200));
-    }
-  }
-}, [prices, portfolios]);
+}, [prices]);
 
 // Background candidate refresher
 useEffect(() => {
@@ -1751,10 +1955,18 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
               <div style={{ color: totalPnl >= 0 ? "#30d158" : "#ff453a", fontSize: 16, fontWeight: 800 }}>
                 {totalPnl >= 0 ? "+" : ""}{totalPnl.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency} ({totalPnlPercent.toFixed(2)}%)
               </div>
-              <div style={{ background: "rgba(255,255,255,0.05)", color: "#8b949e", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>ANLIK</div>
+              <LiveIndicator />
             </div>
           </div>
           <button onClick={() => { console.log("[Portfolio] Yenile clicked"); onRefresh(); }} style={{ background: "rgba(191,90,242,0.1)", border: "1px solid rgba(191,90,242,0.3)", color: "#bf5af2", padding: "8px 12px", borderRadius: 10, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>YENİLE</button>
+        </div>
+        
+        <div style={{ background: "rgba(48,209,88,0.05)", border: "1px solid rgba(48,209,88,0.2)", borderRadius: 12, padding: "10px 14px", marginTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 18 }}>🔒</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: "#30d158", fontSize: 11, fontWeight: 800 }}>PORTFÖY KİLİTLENDİ</div>
+            <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 600 }}>Bu seans için seçimler sabittir. Sıradaki güncelleme: {getNextUpdateDisplay(market)}</div>
+          </div>
         </div>
         
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
@@ -1764,7 +1976,7 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
           </div>
           <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
             <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700, marginBottom: 2 }}>SIRADAKİ DENGELEME</div>
-            <div style={{ color: "#bf5af2", fontSize: 12, fontWeight: 800 }}>{portfolio.nextUpdate}</div>
+            <div style={{ color: "#bf5af2", fontSize: 12, fontWeight: 800 }}>{getNextUpdateDisplay(market)}</div>
           </div>
         </div>
       </div>
@@ -1795,18 +2007,16 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
       </div>
 
       <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Aktif {market} Pozisyonları</div>
+        <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, marginBottom: 4 }}>{market} Pozisyonları</div>
         {items.map((item: any) => {
           const isShort = item.side === 'short';
           const sideColor = isShort ? "#ff453a" : "#00d4aa";
           const pnl = item.pnl || 0;
           const isClosed = item.status !== 'ACTIVE';
-          const currentPrice = safePrices[item.symbol] || item.entryPrice;
-          
-          if (isClosed) return null; // Only show active positions in this section
+          const currentPrice = isClosed ? (item.exitPrice || item.tp || item.sl) : (safePrices[item.symbol] || item.entryPrice);
           
           return (
-            <div key={item.symbol} style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: isClosed ? `1px solid ${item.status === 'TP' ? '#30d158' : '#ff453a'}88` : "1px solid #30363d", position: "relative", overflow: "hidden", opacity: isClosed ? 0.8 : 1 }}>
+            <div key={item.symbol} style={{ background: "#21262d", borderRadius: 20, padding: "16px", border: isClosed ? `1px solid ${item.status === 'TP' ? '#30d158' : '#ff453a'}88` : "1px solid #30363d", position: "relative", overflow: "hidden", opacity: isClosed ? 0.85 : 1, marginBottom: 4 }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: isClosed ? (item.status === 'TP' ? '#30d158' : '#ff453a') : sideColor }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
@@ -1821,10 +2031,13 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
                     )}
                   </div>
                   <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>{item.name}</div>
+                  {isClosed && item.closedAt && (
+                    <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700, marginTop: 4 }}>KAPANIŞ: {new Date(item.closedAt).toLocaleString("tr-TR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' })}</div>
+                  )}
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: pnl >= 0 ? "#30d158" : "#ff453a", fontSize: 16, fontWeight: 800 }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%</div>
-                  <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>P&L</div>
+                  <div style={{ color: "#8b949e", fontSize: 10, fontWeight: 700 }}>{isClosed ? "FİNAL P&L" : "GÜNCEL P&L"}</div>
                 </div>
               </div>
 
@@ -1834,7 +2047,7 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
                   <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{item.entryPrice.toLocaleString("tr-TR")}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px" }}>
-                  <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>GÜNCEL</div>
+                  <div style={{ color: "#8b949e", fontSize: 9, fontWeight: 700 }}>{isClosed ? "KAPANIŞ" : "GÜNCEL"}</div>
                   <div style={{ color: "#fff", fontSize: 12, fontWeight: 800 }}>{currentPrice.toLocaleString("tr-TR")}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "8px" }}>
@@ -1901,6 +2114,13 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
   );
 }
 
+const LiveIndicator = () => (
+  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(0,212,170,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(0,212,170,0.2)" }}>
+    <div className="pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#00d4aa" }} />
+    <span style={{ color: "#00d4aa", fontSize: 10, fontWeight: 800, letterSpacing: 0.5 }}>CANLI TAKİP AKTİF</span>
+  </div>
+);
+
 function TradeHistoryTable({ history, market }: any) {
   const filtered = (history || []).filter((h: any) => {
     const isSameMarket = h.market === market;
@@ -1928,7 +2148,7 @@ function TradeHistoryTable({ history, market }: any) {
               <tr key={idx} style={{ borderTop: "1px solid #30363d" }}>
                 <td style={{ padding: "12px" }}>
                   <div style={{ color: "#fff", fontWeight: 700 }}>{item.symbol}</div>
-                  <div style={{ color: "#4a5568", fontSize: 9 }}>{new Date(item.closedAt).toLocaleDateString("tr-TR")}</div>
+                  <div style={{ color: "#4a5568", fontSize: 9 }}>{new Date(item.closedAt).toLocaleString("tr-TR", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
                 </td>
                 <td style={{ padding: "12px", textAlign: "center" }}>
                   <span style={{ color: item.side === 'short' ? "#ff453a" : "#00d4aa", fontWeight: 800 }}>{item.side.toUpperCase()}</span>
@@ -1999,7 +2219,7 @@ return (
   <RefreshCw size={10} className={loading ? "animate-spin" : ""} />
   {loading ? "..." : "YENİLE"}
 </button>
-<div style={{ color: "#30d158", fontSize: 11, fontWeight: 600, background: "rgba(48,209,88,0.1)", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(48,209,88,0.3)" }}>● CANLI</div>
+<LiveIndicator />
 <div style={{ color: fetchError ? "#ff9f0a" : "#30d158", fontSize: 10, fontWeight: 700, marginTop: 4, background: fetchError ? "rgba(255,159,10,0.1)" : "transparent", padding: fetchError ? "2px 6px" : 0, borderRadius: 4 }}>
   {fetchError ? `⚠️ ${fetchError}` : "✅ Veri Hattı: Ana Sunucu"}
 </div>
@@ -2079,12 +2299,17 @@ return (
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 4
+            gap: 4,
+            opacity: portfolioLoading ? 0.8 : 1
           }}
         >
           <div style={{ fontSize: 24 }}>{portfolioLoading ? "⏳" : "💼"}</div>
-          <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>{portfolioLoading ? "HAZIRLANIYOR..." : (portfolio ? `${market} PORTFÖYÜM` : `AI ${market} PORTFÖYÜ`)}</div>
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 600 }}>{market === "CRYPTO" ? "5.000 USDT" : "100.000 TL"} {market}</div>
+          <div style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>
+            {portfolioLoading ? "GÜNCELLENİYOR..." : (portfolio ? `${market} PORTFÖYÜ` : `OTOMATİK ${market} PORTFÖYÜ`)}
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, fontWeight: 600 }}>
+            {portfolio ? `SIRADAKİ GÜNCELLEME: ${getNextUpdateDisplay(market)}` : "SİSTEM OTOMATİK OLUŞTURUR"}
+          </div>
         </button>
 
         <button 
@@ -2486,7 +2711,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>Scalp Fırsatları</div>
-              <div style={{ background: "#00d4aa", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>1 SAATLİK</div>
+              <div style={{ background: "#00d4aa", color: "#000", fontSize: 10, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>4 SAATLİK</div>
             </div>
             <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>Anlık giriş ve kısa vade kar al noktaları</div>
           </div>
@@ -2570,7 +2795,7 @@ function ScalpScreen({ candidates, prices, lastUpdated, onBack, onSelect, market
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ background: "rgba(191,90,242,0.1)", color: "#bf5af2", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>RSI: {Math.round(pd.rsi)}</span>
                   <span style={{ background: "rgba(0,184,255,0.1)", color: "#00b8ff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{pd.pattern}</span>
-                  <span style={{ background: "rgba(255,214,10,0.1)", color: "#ffd60a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>MA: {isShort ? stock.maSellCount : stock.maBuyCount}/12</span>
+                  <span style={{ background: "rgba(255,214,10,0.1)", color: "#ffd60a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>MA: {isShort ? (stock.maSellCount || 0) : (stock.maBuyCount || 0)}/12</span>
                   {stock.whale && stock.whale.action !== "YOK" && (
                     <span style={{ background: stock.whale.action === "ALIM" ? "rgba(0,212,170,0.1)" : "rgba(255,69,58,0.1)", color: stock.whale.action === "ALIM" ? "#00d4aa" : "#ff453a", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>
                       🐋 {stock.whale.amount}
@@ -2753,9 +2978,9 @@ function CandidatesScreen({ candidates, prices, lastUpdated, onBack, onSelect, m
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
             <Pill label="RSI" val={pd.rsi} good={isShort ? pd.rsi > 60 : pd.rsi < 40} />
-            <Pill label="MACD" val={pd.macd > 0 ? "▲" : "▼"} good={isShort ? pd.macd < 0 : pd.macd > 0} />
+            <Pill label="MACD" val={`${pd.macd > 0 ? "▲" : "▼"} ${pd.macd}`} good={isShort ? pd.macd < 0 : pd.macd > 0} />
             <Pill label="FIB" val={pd.fibLevel} good />
-            <Pill label="MA" val={`${isShort ? stock.maSellCount : stock.maBuyCount}/12`} good={isShort ? stock.maSellCount >= 10 : stock.maBuyCount >= 10} />
+            <Pill label="MA" val={`${(isShort ? stock.maSellCount : stock.maBuyCount) ?? Math.round((stock.techScore || 50) / 100 * 12)}/12`} good={isShort ? (stock.maSellCount || 0) >= 10 : (stock.maBuyCount || 0) >= 10} />
             <Pill label="SKOR" val={pd.patternScore} good={pd.patternScore > 70} />
           </div>
         </button>
@@ -2854,10 +3079,9 @@ return (
     <div style={{ display: "flex", gap: 8, marginTop: 12, overflowX: "auto" }}>
       {[
         { l: "RSI", v: pd.rsi, good: pd.rsi < 40 },
-        { l: "MACD", v: pd.macd > 0 ? "ALIŞ" : "SATIŞ", good: pd.macd > 0 },
+        { l: "MACD", v: `${pd.macd > 0 ? "▲" : "▼"} ${pd.macd}`, good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
-        { l: "SMA 20", v: chartData[chartData.length-1]?.sma20?.toFixed(pricePrecision) || "---", good: price > (chartData[chartData.length-1]?.sma20 || 0) },
-        { l: "EMA 50", v: chartData[chartData.length-1]?.ema50?.toFixed(pricePrecision) || "---", good: price > (chartData[chartData.length-1]?.ema50 || 0) },
+        { l: "MA", v: `${(isShort ? stock.maSellCount : stock.maBuyCount) ?? Math.round((stock.techScore || 50) / 100 * 12)}/12`, good: isShort ? (stock.maSellCount || 0) >= 10 : (stock.maBuyCount || 0) >= 10 },
         { l: "SKOR", v: `${pd.patternScore}`, good: pd.patternScore > 70 },
         { l: "POT.", v: `+%${potential.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, good: true },
         ...(stock.whale && stock.whale.action !== "YOK" ? [{ l: "BALİNA", v: `${stock.whale.action} (${stock.whale.amount})`, good: stock.whale.action === "ALIM" }] : []),
