@@ -110,25 +110,21 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // 3. API routes
 let lastUpdate = 0;
-const UPDATE_INTERVAL = 60000; // 1 minute
+const UPDATE_INTERVAL = 10000; // 10 seconds
 
 app.get("/api/prices", async (req, res) => {
   const now = Date.now();
-  // If data is older than 1 minute, trigger an update
+  // If data is older than 10 seconds, trigger an update in background
   if (now - lastUpdate > UPDATE_INTERVAL) {
     lastUpdate = now;
-    console.log("[API] Triggering on-demand price update...");
+    console.log("[API] Triggering background price update...");
     
-    // In serverless environments, we MUST await these or they get killed
-    try {
-      await Promise.allSettled([
-        updateCryptoPrices(),
-        updateBistPrices(),
-        updateCommodities()
-      ]);
-    } catch (e) {
-      console.error("[API] Error during on-demand update:", e);
-    }
+    // Fire and forget update to keep response fast and avoid timeouts/rate limit spam
+    Promise.allSettled([
+      updateCryptoPrices(),
+      updateBistPrices(),
+      updateCommodities()
+    ]).catch(e => console.error("[API] Background update error:", e));
   }
   
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -398,9 +394,9 @@ async function startServer() {
     updateBistPrices();
     updateCommodities();
 
-    setInterval(updateCryptoPrices, 15000);
-    setInterval(updateBistPrices, 60000);
-    setInterval(updateCommodities, 60000);
+    setInterval(updateCryptoPrices, 10000); // 10 seconds
+    setInterval(updateBistPrices, 30000); // 30 seconds
+    setInterval(updateCommodities, 60000); // 1 minute
   });
 }
 

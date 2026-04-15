@@ -146,8 +146,8 @@ const REALISTIC_BIST_PRICES: Record<string, number> = {
 
 const UPDATE_HOURS: Record<string, number[]> = {
   "BIST": [10, 12, 14, 16, 18],
-  "CRYPTO": [3, 7, 9, 10, 13, 15, 17, 19, 23],
-  "EMTİA": [3, 7, 9, 10, 14, 16, 18, 20, 21, 23]
+  "CRYPTO": [3, 7, 11, 15, 19, 23],
+  "EMTİA": [1, 5, 9, 13, 17, 21]
 };
 
 function getNextUpdateDisplay(market: string) {
@@ -1136,7 +1136,7 @@ Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odak
     
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       contents: prompt,
     });
     
@@ -1321,11 +1321,26 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
             return { ...item, pnl }; // Keep as ACTIVE
           }
 
+          // Determine strictly scheduled closedAt time
+          const hours = UPDATE_HOURS[activeMarket] || [23];
+          const turkeyHour = turkeyTime.getHours();
+          const passedHours = hours.filter(h => h <= turkeyHour);
+          let finalClosedAtDate = new Date(turkeyTime.getTime());
+          
+          if (passedHours.length > 0) {
+            finalClosedAtDate.setHours(passedHours[passedHours.length - 1], 0, 0, 0);
+          } else {
+            finalClosedAtDate.setDate(finalClosedAtDate.getDate() - 1);
+            finalClosedAtDate.setHours(hours[hours.length - 1], 0, 0, 0);
+          }
+          
+          const closedAt = finalClosedAtDate.toISOString();
+
           return { 
             ...item, 
-            status: 'CLOSED', 
+            status: pnl >= 0 ? 'TP' : 'SL', 
             pnl, 
-            closedAt: now.toISOString(), 
+            closedAt, 
             market: activeMarket,
             exitPrice: currentPrice
           };
@@ -1357,9 +1372,9 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     // We want 4 to 8 items total.
     const availableCandidates = scoredCandidates.filter((c: any) => !stayingSymbols.includes(c.symbol));
     
-    // Select candidates with 85+ score
+    // Select candidates with 90+ score
     let selectedNew = availableCandidates
-      .filter((c: any) => c.score >= 85)
+      .filter((c: any) => c.score >= 90)
       .sort((a: any, b: any) => b.score - a.score);
       
     // If we have more than 8 total slots, cap it
@@ -1370,21 +1385,21 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
       selectedNew = selectedNew.slice(0, maxNewSlots);
     }
     
-    // If we don't have enough 85+ candidates to reach at least 4 total items
+    // If we don't have enough 90+ candidates to reach at least 4 total items
     if (selectedNew.length < minNewSlots) {
       const fallbackCandidates = availableCandidates
-        .filter((c: any) => c.score >= 80 && c.score < 85)
+        .filter((c: any) => c.score >= 85 && c.score < 90)
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, minNewSlots - selectedNew.length);
       selectedNew = [...selectedNew, ...fallbackCandidates];
     }
     
-    // Final check: if still less than 4 total, take best available above 75
+    // Final check: if still less than 4 total, take best available above 80
     if (selectedNew.length + stayingItems.length < 4) {
        const remainingNeeded = 4 - (selectedNew.length + stayingItems.length);
        const currentSymbols = [...stayingSymbols, ...selectedNew.map(n => n.symbol)];
        const lastResort = availableCandidates
-         .filter(c => !currentSymbols.includes(c.symbol) && c.score >= 75)
+         .filter(c => !currentSymbols.includes(c.symbol) && c.score >= 80)
          .sort((a, b) => b.score - a.score)
          .slice(0, remainingNeeded);
        selectedNew = [...selectedNew, ...lastResort];
@@ -1474,9 +1489,17 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     const isStarted = nowMs >= bistStartTs;
 
     // Batch state updates and transition screen
-    const trulyClosed = closedItems.filter(i => i.status === 'CLOSED');
+    const trulyClosed = closedItems.filter(i => i.status === 'TP' || i.status === 'SL');
     if (trulyClosed.length > 0) {
-      setTradeHistory(prev => [...trulyClosed, ...(Array.isArray(prev) ? prev : [])].slice(0, 1000));
+      setTradeHistory(prev => {
+        const existing = Array.isArray(prev) ? prev : [];
+        // Filter out duplicates (same symbol and same closedAt)
+        const newItems = trulyClosed.filter((newItem, index, self) => 
+          !existing.some(oldItem => oldItem.symbol === newItem.symbol && oldItem.closedAt === newItem.closedAt) &&
+          self.findIndex(t => t.symbol === newItem.symbol && t.closedAt === newItem.closedAt) === index
+        );
+        return [...newItems, ...existing].slice(0, 1000);
+      });
     }
     setPortfolios(prev => ({ ...(prev || {}), [activeMarket]: newPortfolio }));
     setPortfolioStats(prev => ({
@@ -1583,8 +1606,8 @@ useEffect(() => {
   }
   checkAll();
 
-  // Run every 5 seconds as requested by user
-  const interval = setInterval(checkAll, 5000);
+  // Run every 10 seconds to match backend frequency
+  const interval = setInterval(checkAll, 10000);
   return () => clearInterval(interval);
 }, [fetchPrices, fetchNews]);
 
@@ -2016,7 +2039,7 @@ function PortfolioScreen({ portfolio, prices, loading, stats, history, onGenerat
                   </div>
                   <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 600 }}>{item.name}</div>
                   {isClosed && item.closedAt && (
-                    <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700, marginTop: 4 }}>KAPANIŞ: {new Date(item.closedAt).toLocaleString("tr-TR", { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit' })}</div>
+                    <div style={{ color: "#4a5568", fontSize: 9, fontWeight: 700, marginTop: 4 }}>KAPANIŞ: {new Date(item.closedAt).toLocaleString("tr-TR", { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</div>
                   )}
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -2125,39 +2148,46 @@ function TradeHistoryTable({ history, market }: any) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead style={{ background: "#21262d" }}>
             <tr>
-              <th style={{ textAlign: "left", padding: "12px", color: "#8b949e" }}>VARLIK</th>
+              <th style={{ textAlign: "left", padding: "12px", color: "#8b949e" }}>VARLIK / FİYAT</th>
               <th style={{ textAlign: "center", padding: "12px", color: "#8b949e" }}>YÖN</th>
-              <th style={{ textAlign: "right", padding: "12px", color: "#8b949e" }}>P&L</th>
+              <th style={{ textAlign: "right", padding: "12px", color: "#8b949e" }}>P&L %</th>
               <th style={{ textAlign: "right", padding: "12px", color: "#8b949e" }}>DURUM</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((item: any, idx: number) => (
-              <tr key={idx} style={{ borderTop: "1px solid #30363d" }}>
-                <td style={{ padding: "12px" }}>
-                  <div style={{ color: "#fff", fontWeight: 700 }}>{item.symbol}</div>
-                  <div style={{ color: "#4a5568", fontSize: 9 }}>{new Date(item.closedAt).toLocaleString("tr-TR", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
-                </td>
-                <td style={{ padding: "12px", textAlign: "center" }}>
-                  <span style={{ color: item.side === 'short' ? "#ff453a" : "#00d4aa", fontWeight: 800 }}>{item.side.toUpperCase()}</span>
-                </td>
-                <td style={{ padding: "12px", textAlign: "right", color: item.pnl >= 0 ? "#30d158" : "#ff453a", fontWeight: 800 }}>
-                  {item.pnl >= 0 ? "+" : ""}{item.pnl.toFixed(2)}%
-                </td>
-                <td style={{ padding: "12px", textAlign: "right" }}>
-                  <span style={{ 
-                    background: item.status === 'TP' ? "rgba(48,209,88,0.1)" : (item.status === 'SL' ? "rgba(255,69,58,0.1)" : "rgba(191,90,242,0.1)"), 
-                    color: item.status === 'TP' ? "#30d158" : (item.status === 'SL' ? "#ff453a" : "#bf5af2"), 
-                    padding: "2px 6px", 
-                    borderRadius: 4, 
-                    fontWeight: 900, 
-                    fontSize: 9 
-                  }}>
-                    {item.status === 'CLOSED' ? 'KAPANDI' : item.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((item: any, idx: number) => {
+              const isCrypto = item.symbol.includes("-USDT");
+              const precision = item.symbol.startsWith("10000") ? 5 : (item.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
+              return (
+                <tr key={`${item.symbol}-${item.closedAt}-${idx}`} style={{ borderTop: "1px solid #30363d" }}>
+                  <td style={{ padding: "12px" }}>
+                    <div style={{ color: "#fff", fontWeight: 700 }}>{item.symbol}</div>
+                    <div style={{ color: "#8b949e", fontSize: 9, marginBottom: 2 }}>
+                      {item.entryPrice?.toFixed(precision)} → {item.exitPrice?.toFixed(precision)}
+                    </div>
+                    <div style={{ color: "#4a5568", fontSize: 9 }}>{new Date(item.closedAt).toLocaleString("tr-TR", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+                  </td>
+                  <td style={{ padding: "12px", textAlign: "center" }}>
+                    <span style={{ color: item.side === 'short' ? "#ff453a" : "#00d4aa", fontWeight: 800 }}>{item.side.toUpperCase()}</span>
+                  </td>
+                  <td style={{ padding: "12px", textAlign: "right", color: item.pnl >= 0 ? "#30d158" : "#ff453a", fontWeight: 800 }}>
+                    {item.pnl >= 0 ? "+" : ""}{item.pnl.toFixed(2)}%
+                  </td>
+                  <td style={{ padding: "12px", textAlign: "right" }}>
+                    <span style={{ 
+                      background: item.status === 'TP' ? "rgba(48,209,88,0.1)" : (item.status === 'SL' ? "rgba(255,69,58,0.1)" : "rgba(191,90,242,0.1)"), 
+                      color: item.status === 'TP' ? "#30d158" : (item.status === 'SL' ? "#ff453a" : "#bf5af2"), 
+                      padding: "2px 6px", 
+                      borderRadius: 4, 
+                      fontWeight: 900, 
+                      fontSize: 9 
+                    }}>
+                      {item.status === 'CLOSED' ? 'KAPANDI' : item.status}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -2793,7 +2823,7 @@ function ScalpScreen({ candidates = [], prices = {}, lastUpdated, onBack, onSele
       if (filterSide === "long" && stock.side !== "long") return false;
       if (filterSide === "short" && stock.side !== "short") return false;
       const maCount = stock.side === 'long' ? (stock.maBuyCount || 0) : (stock.maSellCount || 0);
-      if ((stock.dynamicPotential || 0) < 80 || maCount < 10) return false;
+      if ((stock.dynamicPotential || 0) < 85 || maCount < 10) return false;
       return true;
     })
     .sort((a, b) => (b.dynamicPotential || 0) - (a.dynamicPotential || 0));
@@ -2937,7 +2967,7 @@ function CandidatesScreen({ candidates = [], prices = {}, lastUpdated, onBack, o
   const filteredCandidates = (Array.isArray(candidates) ? candidates : [])
     .filter((stock: any) => {
       const potential = Number(stock.dynamicPotential || 0);
-      if (potential < 70) return false;
+      if (potential < 80) return false;
       const maCount = stock.side === 'long' ? (stock.maBuyCount || 0) : (stock.maSellCount || 0);
       if (maCount < 8) return false;
       if (filterSide === "long" && stock.side !== "long") return false;
@@ -3021,7 +3051,7 @@ function CandidatesScreen({ candidates = [], prices = {}, lastUpdated, onBack, o
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                 <span style={{ color: "#fff", fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>{stock.symbol}</span>
                 <span style={{ background: isShort ? "rgba(255,69,58,0.2)" : "rgba(0,212,170,0.2)", color: sideColor, fontSize: 12, fontWeight: 800, padding: "4px 12px", borderRadius: 12, border: `1px solid ${sideColor}44` }}>
-                  {isCrypto ? (isShort ? "SELL (SHORT)" : "BUY (LONG)") : (isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ")} {Math.round(potential)}%
+                  {isCrypto ? (isShort ? "SELL (SHORT)" : "BUY (LONG)") : "HEDEF KAR %"} {Math.round(potential)}%
                 </span>
                 {isCrypto && (
                   <span style={{ background: "rgba(191,90,242,0.15)", color: "#bf5af2", fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 10, border: "1px solid rgba(191,90,242,0.3)" }}>
@@ -3161,7 +3191,7 @@ return (
   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
     <div style={{ color: "#fff", fontSize: 32, fontWeight: 900, letterSpacing: -1 }}>{stock.symbol}</div>
     <div style={{ background: isShort ? "rgba(255,69,58,0.2)" : "rgba(0,212,170,0.2)", color: sideColor, fontSize: 13, fontWeight: 800, padding: "4px 14px", borderRadius: 12, border: `1px solid ${sideColor}55` }}>
-      {isShort ? "HEDEF DÜŞÜŞ" : "HEDEF KAZANÇ"} {potential.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}%
+      HEDEF KAR % {potential.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
     </div>
   </div>
   <div style={{ color: "#8b949e", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{stock.name}</div>
