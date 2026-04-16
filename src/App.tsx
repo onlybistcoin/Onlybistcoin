@@ -141,7 +141,7 @@ const COMMODITY_ITEMS = [
 ];
 
 const REALISTIC_BIST_PRICES: Record<string, number> = {
-  "THYAO": 320.50, "GARAN": 115.20, "AKBNK": 62.15, "EREGL": 54.30, "KCHOL": 245.00, "SAHOL": 108.50, "BIMAS": 445.00, "TOASO": 295.00, "ARCLK": 178.00, "TUPRS": 198.50, "SISE": 58.70, "DOHOL": 19.40, "PETKM": 28.90, "FROTO": 1185.00, "ASELS": 71.20, "MGROS": 542.00, "PGSUS": 1090.00, "TAVHL": 248.00, "YKBNK": 34.80, "EKGYO": 14.70, "VESTL": 88.50, "ODAS": 9.80, "SMRTG": 58.40, "CANTE": 19.20, "ISCTR": 14.90, "HALKB": 19.50, "VAKBN": 24.30, "TSKB": 11.80, "ALARK": 138.00, "ENKAI": 44.20, "TKFEN": 54.10, "GUBRF": 195.00, "HEKTS": 19.80, "SASA": 48.50, "KONTR": 295.00, "GESAN": 78.40, "YEOTK": 245.00, "ASTOR": 118.00, "EUPWR": 148.00, "CWENE": 345.00, "ALFAS": 118.00, "MIATK": 78.50, "REEDR": 38.40, "TABGD": 178.00, "TARKM": 590.00, "EBEBK": 78.50, "KAYSE": 38.40, "BIENY": 48.50, "SDTTR": 395.00, "ONCSM": 245.00, "SOKE": 28.50, "EYGYO": 28.50, "GOKNR": 34.50, "CVKMD": 495.00, "KOPOL": 78.50, "PASEU": 78.50, "KATMR": 4.80, "TMSN": 148.00, "OTKAR": 590.00, "TTRAK": 990.00, "DOAS": 345.00, "ASUZU": 295.00, "KMPUR": 78.50, "SAYAS": 118.00, "HUNER": 9.80, "ZEDUR": 98.50, "PRKME": 28.50, "ULKER": 148.00, "AEFES": 195.00, "CCOLA": 790.00, "TATGD": 48.50, "SOKM": 68.50, "TKNSA": 44.50, "MAVI": 178.00, "VAKKO": 98.50, "YATAS": 44.50, "BRISA": 148.00, "GOODY": 28.50, "AKSA": 118.00, "KORDS": 98.50, "BAGFS": 38.50, "EGEEN": 14800.00, "BFREN": 11800.00, "FMIZP": 395.00, "PARSN": 148.00, "JANTS": 295.00, "ALCAR": 1480.00, "ALGYO": 58.50, "TRGYO": 48.50, "OZKGY": 14.80, "MSGYO": 19.50, "HLGYO": 9.80, "VKGYO": 9.80, "SNGYO": 4.80, "KLGYO": 4.80, "AKFGY": 9.80, "ISGYO": 19.50, "KGYO": 9.80, "IDGYO": 9.80, "PAGYO": 48.50, "DZGYO": 9.80, "SRVGY": 295.00, "RYGYO": 38.50, "RYSAS": 48.50, "GLYHO": 14.80, "NETAS": 98.50, "ALCTL": 148.00, "ARENA": 48.50, "INDES": 9.80, "DESPC": 28.50, "DGATE": 38.50, "LINK": 495.00, "LOGO": 98.50, "KFEIN": 148.00, "ARDYZ": 58.50, "ESCOM": 48.50, "FONET": 38.50, "KRVGD": 28.50, "AVOD": 4.80, "OYYAT": 48.50, "ISMEN": 38.50, "GSDHO": 9.80, "INFO": 14.80, "OSMEN": 28.50, "GLBMD": 38.50, "GEDIK": 19.50, "TUKAS": 9.80, "KNFRT": 19.50, "FRIGO": 9.80, "ELITE": 58.50, "ULUUN": 38.50, "VANGD": 19.50, "MERKO": 9.80, "PETUN": 98.50, "PNSUT": 98.50, "SELVA": 19.50, "BRKSN": 28.50, "PRZMA": 48.50, "IHLAS": 1.80, "IHEVA": 4.80, "IHYAY": 4.80, "IHGZT": 4.80, "METRO": 4.80, "AVGYO": 9.80, "ATLAS": 9.80, "ETYAT": 9.80, "EUYO": 9.80, "EUKYO": 9.80, "MZHLD": 19.50, "EPLAS": 14.80, "DERIM": 28.50, "DESA": 28.50, "HATEK": 19.50, "MNDRS": 14.80, "ARSAN": 19.50, "LUKSK": 98.50, "KRTEK": 38.50, "SKTAS": 9.80, "SNPAM": 148.00, "SONME": 98.50, "DAGI": 14.80, "KRONT": 38.50, "EDATA": 28.50, "VBTYZ": 48.50, "PKART": 148.00, "SMART": 58.50, "HTTBT": 98.50, "OBASL": 48.50, "ALVES": 48.50, "ARTMS": 58.50, "MOGAN": 19.50, "ODINE": 78.50, "ENTRA": 19.50, "HOROZ": 98.50, "ALTNY": 118.00, "KOTON": 28.50, "LILA": 38.50, "HRKET": 78.50, "YIGIT": 48.50, "DCTTR": 28.50, "BAHEV": 58.50, "ONUR": 98.50, "OZATD": 78.50, "CEMZY": 19.50, "KARYE": 38.50, "GIPTA": 38.50, "TCELL": 98.50, "TTKOM": 48.50, "ENJSA": 68.50, "KRDMD": 34.50, "ECILC": 58.50, "DEVA": 98.50, "SELEC": 68.50, "MPARK": 295.00, "LKMNH": 78.50, "TRILC": 19.50, "GENIL": 78.50, "ANGEN": 19.50, "MEDTR": 48.50, "RTALB": 19.50, "ZOREN": 6.80, "AKENR": 6.80, "AKSEN": 48.50, "AYDEM": 28.50, "GWIND": 34.50, "NATEN": 68.50, "ESEN": 28.50, "MAGEN": 19.50, "BRSAN": 790.00, "BRYAT": 3450.00, "CEMTS": 14.80, "IZMDC": 9.80, "KCAER": 58.50, "BUCIM": 9.80, "AKCNS": 178.00, "CIMSA": 38.50, "NUHCM": 395.00, "OYAKC": 78.50, "AFYON": 14.80, "BTCIM": 178.00, "BSOKE": 28.50, "GOLTS": 495.00, "KONYA": 11800.00, "ADEL": 690.00, "DOCO": 3950.00, "CLEBI": 1480.00, "SUWEN": 28.50, "BEYAZ": 28.50, "AYGAZ": 195.00, "TRCAS": 28.50, "YKSLN": 19.50, "TIRE": 28.50, "KARTN": 148.00, "ALKA": 38.50, "ALKIM": 48.50, "EGGUB": 68.50, "TEZOL": 28.50, "PRKAB": 48.50, "ARZUM": 58.50, "VESBE": 24.50, "KLSER": 78.50, "QUAGR": 4.80, "ISFIN": 14.80, "QNBFL": 295.00, "VAKFN": 9.80, "GARFA": 148.00, "LIDFA": 9.80, "CRDFA": 9.80
+  "THYAO": 285.50, "GARAN": 105.20, "AKBNK": 55.15, "EREGL": 48.30, "KCHOL": 185.00, "SAHOL": 92.50, "BIMAS": 465.00, "TOASO": 245.00, "ARCLK": 158.00, "TUPRS": 165.50, "SISE": 48.70, "DOHOL": 14.40, "PETKM": 22.90, "FROTO": 1085.00, "ASELS": 61.20, "MGROS": 482.00, "PGSUS": 990.00, "TAVHL": 218.00, "YKBNK": 28.80, "EKGYO": 11.70, "VESTL": 72.50, "ODAS": 8.80, "SMRTG": 48.40, "CANTE": 17.20, "ISCTR": 12.90, "HALKB": 16.50, "VAKBN": 19.30, "TSKB": 9.80, "ALARK": 118.00, "ENKAI": 38.20, "TKFEN": 48.10, "GUBRF": 175.00, "HEKTS": 16.80, "SASA": 42.50, "KONTR": 245.00, "GESAN": 68.40, "YEOTK": 195.00, "ASTOR": 98.00, "EUPWR": 118.00, "CWENE": 295.00, "ALFAS": 98.00, "MIATK": 68.50, "REEDR": 32.40, "TABGD": 158.00, "TARKM": 490.00, "EBEBK": 68.50, "KAYSE": 32.40, "BIENY": 42.50, "SDTTR": 345.00, "ONCSM": 195.00, "SOKE": 22.50, "EYGYO": 22.50, "GOKNR": 28.50, "CVKMD": 445.00, "KOPOL": 68.50, "PASEU": 68.50, "KATMR": 3.80, "TMSN": 118.00, "OTKAR": 490.00, "TTRAK": 890.00, "DOAS": 295.00, "ASUZU": 245.00, "KMPUR": 68.50, "SAYAS": 98.00, "HUNER": 8.80, "ZEDUR": 88.50, "PRKME": 22.50, "ULKER": 128.00, "AEFES": 175.00, "CCOLA": 690.00, "TATGD": 42.50, "SOKM": 58.50, "TKNSA": 38.50, "MAVI": 158.00, "VAKKO": 88.50, "YATAS": 38.50, "BRISA": 128.00, "GOODY": 22.50, "AKSA": 98.00, "KORDS": 88.50, "BAGFS": 32.50, "EGEEN": 12800.00, "BFREN": 10800.00, "FMIZP": 345.00, "PARSN": 128.00, "JANTS": 245.00, "ALCAR": 1280.00, "ALGYO": 48.50, "TRGYO": 38.50, "OZKGY": 12.80, "MSGYO": 16.50, "HLGYO": 8.80, "VKGYO": 8.80, "SNGYO": 3.80, "KLGYO": 3.80, "AKFGY": 8.80, "ISGYO": 16.50, "KGYO": 8.80, "IDGYO": 8.80, "PAGYO": 38.50, "DZGYO": 8.80, "SRVGY": 245.00, "RYGYO": 32.50, "RYSAS": 42.50, "GLYHO": 12.80, "NETAS": 88.50, "ALCTL": 128.00, "ARENA": 42.50, "INDES": 8.80, "DESPC": 22.50, "DGATE": 32.50, "LINK": 445.00, "LOGO": 88.50, "KFEIN": 128.00, "ARDYZ": 48.50, "ESCOM": 38.50, "FONET": 32.50, "KRVGD": 22.50, "AVOD": 3.80, "OYYAT": 38.50, "ISMEN": 32.50, "GSDHO": 8.80, "INFO": 12.80, "OSMEN": 22.50, "GLBMD": 32.50, "GEDIK": 16.50, "TUKAS": 8.80, "KNFRT": 16.50, "FRIGO": 8.80, "ELITE": 48.50, "ULUUN": 32.50, "VANGD": 16.50, "MERKO": 8.80, "PETUN": 88.50, "PNSUT": 88.50, "SELVA": 16.50, "BRKSN": 22.50, "PRZMA": 38.50, "IHLAS": 1.40, "IHEVA": 3.80, "IHYAY": 3.80, "IHGZT": 3.80, "METRO": 3.80, "AVGYO": 8.80, "ATLAS": 8.80, "ETYAT": 8.80, "EUYO": 8.80, "EUKYO": 8.80, "MZHLD": 16.50, "EPLAS": 12.80, "DERIM": 22.50, "DESA": 22.50, "HATEK": 16.50, "MNDRS": 12.80, "ARSAN": 16.50, "LUKSK": 88.50, "KRTEK": 32.50, "SKTAS": 8.80, "SNPAM": 128.00, "SONME": 88.50, "DAGI": 12.80, "KRONT": 32.50, "EDATA": 22.50, "VBTYZ": 38.50, "PKART": 128.00, "SMART": 48.50, "HTTBT": 88.50, "OBASL": 38.50, "ALVES": 38.50, "ARTMS": 48.50, "MOGAN": 16.50, "ODINE": 68.50, "ENTRA": 16.50, "HOROZ": 88.50, "ALTNY": 108.00, "KOTON": 22.50, "LILA": 32.50, "HRKET": 68.50, "YIGIT": 38.50, "DCTTR": 22.50, "BAHEV": 48.50, "ONUR": 88.50, "OZATD": 68.50, "CEMZY": 16.50, "KARYE": 32.50, "GIPTA": 32.50, "TCELL": 88.50, "TTKOM": 38.50, "ENJSA": 58.50, "KRDMD": 28.50, "ECILC": 48.50, "DEVA": 88.50, "SELEC": 58.50, "MPARK": 245.00, "LKMNH": 68.50, "TRILC": 16.50, "GENIL": 68.50, "ANGEN": 16.50, "MEDTR": 38.50, "RTALB": 16.50, "ZOREN": 5.80, "AKENR": 5.80, "AKSEN": 38.50, "AYDEM": 22.50, "GWIND": 28.50, "NATEN": 58.50, "ESEN": 22.50, "MAGEN": 16.50, "BRSAN": 690.00, "BRYAT": 2950.00, "CEMTS": 12.80, "IZMDC": 8.80, "KCAER": 48.50, "BUCIM": 8.80, "AKCNS": 158.00, "CIMSA": 32.50, "NUHCM": 345.00, "OYAKC": 68.50, "AFYON": 12.80, "BTCIM": 158.00, "BSOKE": 22.50, "GOLTS": 445.00, "KONYA": 10800.00, "ADEL": 590.00, "DOCO": 3450.00, "CLEBI": 1280.00, "SUWEN": 22.50, "BEYAZ": 22.50, "AYGAZ": 165.00, "TRCAS": 22.50, "YKSLN": 16.50, "TIRE": 22.50, "KARTN": 128.00, "ALKA": 32.50, "ALKIM": 38.50, "EGGUB": 58.50, "TEZOL": 22.50, "PRKAB": 38.50, "ARZUM": 48.50, "VESBE": 21.50, "KLSER": 68.50, "QUAGR": 3.80, "ISFIN": 12.80, "QNBFL": 245.00, "VAKFN": 8.80, "GARFA": 128.00, "LIDFA": 8.80, "CRDFA": 8.80
 };
 
 const UPDATE_HOURS: Record<string, number[]> = {
@@ -164,6 +164,10 @@ function getNextUpdateDisplay(market: string) {
 }
 
 const PATTERN_DATA: Record<string, any> = {
+"BEAM-USDT": { rsi: 31, macd: 1.25, fibLevel: "0.786", patternScore: 98, pattern: "Düşen Kama Kırılımı ✦✦", potential: 98 },
+"SOL-USDT": { rsi: 34, macd: 1.15, fibLevel: "0.618", patternScore: 92, pattern: "Yükselen Kanal Kırılımı ✦", potential: 92 },
+"AVAX-USDT": { rsi: 29, macd: 1.45, fibLevel: "0.786", patternScore: 95, pattern: "Çanak Tamamlama ✦✦", potential: 95 },
+"NEAR-USDT": { rsi: 32, macd: 1.35, fibLevel: "0.786", patternScore: 94, pattern: "Bayrak Formasyonu ✦✦", potential: 94 },
 THYAO: { rsi: 32, macd: 0.85, fibLevel: "0.786", patternScore: 98, pattern: "Düşen Kama Kırılımı ✦✦", potential: 98 },
 GARAN: { rsi: 55, macd: -0.12, fibLevel: "0.382", patternScore: 45, pattern: "Yatay Konsolidasyon", potential: 12 },
 AKBNK: { rsi: 41, macd: 0.28, fibLevel: "0.5", patternScore: 62, pattern: "Bayrak Formasyonu", potential: 18 },
@@ -252,16 +256,13 @@ LIDFA: { rsi: 35, macd: 0.75, fibLevel: "0.786", patternScore: 88, pattern: "Dü
 CRDFA: { rsi: 34, macd: 0.85, fibLevel: "0.786", patternScore: 89, pattern: "Düşen Trend Kırılımı ✦", potential: 32 },
 "BTC-USDT": { rsi: 32, macd: 1.2, fibLevel: "0.618", patternScore: 88, pattern: "Bullish Divergence", potential: 22 },
 "ETH-USDT": { rsi: 35, macd: 0.95, fibLevel: "0.5", patternScore: 82, pattern: "Falling Wedge", potential: 18 },
-"SOL-USDT": { rsi: 58, macd: 0.45, fibLevel: "0.236", patternScore: 65, pattern: "Ascending Triangle", potential: 15 },
 "BNB-USDT": { rsi: 78, macd: -0.8, fibLevel: "0.786", patternScore: 85, pattern: "Aşırı Alım + Negatif Uyumsuzluk (Satış)", potential: 15 },
 "XRP-USDT": { rsi: 82, macd: -1.2, fibLevel: "0.618", patternScore: 89, pattern: "Çift Tepe Formasyonu (Satış)", potential: 22 },
 "ADA-USDT": { rsi: 75, macd: -0.5, fibLevel: "0.5", patternScore: 78, pattern: "Yükselen Kama Kırılımı (Satış)", potential: 18 },
-"AVAX-USDT": { rsi: 31, macd: 1.1, fibLevel: "0.786", patternScore: 89, pattern: "Cup and Handle", potential: 52 },
 "DOGE-USDT": { rsi: 38, macd: -0.45, fibLevel: "0.618", patternScore: 82, pattern: "Azalan Üçgen", potential: 25 },
 "DOT-USDT": { rsi: 85, macd: -1.5, fibLevel: "0.236", patternScore: 92, pattern: "Dirençten Dönüş (Satış)", potential: 25 },
 "LINK-USDT": { rsi: 39, macd: 0.9, fibLevel: "0.618", patternScore: 82, pattern: "Channel Breakout", potential: 48 },
 "MATIC-USDT": { rsi: 72, macd: -0.9, fibLevel: "0.382", patternScore: 81, pattern: "OBO Formasyonu (Satış)", potential: 28 },
-"NEAR-USDT": { rsi: 29, macd: 1.5, fibLevel: "0.786", patternScore: 92, pattern: "Parabolic Move Potential", potential: 75 },
 "10000PEPE-USDT": { rsi: 32, macd: 0.85, fibLevel: "0.786", patternScore: 94, pattern: "Dip Dönüşü 🐸", potential: 45 },
 "FET-USDT": { rsi: 34, macd: 1.4, fibLevel: "0.618", patternScore: 91, pattern: "AI Narrative Hype", potential: 85 },
 "RNDR-USDT": { rsi: 36, macd: 1.2, fibLevel: "0.618", patternScore: 87, pattern: "Bull Flag", potential: 58 },
@@ -411,16 +412,16 @@ const [candidates, setCandidates] = useState<Record<string, any[]>>(() => {
     const p: Record<string, number> = {};
     // Realistic initial values for 2026
     const initialMocks: Record<string, number> = {
-      "XU100": 14073.79, "XU030": 15200.50, "TRY=X": 44.60, "EURTRY=X": 52.50,
-      "BTC-USDT": 112082.90, "ETH-USDT": 5240.20, "SOL-USDT": 245.60,
-      "GC=F": 4749.57, "GA=F": 6812.73, "GAG=X": 31.92,
+      "XU100": 9450.79, "XU030": 10200.50, "TRY=X": 34.45, "EURTRY=X": 36.20,
+      "BTC-USDT": 96450.20, "ETH-USDT": 2680.50, "SOL-USDT": 185.60,
+      "GC=F": 2749.57, "GAU=X": 3050.73, "GAG=X": 36.92,
       ...REALISTIC_BIST_PRICES
     };
     
     const initialChanges: Record<string, number> = {
       "XU100": 1.25, "XU030": 1.15, "TRY=X": 0.05, "EURTRY=X": 0.08,
       "BTC-USDT": 2.45, "ETH-USDT": 1.80, "SOL-USDT": 3.20,
-      "GC=F": 0.45, "GA=F": 0.35, "GAG=X": 0.86,
+      "GC=F": 0.45, "GAU=X": 0.35, "GAG=X": 0.86,
       "THYAO": 0.79, "GARAN": -1.40, "AKBNK": -0.80, "EREGL": 0.50,
       "KCHOL": 1.20, "SAHOL": 0.30, "BIMAS": -0.20, "TUPRS": 0.40,
       "ASELS": 1.50, "PGSUS": 0.90, "SISE": -0.50, "YKBNK": -1.10,
@@ -621,9 +622,9 @@ useEffect(() => {
             if (!next[sym]) {
               const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
               let basePrice = 10 + (seed % 500);
-              if (sym === 'BTC-USDT') basePrice = 71082.90;
-              if (sym === 'ETH-USDT') basePrice = 3540.20;
-              if (sym === 'SOL-USDT') basePrice = 145.60;
+              if (sym === 'BTC-USDT') basePrice = 96450.20;
+              if (sym === 'ETH-USDT') basePrice = 2680.50;
+              if (sym === 'SOL-USDT') basePrice = 185.60;
               
               const randomChange = (Math.sin(Date.now() / 10000 + seed) * 10);
               next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
@@ -661,8 +662,8 @@ useEffect(() => {
         setPrices(prev => {
           const next = { ...prev };
           if (!next["USDT-TRY"]) {
-            next["USDT-TRY"] = 44.60 + (Math.sin(Date.now() / 10000) * 0.5);
-            next["USDT-TRY_change"] = +(Math.sin(Date.now() / 10000) * 0.1).toFixed(2);
+            next["USDT-TRY"] = 34.45 + (Math.sin(Date.now() / 10000) * 0.2);
+            next["USDT-TRY_change"] = +(Math.sin(Date.now() / 10000) * 0.05).toFixed(2);
           }
           return next;
         });
@@ -796,28 +797,28 @@ useEffect(() => {
                 });
                 
                 if (!next["XU100"]) {
-                  next["XU100"] = 14073.79 + (Math.sin(Date.now() / 10000) * 100);
-                  next["XU100_change"] = +(Math.sin(Date.now() / 10000) * 2).toFixed(2);
+                  next["XU100"] = 9450.79 + (Math.sin(Date.now() / 10000) * 50);
+                  next["XU100_change"] = +(Math.sin(Date.now() / 10000) * 1.5).toFixed(2);
                 }
                 if (!next["XU030"]) {
-                  next["XU030"] = 15200.50 + (Math.sin(Date.now() / 10000) * 120);
-                  next["XU030_change"] = +(Math.sin(Date.now() / 10000) * 2.2).toFixed(2);
+                  next["XU030"] = 10200.50 + (Math.sin(Date.now() / 10000) * 60);
+                  next["XU030_change"] = +(Math.sin(Date.now() / 10000) * 1.6).toFixed(2);
                 }
                 if (!next["TRY=X"]) {
-                  next["TRY=X"] = 44.60 + (Math.sin(Date.now() / 10000) * 0.5);
-                  next["TRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.1).toFixed(2);
+                  next["TRY=X"] = 34.45 + (Math.sin(Date.now() / 10000) * 0.2);
+                  next["TRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.05).toFixed(2);
                 }
                 if (!next["EURTRY=X"]) {
-                  next["EURTRY=X"] = 52.50 + (Math.sin(Date.now() / 10000) * 0.6);
-                  next["EURTRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.15).toFixed(2);
+                  next["EURTRY=X"] = 36.20 + (Math.sin(Date.now() / 10000) * 0.3);
+                  next["EURTRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.08).toFixed(2);
                 }
                 if (!next["GC=F"]) {
-                  next["GC=F"] = 4749.57 + (Math.sin(Date.now() / 10000) * 20);
-                  next["GC=F_change"] = +(Math.sin(Date.now() / 10000) * 0.8).toFixed(2);
+                  next["GC=F"] = 2749.57 + (Math.sin(Date.now() / 10000) * 15);
+                  next["GC=F_change"] = +(Math.sin(Date.now() / 10000) * 0.6).toFixed(2);
                 }
-                if (!next["GA=F"]) {
-                  next["GA=F"] = 6812.73 + (Math.sin(Date.now() / 10000) * 15);
-                  next["GA=F_change"] = +(Math.sin(Date.now() / 10000) * 0.7).toFixed(2);
+                if (!next["GAU=X"]) {
+                  next["GAU=X"] = 3050.73 + (Math.sin(Date.now() / 10000) * 10);
+                  next["GAU=X_change"] = +(Math.sin(Date.now() / 10000) * 0.5).toFixed(2);
                 }
 
                 console.log("[App] Prices updated from fallback. Count:", Object.keys(next).length);
@@ -858,28 +859,28 @@ useEffect(() => {
             });
             
             if (!next["XU100"]) {
-              next["XU100"] = 14073.79 + (Math.sin(Date.now() / 10000) * 100);
-              next["XU100_change"] = +(Math.sin(Date.now() / 10000) * 2).toFixed(2);
+              next["XU100"] = 9450.79 + (Math.sin(Date.now() / 10000) * 50);
+              next["XU100_change"] = +(Math.sin(Date.now() / 10000) * 1.5).toFixed(2);
             }
             if (!next["XU030"]) {
-              next["XU030"] = 15200.50 + (Math.sin(Date.now() / 10000) * 120);
-              next["XU030_change"] = +(Math.sin(Date.now() / 10000) * 2.2).toFixed(2);
+              next["XU030"] = 10200.50 + (Math.sin(Date.now() / 10000) * 60);
+              next["XU030_change"] = +(Math.sin(Date.now() / 10000) * 1.6).toFixed(2);
             }
             if (!next["TRY=X"]) {
-              next["TRY=X"] = 44.60 + (Math.sin(Date.now() / 10000) * 0.5);
-              next["TRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.1).toFixed(2);
+              next["TRY=X"] = 34.45 + (Math.sin(Date.now() / 10000) * 0.2);
+              next["TRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.05).toFixed(2);
             }
             if (!next["EURTRY=X"]) {
-              next["EURTRY=X"] = 52.50 + (Math.sin(Date.now() / 10000) * 0.6);
-              next["EURTRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.15).toFixed(2);
+              next["EURTRY=X"] = 36.20 + (Math.sin(Date.now() / 10000) * 0.3);
+              next["EURTRY=X_change"] = +(Math.sin(Date.now() / 10000) * 0.08).toFixed(2);
             }
             if (!next["GC=F"]) {
-              next["GC=F"] = 4749.57 + (Math.sin(Date.now() / 10000) * 20);
-              next["GC=F_change"] = +(Math.sin(Date.now() / 10000) * 0.8).toFixed(2);
+              next["GC=F"] = 2749.57 + (Math.sin(Date.now() / 10000) * 15);
+              next["GC=F_change"] = +(Math.sin(Date.now() / 10000) * 0.6).toFixed(2);
             }
-            if (!next["GA=F"]) {
-              next["GA=F"] = 6812.73 + (Math.sin(Date.now() / 10000) * 15);
-              next["GA=F_change"] = +(Math.sin(Date.now() / 10000) * 0.7).toFixed(2);
+            if (!next["GAU=X"]) {
+              next["GAU=X"] = 3050.73 + (Math.sin(Date.now() / 10000) * 10);
+              next["GAU=X_change"] = +(Math.sin(Date.now() / 10000) * 0.5).toFixed(2);
             }
             return next;
           });
@@ -1014,9 +1015,13 @@ useEffect(() => {
 
   // Removed News Listener to avoid Firestore quota issues
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setLoading(true);
-    fetchPrices();
+    try {
+      // Trigger server-side refresh
+      await fetch('/api/refresh').catch(() => {});
+    } catch (e) {}
+    await fetchPrices();
     fetchNews();
   };
 
@@ -1033,10 +1038,11 @@ const startScan = useCallback(() => {
   
   let p = 0;
   scanIntervalRef.current = setInterval(() => {
-    p += Math.random() * 5 + 2;
+    p += Math.random() * 8 + 3;
     if (p >= 100) {
       p = 100;
-      clearInterval(scanIntervalRef.current);
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
       setScanning(prev => ({ ...prev, [targetMarket]: false }));
       setScanned(prev => ({ ...prev, [targetMarket]: true }));
 
@@ -1055,36 +1061,39 @@ const startScan = useCallback(() => {
         
         // Simulate Whale Activity
         let whale = { action: "YOK", amount: "" };
-        if (longScore >= 70 && Math.random() > 0.3) {
+        if (longScore >= 80 && Math.random() > 0.3) {
           whale = { action: "ALIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
-        } else if (shortScore >= 70 && Math.random() > 0.3) {
+        } else if (shortScore >= 80 && Math.random() > 0.3) {
           whale = { action: "SATIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
         }
 
         const results = [];
         // Only show the stronger side if both are above threshold
-        // Threshold set to 70 for candidates AND 8/12 moving averages must give buy/sell
-        if (longScore >= 70 && maBuyCount >= 8 && longScore >= shortScore) {
-          results.push({ ...s, dynamicPotential: longScore, side: 'long', maBuyCount, whale, techScore: techLong, fundScore: fundBullish, whaleScore: whaleBullish, globalScore: globalBullish, pd: scores.pd });
-        } else if (shortScore >= 70 && maSellCount >= 8) {
-          results.push({ ...s, dynamicPotential: shortScore, side: 'short', maSellCount, whale, techScore: techShort, fundScore: 100 - fundBullish, whaleScore: 100 - whaleBullish, globalScore: 100 - globalBullish, pd: scores.pd });
+        // Threshold set to 80 for candidates AND 8/12 moving averages must give buy/sell
+        if (longScore >= 80 && maBuyCount >= 8 && longScore >= shortScore) {
+          results.push({ ...s, dynamicPotential: longScore, finalScore: scores.finalScore, side: 'long', maBuyCount, whale, techScore: techLong, fundScore: fundBullish, whaleScore: whaleBullish, globalScore: globalBullish, pd: scores.pd });
+        } else if (shortScore >= 80 && maSellCount >= 8) {
+          results.push({ ...s, dynamicPotential: shortScore, finalScore: scores.finalScore, side: 'short', maSellCount, whale, techScore: techShort, fundScore: 100 - fundBullish, whaleScore: 100 - whaleBullish, globalScore: 100 - globalBullish, pd: scores.pd });
         }
         
         return results;
-      }).sort((a, b) => b.dynamicPotential - a.dynamicPotential);
+      }).sort((a, b) => b.finalScore - a.finalScore);
 
       setCandidates(prev => ({ ...prev, [targetMarket]: found }));
     }
     setScanProgress(prev => ({ ...prev, [targetMarket]: Math.min(p, 100) }));
-  }, 80);
+  }, 100);
 }, [prices, stocks, market, scanning]);
 
 const fetchAiAnalysis = useCallback(async (stock: any) => {
   if (!stock) return;
   
+  const currentPrice = Number(prices[stock.symbol] ?? stock.price ?? 0);
+  const cacheKey = `${stock.symbol}_${Math.round(currentPrice * 100) / 100}`; // Cache by symbol and price (rounded to 2 decimal places)
+
   // Check cache first
-  if (aiCache[stock.symbol]) {
-    setAiAnalysis(aiCache[stock.symbol]);
+  if (aiCache[cacheKey]) {
+    setAiAnalysis(aiCache[cacheKey]);
     return;
   }
 
@@ -1095,7 +1104,7 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
   const isCrypto = stock.symbol.includes("-USDT");
   
   try {
-    const promptPrice = Number.isFinite(Number(prices[stock.symbol] ?? stock.price)) ? Number(prices[stock.symbol] ?? stock.price) : 0;
+    const promptPrice = Number.isFinite(currentPrice) ? currentPrice : 0;
     const promptChange = Number.isFinite(Number(prices[`${stock.symbol}_change`] ?? stock.change)) ? Number(prices[`${stock.symbol}_change`] ?? stock.change) : 0;
     
     const isShort = stock.side === 'short';
@@ -1106,17 +1115,19 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
 Zaman Dilimi: 4 SAATLİK (4H).
 Sistem Sinyali: ${systemDecision}.
 ${whaleInfo}
-Veri: Fiyat ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
+Veri: GÜNCEL FİYAT ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
 
 Talimat: Çok kısa, teknik ve temel olarak net ol. 
 Analizini 4H zaman dilimine göre yap.
 Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odaklanarak yap. Özellikle ${whaleInfo} verisini dikkate al.
 
+ÖNEMLİ: SCALP ve RİSK bölümlerindeki Giriş, TP ve Stop seviyelerini MUTLAKA yukarıda verilen GÜNCEL FİYAT (${promptPrice}) üzerinden hesapla. Kesinlikle başka bir fiyat kullanma.
+
 1. 🎯 FORMASYON: ${pd.pattern} yorumu.
 2. 📊 TEKNİK: RSI/MACD yönü.
 3. 📰 TEMEL: Varlık hakkında kısa temel beklenti.
-4. ⚡ SCALP: Giriş/TP.
-5. 🎰 RİSK: Stop.
+4. ⚡ SCALP: Giriş/TP (Güncel fiyat ${promptPrice} baz alınarak).
+5. 🎰 RİSK: Stop (Güncel fiyat ${promptPrice} baz alınarak).
 6. 💎 KARAR: ${systemDecision} (neden).`;
 
     let apiKey = "";
@@ -1142,7 +1153,7 @@ Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odak
     
     const text = response.text || "Analiz yüklenemedi.";
     setAiAnalysis(text);
-    setAiCache(prev => ({ ...prev, [stock.symbol]: text }));
+    setAiCache(prev => ({ ...prev, [cacheKey]: text }));
   } catch (err: any) {
     console.error("AI Analysis Error:", err);
     let errorMsg = `⚠️ Analiz şu an yüklenemiyor. Hata: ${err.message}`;
@@ -1163,13 +1174,33 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
   
   // 4H Timeframe Adjustments
   // 4H is more stable, so we increase the weight of RSI and MACD slightly
-  let rsiLongBias = pd.rsi < 35 ? (35 - pd.rsi) * 2.0 : 0;
-  let rsiShortBias = pd.rsi > 65 ? (pd.rsi - 65) * 2.0 : 0;
-  let macdBias = pd.macd * 15;
+  let rsiLongBias = pd.rsi < 35 ? (35 - pd.rsi) * 2.5 : 0;
+  let rsiShortBias = pd.rsi > 65 ? (pd.rsi - 65) * 2.5 : 0;
+  
+  // RSI Penalty: Overbought assets shouldn't have high long scores
+  if (pd.rsi > 70) rsiLongBias -= (pd.rsi - 70) * 5.0; // Increased penalty from 3.0 to 5.0
+  if (pd.rsi > 80) rsiLongBias -= 50; // Hard penalty for extreme RSI
+  if (pd.rsi < 30) rsiShortBias -= (30 - pd.rsi) * 5.0;
+  if (pd.rsi < 20) rsiShortBias -= 50; // Hard penalty for extreme oversold
+
+  // MACD Penalty: MACD sell signal shouldn't have high long score
+  let macdBias = pd.macd * 20;
+  if (pd.macd < 0) {
+    macdBias *= 4.0; // Heavier penalty for negative MACD on Longs (was 2.0)
+    rsiLongBias -= 20; // Additional penalty if both RSI high and MACD negative
+  }
+  
   let momentumBias = liveChange * 2.5;
   
   let techLong = pd.potential + rsiLongBias + macdBias + momentumBias;
   let techShort = pd.potential + rsiShortBias - macdBias - momentumBias;
+  
+  // Strict MACD and RSI cross-check
+  if (pd.macd < -0.05) techLong *= 0.5; // More aggressive reduction (was 0.7)
+  if (pd.macd > 0.05) techShort *= 0.5;
+  if (pd.rsi > 75) techLong *= 0.4; // Drastic reduction for extremely high RSI
+  if (pd.rsi < 25) techShort *= 0.4;
+
   techLong = Math.max(0, Math.min(100, techLong));
   techShort = Math.max(0, Math.min(100, techShort));
 
@@ -1210,6 +1241,7 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
     longScore: Math.round(Math.max(0, Math.min(98, longScore))),
     shortScore: Math.round(Math.max(0, Math.min(98, shortScore))),
     techScore: Math.round(longScore > shortScore ? techLong : techShort),
+    finalScore: Math.round(((longScore > shortScore ? longScore : shortScore) + (longScore > shortScore ? techLong : techShort)) / 2),
     fundScore: Math.round(fundBullish),
     whaleScore: Math.round(whaleBullish),
     globalScore: Math.round(globalBullish),
@@ -1374,8 +1406,8 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     
     // Select candidates with 90+ score
     let selectedNew = availableCandidates
-      .filter((c: any) => c.score >= 90)
-      .sort((a: any, b: any) => b.score - a.score);
+      .filter((c: any) => c.finalScore >= 90)
+      .sort((a: any, b: any) => b.finalScore - a.finalScore);
       
     // If we have more than 8 total slots, cap it
     const maxNewSlots = 8 - stayingItems.length;
@@ -1388,8 +1420,8 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     // If we don't have enough 90+ candidates to reach at least 4 total items
     if (selectedNew.length < minNewSlots) {
       const fallbackCandidates = availableCandidates
-        .filter((c: any) => c.score >= 85 && c.score < 90)
-        .sort((a: any, b: any) => b.score - a.score)
+        .filter((c: any) => c.finalScore >= 85 && c.finalScore < 90)
+        .sort((a: any, b: any) => b.finalScore - a.finalScore)
         .slice(0, minNewSlots - selectedNew.length);
       selectedNew = [...selectedNew, ...fallbackCandidates];
     }
@@ -1399,8 +1431,8 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
        const remainingNeeded = 4 - (selectedNew.length + stayingItems.length);
        const currentSymbols = [...stayingSymbols, ...selectedNew.map(n => n.symbol)];
        const lastResort = availableCandidates
-         .filter(c => !currentSymbols.includes(c.symbol) && c.score >= 80)
-         .sort((a, b) => b.score - a.score)
+         .filter(c => !currentSymbols.includes(c.symbol) && c.finalScore >= 80)
+         .sort((a, b) => b.finalScore - a.finalScore)
          .slice(0, remainingNeeded);
        selectedNew = [...selectedNew, ...lastResort];
     }
@@ -2331,7 +2363,7 @@ function MarketMoneyFlow({ market }: { market: string }) {
       })).sort((a, b) => a.amount - b.amount));
       
       setLastUpdated(new Date().toLocaleTimeString("tr-TR", { hour: '2-digit', minute: '2-digit' }));
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 15 * 60 * 1000); // 15 minutes
 
     return () => clearInterval(interval);
   }, [market]);
@@ -2583,7 +2615,7 @@ return (
       {scanned && (
         <div style={{ background: "rgba(0,212,170,0.08)", borderRadius: 12, padding: "10px 14px", marginBottom: 14, border: "1px solid rgba(0,212,170,0.2)" }}>
           <div style={{ color: "#00d4aa", fontSize: 13, fontWeight: 700 }}>✦ {safeCandidates.length} aday tespit edildi</div>
-          <div style={{ color: "#6b7280", fontSize: 11, marginTop: 2 }}>%70+ potansiyel • Yüksek güven skoru</div>
+          <div style={{ color: "#6b7280", fontSize: 11, marginTop: 2 }}>%80+ potansiyel • Yüksek güven skoru</div>
         </div>
       )}
 
@@ -2823,10 +2855,10 @@ function ScalpScreen({ candidates = [], prices = {}, lastUpdated, onBack, onSele
       if (filterSide === "long" && stock.side !== "long") return false;
       if (filterSide === "short" && stock.side !== "short") return false;
       const maCount = stock.side === 'long' ? (stock.maBuyCount || 0) : (stock.maSellCount || 0);
-      if ((stock.dynamicPotential || 0) < 85 || maCount < 10) return false;
+      if ((stock.finalScore || 0) < 85 || maCount < 10) return false;
       return true;
     })
-    .sort((a, b) => (b.dynamicPotential || 0) - (a.dynamicPotential || 0));
+    .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0));
 
   return (
     <div style={{ padding: "0 0 20px" }}>

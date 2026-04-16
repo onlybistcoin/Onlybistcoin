@@ -19,7 +19,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // --- In-Memory Price Cache ---
-const inMemoryPrices: Record<string, any> = {};
+const inMemoryPrices: Record<string, any> = {
+  "XU100": { price: 9450.79, change: 1.25, source: 'Initial' },
+  "XU030": { price: 10200.50, change: 1.15, source: 'Initial' },
+  "TRY=X": { price: 34.45, change: 0.05, source: 'Initial' },
+  "EURTRY=X": { price: 36.20, change: 0.08, source: 'Initial' },
+  "BTC-USDT": { price: 96450.20, change: 2.45, source: 'Initial' },
+  "ETH-USDT": { price: 2680.50, change: 1.80, source: 'Initial' },
+  "SOL-USDT": { price: 185.60, change: 3.20, source: 'Initial' },
+  "GC=F": { price: 2749.57, change: 0.45, source: 'Initial' },
+  "GAU=X": { price: 3050.73, change: 0.35, source: 'Initial' },
+  "GAG=X": { price: 36.92, change: 0.86, source: 'Initial' },
+  "XU100_change": 1.25, "XU030_change": 1.15, "TRY=X_change": 0.05,
+  "BTC-USDT_change": 2.45, "ETH-USDT_change": 1.80, "SOL-USDT_change": 3.20,
+  "GAG=X_change": 0.86
+};
 const inMemoryNews: any[] = [];
 
 import admin from "firebase-admin";
@@ -158,6 +172,16 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.get("/api/refresh", async (req, res) => {
+  console.log("[API] Manual refresh triggered...");
+  await Promise.allSettled([
+    updateCryptoPrices(),
+    updateBistPrices(),
+    updateCommodities()
+  ]);
+  res.json({ status: "refreshed", count: Object.keys(inMemoryPrices).length });
+});
+
 // --- Workers ---
 const BIST_SYMBOLS = [
   "THYAO", "GARAN", "AKBNK", "EREGL", "KCHOL", "SAHOL", "BIMAS", "TOASO", "ARCLK", "TUPRS", "SISE", "DOHOL",
@@ -204,7 +228,7 @@ const CRYPTO_SYMBOLS = [
   "RLC/USDT", "GLM/USDT", "STORJ/USDT", "SC/USDT", "AR/USDT", "LPT/USDT", "AUDIO/USDT", "ENS/USDT", "ID/USDT", "GAL/USDT",
   "HOOK/USDT", "HFT/USDT", "GMT/USDT", "GST/USDT", "SWEAT/USDT", "FITFI/USDT", "SLP/USDT", "ILV/USDT", "YGG/USDT", "MC/USDT",
   "MAGIC/USDT", "ENJ/USDT", "OG/USDT", "CITY/USDT", "BAR/USDT", "PSG/USDT", "JUV/USDT", "ACM/USDT", "ASR/USDT", "ATM/USDT",
-  "INTER/USDT", "LAZIO/USDT", "PORTO/USDT", "SANTOS/USDT", "ALPINE/USDT"
+  "INTER/USDT", "LAZIO/USDT", "PORTO/USDT", "SANTOS/USDT", "ALPINE/USDT", "BEAMX/USDT"
 ];
 
 const binance = new ccxt.binance({ enableRateLimit: true });
@@ -222,6 +246,11 @@ async function updateCryptoPrices() {
       // Map back to App.tsx format (e.g. BTC-USDT or 10000PEPE-USDT)
       let docId = symbol.replace("/", "-");
       
+      // Special case for BEAM: Binance uses BEAMX/USDT, App uses BEAM-USDT
+      if (symbol === "BEAMX/USDT") {
+        docId = "BEAM-USDT";
+      }
+      
       // Handle 10000 prefix for meme coins if needed
       if (["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "SATS-USDT", "BOME-USDT", "MEW-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"].includes(docId)) {
         // Check if App.tsx uses the 10000 prefix
@@ -232,6 +261,7 @@ async function updateCryptoPrices() {
           lastUpdated: new Date().toISOString(),
           source: 'Binance'
         };
+        inMemoryPrices[`${prefixedId}_change`] = ticker.percentage || 0;
       }
 
       if (ticker.last !== undefined) {
