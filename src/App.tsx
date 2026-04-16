@@ -1118,17 +1118,17 @@ ${whaleInfo}
 Veri: GÜNCEL FİYAT ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
 
 Talimat: Çok kısa, teknik ve temel olarak net ol. 
-Analizini 4H zaman dilimine göre yap.
+Analizini 4H (4 Saatlik) zaman dilimine göre yap. Bu bir SCALP değil, SWING/POZİSYON analizidir.
 Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odaklanarak yap. Özellikle ${whaleInfo} verisini dikkate al.
 
-ÖNEMLİ: SCALP ve RİSK bölümlerindeki Giriş, TP ve Stop seviyelerini MUTLAKA yukarıda verilen GÜNCEL FİYAT (${promptPrice}) üzerinden hesapla. Kesinlikle başka bir fiyat kullanma.
+ÖNEMLİ: HEDEF ve RİSK bölümlerindeki Giriş, TP (Kâr Al) ve Stop seviyelerini MUTLAKA yukarıda verilen GÜNCEL FİYAT (${promptPrice}) üzerinden 4H zaman dilimine uygun (geniş marjlı) hesapla. Kesinlikle başka bir fiyat kullanma.
 
 1. 🎯 FORMASYON: ${pd.pattern} yorumu.
-2. 📊 TEKNİK: RSI/MACD yönü.
+2. 📊 TEKNİK: RSI/MACD yönü (4H bazlı).
 3. 📰 TEMEL: Varlık hakkında kısa temel beklenti.
-4. ⚡ SCALP: Giriş/TP (Güncel fiyat ${promptPrice} baz alınarak).
-5. 🎰 RİSK: Stop (Güncel fiyat ${promptPrice} baz alınarak).
-6. 💎 KARAR: ${systemDecision} (neden).`;
+4. 🚀 HEDEFLER: Giriş/TP1/TP2 (4H Swing hedefleri, Güncel fiyat ${promptPrice} baz alınarak).
+5. 🛡️ RİSK YÖNETİMİ: Stop Seviyesi (4H yapıya uygun, Güncel fiyat ${promptPrice} baz alınarak).
+6. 💎 KARAR: ${systemDecision} (4H strateji özeti).`;
 
     let apiKey = "";
     try {
