@@ -18,21 +18,28 @@ process.on('unhandledRejection', (reason, promise) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// --- In-Memory Price Cache ---
+// --- In-Memory Price Cache (Current 2024 Reality) ---
 const inMemoryPrices: Record<string, any> = {
-  "XU100": { price: 9450.79, change: 1.25, source: 'Initial' },
-  "XU030": { price: 10200.50, change: 1.15, source: 'Initial' },
-  "TRY=X": { price: 34.45, change: 0.05, source: 'Initial' },
-  "EURTRY=X": { price: 36.20, change: 0.08, source: 'Initial' },
-  "BTC-USDT": { price: 96450.20, change: 2.45, source: 'Initial' },
-  "ETH-USDT": { price: 2680.50, change: 1.80, source: 'Initial' },
-  "SOL-USDT": { price: 185.60, change: 3.20, source: 'Initial' },
-  "GC=F": { price: 2749.57, change: 0.45, source: 'Initial' },
-  "GAU=X": { price: 3050.73, change: 0.35, source: 'Initial' },
-  "GAG=X": { price: 36.92, change: 0.86, source: 'Initial' },
-  "XU100_change": 1.25, "XU030_change": 1.15, "TRY=X_change": 0.05,
-  "BTC-USDT_change": 2.45, "ETH-USDT_change": 1.80, "SOL-USDT_change": 3.20,
-  "GAG=X_change": 0.86
+  "XU100": { price: 9750.00, change: 1.25, source: 'Initial' },
+  "XU030": { price: 10450.00, change: 1.10, source: 'Initial' },
+  "TRY=X": { price: 32.45, change: 0.15, source: 'Initial' },
+  "EURTRY=X": { price: 35.10, change: 0.08, source: 'Initial' },
+  "BTC-USDT": { price: 64850.00, change: 2.50, source: 'Initial' },
+  "ETH-USDT": { price: 3150.00, change: 1.80, source: 'Initial' },
+  "SOL-USDT": { price: 145.00, change: 4.20, source: 'Initial' },
+  "BNB-USDT": { price: 585.00, change: 1.10, source: 'Initial' },
+  "AVAX-USDT": { price: 35.50, change: -2.10, source: 'Initial' },
+  "XRP-USDT": { price: 0.52, change: 0.25, source: 'Initial' },
+  "ADA-USDT": { price: 0.48, change: -1.20, source: 'Initial' },
+  "DOGE-USDT": { price: 0.16, change: 2.50, source: 'Initial' },
+  "PEPE-USDT": { price: 0.0000085, change: 5.30, source: 'Initial' },
+  "10000PEPE-USDT": { price: 0.085, change: 5.30, source: 'Initial' },
+  "GC=F": { price: 2345.00, change: 0.85, source: 'Initial' },
+  "GAU=X": { price: 2450.00, change: 0.95, source: 'Initial' },
+  "GAG=X": { price: 30.25, change: 1.45, source: 'Initial' },
+  "XU100_change": 1.25, "XU030_change": 1.10, "TRY=X_change": 0.15,
+  "BTC-USDT_change": 2.50, "ETH-USDT_change": 1.80, "SOL-USDT_change": 4.20,
+  "GAG=X_change": 1.45
 };
 const inMemoryNews: any[] = [];
 
@@ -251,12 +258,11 @@ async function updateCryptoPrices() {
         docId = "BEAM-USDT";
       }
       
-      // Handle 10000 prefix for meme coins if needed
+      // Handle 10000 prefix for meme coins
       if (["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "SATS-USDT", "BOME-USDT", "MEW-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"].includes(docId)) {
-        // Check if App.tsx uses the 10000 prefix
         const prefixedId = "10000" + docId;
         inMemoryPrices[prefixedId] = {
-          price: ticker.last,
+          price: ticker.last * 10000,
           change: ticker.percentage || 0,
           lastUpdated: new Date().toISOString(),
           source: 'Binance'
