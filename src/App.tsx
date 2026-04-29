@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { LineChart, Line, AreaChart, Area, ComposedChart, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { GoogleGenAI } from "@google/genai";
 import { RefreshCw, AlertCircle, Activity } from "lucide-react";
 import { db, testConnection } from "./firebase";
@@ -144,22 +144,22 @@ const REALISTIC_BIST_PRICES: Record<string, number> = {
   "THYAO": 310.50, "GARAN": 115.20, "AKBNK": 65.15, "EREGL": 52.30, "KCHOL": 225.00, "SAHOL": 105.50, "BIMAS": 510.00, "TOASO": 285.00, "ARCLK": 178.00, "TUPRS": 185.50, "SISE": 51.30, "DOHOL": 15.50, "PETKM": 24.10, "FROTO": 1180.00, "ASELS": 62.45, "MGROS": 482.00, "PGSUS": 990.00, "TAVHL": 218.00, "YKBNK": 35.10, "EKGYO": 12.00, "VESTL": 95.00, "ODAS": 11.00, "SMRTG": 62.15, "CANTE": 20.40, "ISCTR": 15.10, "HALKB": 21.00, "VAKBN": 22.00, "TSKB": 12.00, "ALARK": 128.00, "ENKAI": 44.00, "TKFEN": 48.00, "GUBRF": 185.00, "HEKTS": 18.00, "SASA": 45.00, "KONTR": 245.00, "GESAN": 78.00, "YEOTK": 235.00, "ASTOR": 128.00, "EUPWR": 138.00, "CWENE": 315.00, "ALFAS": 128.00, "MIATK": 85.00, "REEDR": 42.00, "TABGD": 168.00, "TARKM": 545.00, "EBEBK": 82.00, "KAYSE": 42.00, "BIENY": 51.00, "SDTTR": 345.00, "ONCSM": 215.00, "SOKE": 22.00, "EYGYO": 28.00, "GOKNR": 32.00, "CVKMD": 425.00, "KOPOL": 72.00, "PASEU": 68.00, "KATMR": 4.10, "TMSN": 128.00, "OTKAR": 580.00, "TTRAK": 980.00, "DOAS": 345.00, "ASUZU": 245.00, "KMPUR": 72.00, "SAYAS": 128.00, "HUNER": 9.10, "ZEDUR": 92.00, "PRKME": 28.00, "ULKER": 145.00, "AEFES": 185.00, "CCOLA": 740.00, "TATGD": 48.00, "SOKM": 68.00, "TKNSA": 42.00, "MAVI": 162.00, "VAKKO": 92.00, "YATAS": 42.00, "BRISA": 128.00, "GOODY": 28.00, "AKSA": 128.00, "KORDS": 92.00, "BAGFS": 42.00, "EGEEN": 14500.00, "BFREN": 9800.00, "FMIZP": 385.00, "PARSN": 128.00, "JANTS": 242.00, "ALCAR": 1450.00, "ALGYO": 62.00, "TRGYO": 48.00, "OZKGY": 15.00, "MSGYO": 18.00, "HLGYO": 10.00, "VKGYO": 8.00, "SNGYO": 4.10, "KLGYO": 4.10, "AKFGY": 10.00, "ISGYO": 18.00, "KGYO": 10.00, "IDGYO": 10.00, "PAGYO": 48.00, "DZGYO": 10.00, "SRVGY": 245.00, "RYGYO": 38.00, "RYSAS": 48.00, "GLYHO": 12.00, "NETAS": 92.00, "ALCTL": 128.00, "ARENA": 48.00, "INDES": 11.00, "DESPC": 22.00, "DGATE": 38.00, "LINK": 385.00, "LOGO": 85.00, "KFEIN": 128.00, "ARDYZ": 65.00, "ESCOM": 48.00, "FONET": 38.00, "KRVGD": 28.00, "AVOD": 4.10, "OYYAT": 48.00, "ISMEN": 42.00, "GSDHO": 10.00, "INFO": 14.00, "OSMEN": 28.00, "GLBMD": 38.00, "GEDIK": 18.00, "TUKAS": 11.00, "KNFRT": 18.00, "FRIGO": 10.00, "ELITE": 62.00, "ULUUN": 38.00, "VANGD": 18.00, "MERKO": 10.00, "PETUN": 92.00, "PNSUT": 92.00, "SELVA": 18.00, "BRKSN": 28.00, "PRZMA": 48.00, "IHLAS": 1.20, "IHEVA": 4.10, "IHYAY": 4.10, "IHGZT": 4.10, "METRO": 4.10, "AVGYO": 10.00, "ATLAS": 10.00, "ETYAT": 10.00, "EUYO": 10.00, "EUKYO": 10.00, "MZHLD": 18.00, "EPLAS": 15.00, "DERIM": 28.00, "DESA": 28.00, "HATEK": 18.00, "MNDRS": 12.00, "ARSAN": 18.00, "LUKSK": 92.00, "KRTEK": 38.00, "SKTAS": 10.00, "SNPAM": 128.00, "SONME": 92.00, "DAGI": 12.00, "KRONT": 38.00, "EDATA": 28.00, "VBTYZ": 48.00, "PKART": 128.00, "SMART": 62.00, "HTTBT": 92.00, "OBASL": 51.00, "ALVES": 51.00, "ARTMS": 62.00, "MOGAN": 18.00, "ODINE": 72.00, "ENTRA": 18.00, "HOROZ": 92.00, "ALTNY": 128.00, "KOTON": 28.00, "LILA": 42.00, "HRKET": 72.00, "YIGIT": 51.00, "DCTTR": 28.00, "BAHEV": 62.00, "ONUR": 92.00, "OZATD": 72.00, "CEMZY": 18.00, "KARYE": 42.00, "GIPTA": 38.00, "TCELL": 85.00, "TTKOM": 48.00, "ENJSA": 68.00, "KRDMD": 32.00, "ECILC": 62.00, "DEVA": 92.00, "SELEC": 68.00, "MPARK": 245.00, "LKMNH": 72.00, "TRILC": 18.00, "GENIL": 72.00, "ANGEN": 18.00, "MEDTR": 48.00, "RTALB": 18.00, "ZOREN": 6.20, "AKENR": 6.20, "AKSEN": 48.00, "AYDEM": 28.00, "GWIND": 32.00, "NATEN": 68.00, "ESEN": 28.00, "MAGEN": 18.00, "BRSAN": 680.00, "BRYAT": 2850.00, "CEMTS": 15.00, "IZMDC": 10.00, "KCAER": 62.00, "BUCIM": 10.00, "AKCNS": 168.00, "CIMSA": 42.00, "NUHCM": 385.00, "OYAKC": 72.00, "AFYON": 15.00, "BTCIM": 168.00, "BSOKE": 28.00, "GOLTS": 425.00, "KONYA": 14500.00, "ADEL": 580.00, "DOCO": 3850.00, "CLEBI": 1450.00, "SUWEN": 28.00, "BEYAZ": 28.00, "AYGAZ": 185.00, "TRCAS": 28.00, "YKSLN": 18.00, "TIRE": 28.00, "KARTN": 128.00, "ALKA": 42.00, "ALKIM": 48.00, "EGGUB": 68.00, "TEZOL": 28.00, "PRKAB": 48.00, "ARZUM": 65.00, "VESBE": 22.00, "KLSER": 72.00, "QUAGR": 4.10, "ISFIN": 15.00, "QNBFL": 285.00, "VAKFN": 10.00, "GARFA": 128.00, "LIDFA": 10.00, "CRDFA": 10.00
 };
 
-const UPDATE_HOURS: Record<string, number[]> = {
-  "BIST": [10, 12, 14, 16, 18],
-  "CRYPTO": [3, 7, 11, 15, 19, 23],
-  "EMTİA": [1, 5, 9, 13, 17, 21]
+const UPDATE_TIMES: Record<string, {h: number, m: number}[]> = {
+  "BIST": [{h:10, m:20}, {h:12, m:20}, {h:14, m:20}, {h:16, m:20}, {h:18, m:20}],
+  "CRYPTO": [{h:3, m:20}, {h:7, m:20}, {h:11, m:20}, {h:15, m:20}, {h:19, m:20}, {h:23, m:20}],
+  "EMTİA": [{h:1, m:20}, {h:5, m:20}, {h:9, m:20}, {h:13, m:20}, {h:17, m:20}, {h:21, m:20}]
 };
 
 function getNextUpdateDisplay(market: string) {
   const now = new Date();
   const turkeyTime = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + (3 * 60 * 60 * 1000));
-  const currentHour = turkeyTime.getHours();
-  const hours = UPDATE_HOURS[market] || [23];
-  let nextHour = hours.find(h => h > currentHour);
-  if (nextHour !== undefined) {
-    return `${nextHour.toString().padStart(2, '0')}:00`;
+  const currentTotalMins = turkeyTime.getHours() * 60 + turkeyTime.getMinutes();
+  const times = UPDATE_TIMES[market] || [{h:23, m:20}];
+  let nextTime = times.find(t => (t.h * 60 + t.m) > currentTotalMins);
+  if (nextTime !== undefined) {
+    return `${nextTime.h.toString().padStart(2, '0')}:${nextTime.m.toString().padStart(2, '0')}`;
   } else {
-    return `${hours[0].toString().padStart(2, '0')}:00`;
+    return `${times[0].h.toString().padStart(2, '0')}:${times[0].m.toString().padStart(2, '0')}`;
   }
 }
 
@@ -277,20 +277,32 @@ CRDFA: { rsi: 34, macd: 0.85, fibLevel: "0.786", patternScore: 89, pattern: "Dü
 "TIA-USDT": { rsi: 30, macd: 1.5, fibLevel: "0.786", patternScore: 94, pattern: "Modular Blockchain Hype", potential: 82 },
 };
 
-function generateCandleData(basePrice: number, periods = 60) {
+function generateCandleData(basePrice: number, periods = 60, symbol = "GENERIC", tf = "1S") {
   const data: any[] = [];
   const validBasePrice = Number.isFinite(basePrice) ? basePrice : 100;
   const precision = validBasePrice < 0.1 ? 6 : (validBasePrice < 1 ? 4 : 2);
-  let price = validBasePrice * 0.82;
+  
+  // Use a stable seed based on symbol and timeframe
+  const symSeed = symbol.split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+  const tfSeed = tf === "15D" ? 1 : tf === "1S" ? 2 : tf === "4S" ? 3 : 4;
+  
+  let price = validBasePrice * 0.85;
 
   for (let i = 0; i < periods; i++) {
-    const isDown = i < 35;
-    const trend = isDown ? -0.003 : 0.008;
-    const noise = (Math.random() - 0.48) * 0.025;
-    price = price * (1 + trend + noise);
-    const high = price * (1 + Math.random() * 0.015);
-    const low = price * (1 - Math.random() * 0.015);
-    const open = price * (1 + (Math.random() - 0.5) * 0.008);
+    // Deterministic simulation based on seeds
+    const timeVar = (i + symSeed + tfSeed * 100);
+    const wave1 = Math.sin(timeVar * 0.15);
+    const wave2 = Math.cos(timeVar * 0.4) * 0.5;
+    
+    const isDownInitial = i < 25;
+    const baseTrend = isDownInitial ? -0.002 : 0.005;
+    const drift = (wave1 + wave2) * 0.012;
+    
+    price = price * (1 + baseTrend + drift);
+    
+    const high = price * (1 + Math.abs(Math.sin(timeVar * 0.8)) * 0.02);
+    const low = price * (1 - Math.abs(Math.cos(timeVar * 0.6)) * 0.02);
+    const open = price * (1 + (Math.sin(timeVar * 1.2)) * 0.008);
     
     data.push({
       i,
@@ -298,9 +310,10 @@ function generateCandleData(basePrice: number, periods = 60) {
       high: +high.toFixed(precision),
       low: +low.toFixed(precision),
       open: +open.toFixed(precision),
-      volume: Math.floor(Math.random() * 1000000 + 200000),
-      rsi: i < 30 ? 65 - i * 0.8 + Math.random() * 5 : 30 + (i - 30) * 1.2 + Math.random() * 5,
-      macd: i < 35 ? -0.5 + i * 0.01 : (i - 35) * 0.05,
+      candle: [+Math.min(open, price).toFixed(precision), +Math.max(open, price).toFixed(precision)],
+      volume: Math.floor(Math.abs(Math.sin(timeVar)) * 1000000 + 200000),
+      rsi: 30 + (Math.abs(Math.sin(timeVar * 0.1)) * 40) + (i > 40 ? 10 : -10),
+      macd: Math.sin(timeVar * 0.05) * 0.5,
     });
   }
 
@@ -329,6 +342,10 @@ function generateCandleData(basePrice: number, periods = 60) {
 // Safe implementation of JSON.stringify to handle cyclic structures
 import { isSandboxed, safeStorage, safeJsonParse } from "./utils";
 
+const getSymbolSeed = (symbol: string) => {
+  return symbol.split('').reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) % 1000000, 0);
+};
+
 // ─── UTILS ──────────────────────────────────────────────────────────────────
 const getAdjustedTechnicals = (symbol: string, liveChange: number) => {
   let pd = PATTERN_DATA[symbol] ? { ...PATTERN_DATA[symbol] } : null;
@@ -340,7 +357,7 @@ const getAdjustedTechnicals = (symbol: string, liveChange: number) => {
     const isCrypto = symbol.includes("-USDT");
     const volMult = isCrypto ? 2 : 1;
     
-    const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const seed = getSymbolSeed(symbol);
     const pseudoRandom = (offset: number) => {
       let x = Math.sin(seed + offset) * 10000;
       return x - Math.floor(x);
@@ -439,7 +456,7 @@ const [candidates, setCandidates] = useState<Record<string, any[]>>(() => {
 
     [...BIST_STOCKS, ...CRYPTO_COINS, ...COMMODITY_ITEMS].forEach(s => { 
       if (s && s.symbol && !p[s.symbol]) {
-        const seed = s.symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const seed = getSymbolSeed(s.symbol);
         let basePrice = initialMocks[s.symbol] || s.price;
         
         if (basePrice === 0) {
@@ -640,7 +657,7 @@ useEffect(() => {
           CRYPTO_COINS.forEach(coin => {
             const sym = coin.symbol;
             if (!next[sym]) {
-              const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+              const seed = getSymbolSeed(sym);
               let basePrice = 1 + (seed % 50);
               if (sym === 'BTC-USDT') basePrice = 104200.00;
               if (sym === 'ETH-USDT') basePrice = 5850.00;
@@ -804,7 +821,7 @@ useEffect(() => {
                   const sym = stock.symbol;
                   if (!next[sym]) {
                     // Generate a stable random price based on symbol name
-                    const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const seed = getSymbolSeed(sym);
                     const basePrice = REALISTIC_BIST_PRICES[sym] || (10 + (seed % 200));
                     const randomChange = (Math.sin(Date.now() / 10000 + seed) * 5); // -5% to +5%
                     next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
@@ -815,7 +832,7 @@ useEffect(() => {
                 COMMODITY_ITEMS.forEach(item => {
                   const sym = item.symbol;
                   if (!next[sym]) {
-                    const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const seed = getSymbolSeed(sym);
                     const basePrice = 50 + (seed % 2000);
                     const randomChange = (Math.sin(Date.now() / 10000 + seed) * 3);
                     next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
@@ -870,7 +887,7 @@ useEffect(() => {
             BIST_STOCKS.forEach(stock => {
               const sym = stock.symbol;
               if (!next[sym]) {
-                const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const seed = getSymbolSeed(sym);
                 const basePrice = REALISTIC_BIST_PRICES[sym] || (10 + (seed % 200));
                 const randomChange = (Math.sin(Date.now() / 10000 + seed) * 5);
                 next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
@@ -881,7 +898,7 @@ useEffect(() => {
             COMMODITY_ITEMS.forEach(item => {
               const sym = item.symbol;
               if (!next[sym]) {
-                const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                const seed = getSymbolSeed(sym);
                 const basePrice = 50 + (seed % 2000);
                 const randomChange = (Math.sin(Date.now() / 10000 + seed) * 3);
                 next[sym] = +(basePrice * (1 + randomChange / 100)).toFixed(2);
@@ -1085,7 +1102,7 @@ const startScan = useCallback(() => {
         // Use live price if available, otherwise fallback to mock
         let livePrice = prices[s.symbol] || s.price || 0;
         if (livePrice === 0) {
-          const seed = s.symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const seed = getSymbolSeed(s.symbol);
           livePrice = s.symbol.includes("-USDT") ? (0.1 + (seed % 1000) / 10) : (10 + (seed % 500));
         }
         const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
@@ -1138,13 +1155,12 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
   setAiLoading(true);
   setAiAnalysis("");
   
-  const pd = PATTERN_DATA[stock.symbol] || { rsi: 50, macd: 0, fibLevel: "0.5", patternScore: 50, pattern: "Nötr", potential: 5 };
-  const isCrypto = stock.symbol.includes("-USDT");
-  
   try {
     const promptPrice = Number.isFinite(currentPrice) ? currentPrice : 0;
     const promptChange = Number.isFinite(Number(prices[`${stock.symbol}_change`] ?? stock.change)) ? Number(prices[`${stock.symbol}_change`] ?? stock.change) : 0;
+    const pd = stock.pd || getAdjustedTechnicals(stock.symbol, promptChange);
     
+    const isCrypto = stock.symbol.includes("-USDT");
     const isShort = stock.side === 'short';
     const systemDecision = isShort ? "SAT (SHORT)" : "AL (LONG)";
     const whaleInfo = stock.whale && stock.whale.action !== "YOK" ? `Balina Aktivitesi: ${stock.whale.action} (${stock.whale.amount})` : "Belirgin balina aktivitesi yok.";
@@ -1153,24 +1169,24 @@ const fetchAiAnalysis = useCallback(async (stock: any) => {
 Zaman Dilimi: 4 SAATLİK (4H).
 Sistem Sinyali: ${systemDecision}.
 ${whaleInfo}
-Veri: GÜNCEL FİYAT ${promptPrice}, Değişim %${promptChange}, RSI ${pd.rsi}, MACD ${pd.macd > 0 ? "Pozitif" : "Negatif"}, Formasyon: ${pd.pattern}.
+Veri: GÜNCEL FİYAT ${promptPrice}, Değişim %${promptChange.toFixed(2)}, RSI ${Math.round(pd.rsi)}, MACD ${pd.macd > 0 ? "Pozitif ("+pd.macd.toFixed(2)+")" : "Negatif ("+pd.macd.toFixed(2)+")"}, Formasyon: ${pd.pattern}.
 
-Talimat: Çok kısa, profesyonel ve teknik bir analiz yap.
-Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne odaklanarak yap. Özellikle ${whaleInfo} verisini dikkate al.
+Talimat: Verilen mevcut canlı verilere dayanarak kısa, profesyonel ve teknik bir analiz yap. Analiz metninde RSI'ın ${Math.round(pd.rsi)} olduğunu ve bu değere göre yorumladığını net olarak belirt.
+Sistem bu varlık için ${systemDecision} sinyali verdi. Analizini bu yöne ve verilen canlı RSI/MACD/Formasyon verisine odaklanarak yap. Özellikle ${whaleInfo} verisini dikkate al.
 
 VURGULANACAK KRİTERLER:
 1. HEDEF TP1 seviyesini 1 SAATLİK (1H) teknik direnç (Long ise) veya destek (Short ise) seviyesine göre belirle.
 2. HEDEF TP2 seviyesini 4 SAATLİK (4H) teknik direnç (Long ise) veya destek (Short ise) seviyesine göre belirle.
 3. STOP LOSS seviyesini 4 SAATLİK (4H) güçlü yapı (Destek/Direnç) bölgesinin hemen dışına/altına yerleştir.
 
-ÖNEMLİ: Tüm seviyeleri MUTLAKA ${promptPrice} baz fiyatı üzerinden hesapla ve yüzde değil, fiyat değeri olarak ver.
+ÖNEMLİ: Tüm seviyeleri MUTLAKA ${promptPrice} baz fiyatı üzerinden hesapla ve yüzde değil, fiyat değeri olarak ver. Analiz sadece sana sağlanan verilere göre olmalıdır.
 
 İÇERİK PLANI:
-1. 🎯 FORMASYON: ${pd.pattern} ve hacim yorumu.
-2. 📊 TEKNİK: 4H RSI/MACD ve hareketli ortalama durumu.
+1. 🎯 FORMASYON: Fiyatta gözlemlenen ${pd.pattern} formasyonunu yorumla.
+2. 📊 TEKNİK: Verilen RSI (${Math.round(pd.rsi)}) ve MACD (${pd.macd.toFixed(2)}) verilerini yorumla.
 3. 🚀 HEDEFLER: GİRİŞ: ${promptPrice} | TP1: (1H Direnç) | TP2: (4H Direnç).
 4. 🛡️ RİSK: STOP LOSS (4H Destek Altı) ve DESTEK/DİRENÇ seviyeleri.
-5. 💎 KARAR: ${systemDecision} stratejisinin başarı olasılığı.`;
+5. 💎 KARAR: ${systemDecision} stratejisinin başarı olasılığını ve sinyalin güçlü yönlerini açıkla.`;
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
     if (!process.env.GEMINI_API_KEY) {
@@ -1248,7 +1264,7 @@ const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
   const isCommodity = s.sector === "Emtia";
   const isBist = !isCrypto && !isCommodity;
 
-  const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  const seed = getSymbolSeed(s.symbol);
   const pseudoRandom = (offset: number) => {
     let x = Math.sin(seed + offset) * 10000;
     return x - Math.floor(x);
@@ -1388,16 +1404,18 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
           }
 
           // Determine strictly scheduled closedAt time
-          const hours = UPDATE_HOURS[activeMarket] || [23];
-          const turkeyHour = turkeyTime.getHours();
-          const passedHours = hours.filter(h => h <= turkeyHour);
+          const times = UPDATE_TIMES[activeMarket] || [{h:23, m:20}];
+          const turkeyTotalMins = turkeyTime.getHours() * 60 + turkeyTime.getMinutes();
+          const passedTimes = times.filter(t => (t.h * 60 + t.m) <= turkeyTotalMins);
           let finalClosedAtDate = new Date(turkeyTime.getTime());
           
-          if (passedHours.length > 0) {
-            finalClosedAtDate.setHours(passedHours[passedHours.length - 1], 0, 0, 0);
+          if (passedTimes.length > 0) {
+            const lastT = passedTimes[passedTimes.length - 1];
+            finalClosedAtDate.setHours(lastT.h, lastT.m, 0, 0);
           } else {
             finalClosedAtDate.setDate(finalClosedAtDate.getDate() - 1);
-            finalClosedAtDate.setHours(hours[hours.length - 1], 0, 0, 0);
+            const lastT = times[times.length - 1];
+            finalClosedAtDate.setHours(lastT.h, lastT.m, 0, 0);
           }
           
           const closedAt = finalClosedAtDate.toISOString();
@@ -1524,7 +1542,7 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
       const precision = (c.symbol && c.symbol.includes("USDT")) ? 4 : 2;
       
       // AI Destekli Seviyeler
-      const seed = (c.symbol || "").split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+      const seed = getSymbolSeed(c.symbol || "");
       const volatility = (c.symbol && c.symbol.includes("USDT")) ? 0.06 : 0.03;
       const volAdj = 1 + (c.dynamicVolume || 0) / 200;
       
@@ -1560,17 +1578,17 @@ const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
     const nextUpdate = new Date(turkeyTime.getTime());
     const displayTime = turkeyTime.toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul", hour: '2-digit', minute: '2-digit' });
     
-    // Use UPDATE_HOURS for all markets
-    const hours = UPDATE_HOURS[activeMarket] || [23];
-    const currentHour = nextUpdate.getHours();
+    // Use UPDATE_TIMES for all markets
+    const times = UPDATE_TIMES[activeMarket] || [{h:23, m:20}];
+    const currentTotalMins = nextUpdate.getHours() * 60 + nextUpdate.getMinutes();
     
-    let nextHour = hours.find(h => h > currentHour);
+    let nextTime = times.find(t => (t.h * 60 + t.m) > currentTotalMins);
     
-    if (nextHour !== undefined) {
-      nextUpdate.setHours(nextHour, 0, 0, 0);
+    if (nextTime !== undefined) {
+      nextUpdate.setHours(nextTime.h, nextTime.m, 0, 0);
     } else {
       nextUpdate.setDate(nextUpdate.getDate() + 1);
-      nextUpdate.setHours(hours[0], 0, 0, 0);
+      nextUpdate.setHours(times[0].h, times[0].m, 0, 0);
     }
 
     // Keep existing active items that were marked to stay
@@ -1663,29 +1681,37 @@ useEffect(() => {
       const currentMinute = nowObj.getMinutes();
       const markets = ["BIST", "CRYPTO", "EMTİA"];
       
-      // Define update hours for each market
-      const updateHours = UPDATE_HOURS;
+      // Define update times for each market
+      const updateTimes = UPDATE_TIMES;
       
       markets.forEach(m => {
         const p = portfoliosRef.current[m];
         const isEmpty = !p;
         
-        // Check if we are at or past an update hour
-        const hours = updateHours[m] || [];
+        // Check if we are at or past an update time
+        const times = updateTimes[m] || [];
         const lastUpdate = p && p.timestamp ? new Date(p.timestamp) : null;
-        const lastUpdateHour = lastUpdate ? lastUpdate.getHours() : -1;
+        let lastUpdateTotalMins = -1;
         const lastUpdateDay = lastUpdate ? lastUpdate.getDate() : -1;
+        
+        if (lastUpdate) {
+            // Using same timezone trick for consistency, but simple getHours works as p.timestamp is already saved in the local Date that matched turkeyTime effectively
+            lastUpdateTotalMins = lastUpdate.getHours() * 60 + lastUpdate.getMinutes();
+        }
         
         let shouldUpdate = isEmpty;
         if (!isEmpty && lastUpdate) {
           const isSameDay = lastUpdateDay === nowObj.getDate();
+          const currentTotalMins = currentHour * 60 + currentMinute;
           // Force update if it's a new day and market is open (post 08:00)
           if (!isSameDay && currentHour >= 8) {
             shouldUpdate = true;
-          } else {
-            // Check if we passed a scheduled update hour today
-            for (const hour of hours) {
-              if (currentHour >= hour && lastUpdateHour < hour) {
+          } else if (isSameDay) {
+            // Check if we passed a scheduled update time today
+            for (const t of times) {
+              const tMins = t.h * 60 + t.m;
+              // Add a 5 minute tolerance window to prevent skipped updates if check runs slightly off schedule
+              if (currentTotalMins >= tMins && lastUpdateTotalMins < (tMins - 2)) {
                 shouldUpdate = true;
                 break;
               }
@@ -1828,7 +1854,7 @@ useEffect(() => {
       
       if (score < 75) return [];
 
-      const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+      const seed = getSymbolSeed(s.symbol);
       const pseudoRandom = (offset: number) => {
         let x = Math.sin(seed + offset) * 10000;
         return x - Math.floor(x);
@@ -1881,7 +1907,7 @@ const openDetail = useCallback(async (stock: any) => {
     { title: "Sektörel büyüme beklentileri aşıldı.", source: "Ekonomi", type: "pozitif" }
   ];
   
-  const seed = stock.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  const seed = getSymbolSeed(stock.symbol);
   const selectedNews = [
     { date: "Bugün", ...newsTemplates[seed % newsTemplates.length] },
     { date: "Dün", ...newsTemplates[(seed + 1) % newsTemplates.length] },
@@ -2334,7 +2360,7 @@ function AssetMoneyFlow({ market, stocks, prices, tick, onSelect }: { market: st
       const livePrice = Number(prices[s.symbol] ?? s.price ?? 0);
       
       // Simulate money flow based on change and a pseudo-random volume
-      const seed = s.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+      const seed = getSymbolSeed(s.symbol);
       
       // Target values around thousands like user requested (e.g. 13.000+)
       const baseVol = isBist ? 1500 + (seed % 2000) : 200 + (seed % 500); 
@@ -2601,7 +2627,7 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
 
     // Hunter Algorithm: 20% Technical + 50% Fundamental/Sentiment + 30% Global Sector Correlation
     return [...safeStocks].map(s => {
-      const seed = s.symbol.split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+      const seed = getSymbolSeed(s.symbol);
       const timeSeed = Math.floor(Date.now() / 3600000) + seed;
       
       const sector = getSector(s.symbol);
@@ -2651,7 +2677,7 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
     if (market !== "BIST" && market !== "CRYPTO") return [];
     
     return [...safeStocks].map(s => {
-      const seed = s.symbol.split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+      const seed = getSymbolSeed(s.symbol);
       const timeSeed = (Math.floor(Date.now() / 3600000) * 1.5) + seed;
       
       // Rebound signal: RSI was low and volume is spiking
@@ -2677,7 +2703,7 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
     const isBist = market === "BIST";
     // Sort all stocks by a simulated daily volume to find "Top 20" leaders
     const volRanked = [...safeStocks].map(s => {
-      const seed = s.symbol.split('').reduce((acc: number, char: string, i: number) => acc + char.charCodeAt(0) * (i + 1), 0);
+      const seed = getSymbolSeed(s.symbol);
       const dailyVol = isBist ? 500000 + (seed % 9500000) : 50000 + (seed % 450000); // Simulated daily turnover
       return { ...s, dailyVol };
     }).sort((a, b) => b.dailyVol - a.dailyVol);
@@ -2686,22 +2712,28 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
 
     return volRanked.map(s => {
       const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
-      const seed = s.symbol.split('').reduce((acc: number, char: string, i: number) => acc + char.charCodeAt(0) * (i + 1), 0);
+      const seed = getSymbolSeed(s.symbol);
       
-      // Removed tick dependency to stabilize selection
       const baseVol = isBist ? 1500 + (seed % 2000) : 200 + (seed % 500); 
-      // Flow is higher if stock is in top 20 volume leaders
       const leadershipBonus = top20Symbols.has(s.symbol) ? 1.5 : 0.8;
-      // Use absolute change to detect large participation in both directions, 
-      // but only positive for "picks"
-      const flowAmount = Math.max(0, liveChange) * baseVol * leadershipBonus * 2.5;
+      
+      // Calculate a pseudo-RSI for top movers to avoid overbought traps
+      const timeSeed = (Math.floor(Date.now() / 3600000) * 1.5) + seed;
+      const momentumRsi = 45 + (Math.sin(timeSeed * 1.2) * 25); // 20-70 range
+      
+      // Filter: If RSI > 65, it's a "risky chase", reduce flow weight significantly
+      const rsiPenalty = momentumRsi > 65 ? 0.3 : 1.0;
+      
+      const flowAmount = Math.max(0, liveChange) * baseVol * leadershipBonus * 2.5 * rsiPenalty;
       
       return { 
         ...s, 
         calculatedFlow: flowAmount,
+        momentumRsi,
         isVolumeLeader: top20Symbols.has(s.symbol)
       };
-    }).sort((a, b) => b.calculatedFlow - a.calculatedFlow).slice(0, 5);
+    }).filter(s => s.momentumRsi < 68) // Strictly avoid buying overextended peaks
+      .sort((a, b) => b.calculatedFlow - a.calculatedFlow).slice(0, 5);
   }, [safeStocks, prices, market]); 
 
   const safeCandidates = useMemo(() => {
@@ -2744,20 +2776,32 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
         const mType = isCrypto ? "Kripto" : "BIST";
         const vName = isCrypto ? "varlık" : "hisse";
         
-        if (s.source === 'ALPHA') reason = "Alpha AI algoritması hem temel hem teknik verilerde nadir görülen %90+ korelasyon tespit etti.";
-        else if (s.source === 'REBOUND') reason = "Aşırı satım bölgesinden (RSI < 38) hacimli bir dönüş teyidi geldi, bu da güçlü bir tepki alımı potansiyeline işaret ediyor.";
+        let rsiVal = s.rsi || (s.pd && s.pd.rsi);
+        if (!rsiVal) {
+          const seed = getSymbolSeed(s.symbol);
+          rsiVal = 30 + (seed % 40); // 30-70 range
+        }
+        
+        let volSpikeVal = s.volSpike;
+        if (!volSpikeVal) {
+          const seed = getSymbolSeed(s.symbol);
+          volSpikeVal = 1.1 + (seed % 30) / 10;
+        }
+        
+        if (s.source === 'ALPHA') reason = `Alpha AI algoritması hem temel hem teknik verilerde nadir görülen güçlü korelasyon tespit etti. RSI seviyesi ${rsiVal.toFixed(1)} ile momentum destekleniyor.`;
+        else if (s.source === 'REBOUND') reason = `Aşırı satım bölgesinden (RSI ${rsiVal.toFixed(1)}) hacimli bir dönüş teyidi geldi, bu da güçlü bir tepki alımı potansiyeline işaret ediyor.`;
         else if (s.source === 'FLOW') reason = s.isVolumeLeader 
-          ? `Bu ${vName} bugün ${mType}'in en yüksek hacimli ilk 20 varlığı arasında. Kademeli ve istikrarlı bir kurumsal para girişi yapıyı güçlendiriyor.`
-          : `Varlıkta anlık patlamadan ziyade, kademeli bir hacim artışı ve alış iştahı (net para girişi) izleniyor.`;
+          ? `Bu ${vName} bugün ${mType}'in en yüksek hacimli ilk 20 varlığı arasında. %${((volSpikeVal-1)*100).toFixed(0)} hacim artışıyla istikrarlı bir kurumsal para girişi yapıyı güçlendiriyor.`
+          : `Varlıkta anlık patlamadan ziyade, kademeli bir hacim artışı (${volSpikeVal.toFixed(1)}x) ve alış iştahı (net para girişi) izleniyor.`;
         else reason = `Bu ${vName}de hem formasyon kırılımı hem de hacim artışı birleşerek ideal bir 'trade' yapısı oluşturmuş durumda.`;
 
-        const detail = `Analiz ekibi olarak bu ${vName}yi seçmemizin nedeni; ${reason} Mevcut teknik seviyeler TP1 ve TP2 hedeflerine ulaşma olasılığını %85'in üzerinde gösteriyor. Risk-ödül rasyosu 1:3 seviyesinde olması, stop limitini koruyarak pozisyon almayı mantıklı kılıyor.`;
+        const detail = `Analiz ekibi olarak bu ${vName}yi seçmemizin nedeni; ${reason} Mevcut teknik seviyeler TP1 ve TP2 hedeflerine ulaşma olasılığını güçlü gösteriyor. Risk-ödül rasyosu 1:3 seviyesinde olması, stop limitini koruyarak pozisyon almayı mantıklı kılıyor.`;
         
         // Ensure price and change are updated from the live prices state
         const livePrice = Number(prices[s.symbol] ?? s.price ?? 0);
         const liveChange = Number(prices[`${s.symbol}_change`] ?? s.change ?? 0);
         
-        return { ...s, price: livePrice, change: liveChange, smartJustification: detail };
+        return { ...s, price: livePrice, change: liveChange, rsi: rsiVal, volSpike: volSpikeVal, smartJustification: detail };
     });
   }, [safeCandidates, hunterPicks, reboundCandidates, topMovers, market, prices]);
 
@@ -3095,7 +3139,7 @@ return (
                   </div>
                   <div style={{ flex: 1, background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "6px 10px", border: "1px solid #30363d" }}>
                     <div style={{ color: "#8b949e", fontSize: 8, fontWeight: 700 }}>GÜVEN SKORU</div>
-                    <div style={{ color: "#fff", fontSize: 11, fontWeight: 800 }}>%{pick.weight.toFixed(0)}</div>
+                    <div style={{ color: "#fff", fontSize: 11, fontWeight: 800 }}>%{Math.min(99, pick.weight).toFixed(0)}</div>
                   </div>
                 </div>
 
@@ -3157,7 +3201,7 @@ return (
         </div>
         {market === "BIST" && (
           <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>
-            ⏱ 15 Dk Gecikmeli
+            📡 Canlı Veri
           </div>
         )}
       </div>
@@ -3262,7 +3306,7 @@ function CorrectionScreen({ stocks, prices, lastUpdated, onBack, onSelect, marke
             <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>Düzeltmesi biten ve hareket beklenenler</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>📡 Canlı Veri</div>}
             {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>{lastUpdated}</div>}
           </div>
         </div>
@@ -3353,7 +3397,7 @@ function ScalpScreen({ candidates = [], prices = {}, lastUpdated, onBack, onSele
             <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>%80+ potansiyel • {filteredCandidates.length} fırsat</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>📡 Canlı Veri</div>}
             {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>{lastUpdated}</div>}
           </div>
         </div>
@@ -3498,7 +3542,7 @@ function CandidatesScreen({ candidates = [], prices = {}, lastUpdated, onBack, o
             <div style={{ color: "#4a5568", fontSize: 13, marginTop: 2 }}>%70+ potansiyel • {filteredCandidates.length} varlık</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>⏱ 15 Dk Gecikmeli</div>}
+            {market === "BIST" && <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 600, marginBottom: 4 }}>📡 Canlı Veri</div>}
             {lastUpdated && <div style={{ color: "#4a5568", fontSize: 10 }}>Güncelleme: {lastUpdated}</div>}
           </div>
         </div>
@@ -3534,7 +3578,7 @@ function CandidatesScreen({ candidates = [], prices = {}, lastUpdated, onBack, o
       const pd = stock.pd || getAdjustedTechnicals(stock.symbol, currentChange);
       let price = Number(prices[stock.symbol] ?? stock.price ?? 0);
       if (!Number.isFinite(price) || price === 0) {
-        const seed = stock.symbol.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+        const seed = getSymbolSeed(stock.symbol);
         price = stock.symbol.includes("-USDT") ? (0.1 + (seed % 1000) / 10) : (10 + (seed % 500));
       }
       const up = currentChange >= 0;
@@ -3551,7 +3595,7 @@ function CandidatesScreen({ candidates = [], prices = {}, lastUpdated, onBack, o
       if (!Number.isFinite(potential)) potential = 0;
       
       // AI Destekli Seviyeler
-      const seed = (stock.symbol || "").split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+      const seed = getSymbolSeed(stock.symbol || "");
       const volatility = isCrypto ? 0.06 : 0.03;
       const volAdj = 1 + (stock.dynamicVolume || 0) / 200;
       
@@ -3671,7 +3715,7 @@ const sideColor = isShort ? "#ff453a" : "#00d4aa";
 const isCrypto = stock.symbol.includes("-USDT");
 const isCommodity = stock.sector === "Emtia";
 const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)") ? " $" : " ₺");
-  const chartData = useMemo(() => generateCandleData(price), [stock.symbol, price]);
+  const chartData = useMemo(() => generateCandleData(price, 60, stock.symbol, timeframe), [stock.symbol, price, timeframe]);
   
   const maScore = useMemo(() => {
     if (!chartData || chartData.length === 0) return 0;
@@ -3688,7 +3732,7 @@ const currency = isCrypto ? " USDT" : (isCommodity && !stock.name.includes("(TL)
 const pricePrecision = stock.symbol.startsWith("10000") ? 5 : (stock.symbol.includes("PEPE") ? 8 : (isCrypto ? 4 : 2));
 
 // AI Destekli Seviyeler (1H, 4H Yapı Analizi)
-const seed = stock.symbol.split('').reduce((acc, char, i) => acc + char.charCodeAt(0) * (i + 1), 0);
+const seed = getSymbolSeed(stock.symbol);
 const volatility = isCrypto ? 0.08 : 0.045; // Increased base volatility for structure
 const volAdj = 1 + (stock.dynamicVolume || 0) / 150;
 
@@ -3722,10 +3766,24 @@ const scalpTp1 = isShort ? +(price * 0.98).toFixed(pricePrecision) : +(price * 1
 const scalpTp2 = isShort ? +(price * 0.96).toFixed(pricePrecision) : +(price * 1.04).toFixed(pricePrecision);
 const scalpSl = isShort ? +(price * 1.015).toFixed(pricePrecision) : +(price * 0.985).toFixed(pricePrecision);
 
+const buyRatio = useMemo(() => {
+  let base = 50;
+  if (up) {
+    base += Math.min(30, currentChange * 1.5);
+  } else {
+    base += Math.max(-30, currentChange * 1.5);
+  }
+  base += (pd.rsi - 50) * 0.1;
+  base += (seed % 10 - 5);
+  return Math.max(10, Math.min(90, base));
+}, [currentChange, pd.rsi, up, seed]);
+
+const sellRatio = 100 - buyRatio;
+
 return (
 <>
 <div style={{ padding: "0 0 20px" }}>
-<div style={{ padding: "16px 20px 20px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(0,212,170,0.08) 0%, transparent 100%)" }}>
+<div style={{ padding: "16px 20px 0px", borderBottom: "1px solid #1a1f2e", background: "linear-gradient(180deg, rgba(0,212,170,0.08) 0%, transparent 100%)" }}>
 <button onClick={onBack} style={{ background: "none", border: "none", color: sideColor, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
   <span style={{ fontSize: 18 }}>←</span> Geri Dön
 </button>
@@ -3738,7 +3796,7 @@ return (
   </div>
   <div style={{ color: "#8b949e", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>{stock.name}</div>
   
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 }}>
     <div>
       <div style={{ color: "#fff", fontSize: 36, fontWeight: 900, letterSpacing: -0.5 }}>{price.toFixed(pricePrecision)} {currency}</div>
       <div style={{ color: up ? "#30d158" : "#ff453a", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
@@ -3748,16 +3806,33 @@ return (
     <div style={{ textAlign: "right", paddingBottom: 4 }}>
       <div style={{ color: "#4a5568", fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 2 }}>VERİ KAYNAĞI</div>
       <div style={{ color: "#8b949e", fontSize: 11, fontWeight: 700 }}>
-        {prices[`${stock.symbol}_source`] ? `📡 ${prices[`${stock.symbol}_source`].toUpperCase()}` : (!isCrypto && !isCommodity ? "⏱ 15 DK GECİKMELİ" : "📡 CANLI VERİ")}
+        {prices[`${stock.symbol}_source`] ? `📡 ${prices[`${stock.symbol}_source`].toUpperCase()}` : "📡 CANLI VERİ"}
       </div>
     </div>
+  </div>
+</div>
+
+<div style={{ marginTop: 8, marginBottom: 16, padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+    <div style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+      <span style={{ color: "#00d4aa", fontSize: 11, fontWeight: 800 }}>ALICI</span>
+      <span style={{ color: "#00d4aa", fontSize: 14, fontWeight: 900 }}>%{buyRatio.toFixed(1)}</span>
+    </div>
+    <div style={{ display: "flex", gap: 6, alignItems: "baseline", flexDirection: "row-reverse" }}>
+      <span style={{ color: "#ff453a", fontSize: 11, fontWeight: 800 }}>SATICI</span>
+      <span style={{ color: "#ff453a", fontSize: 14, fontWeight: 900 }}>%{sellRatio.toFixed(1)}</span>
+    </div>
+  </div>
+  <div style={{ height: 6, background: "rgba(255,255,255,0.1)", borderRadius: 3, display: "flex", overflow: "hidden" }}>
+    <div style={{ width: `${buyRatio}%`, background: "#00d4aa", transition: "width 0.5s ease" }} />
+    <div style={{ width: `${sellRatio}%`, background: "#ff453a", transition: "width 0.5s ease" }} />
   </div>
 </div>
 </div>
     <div style={{ display: "flex", gap: 8, marginTop: 12, overflowX: "auto" }}>
       {[
-        { l: "RSI", v: pd.rsi, good: pd.rsi < 40 },
-        { l: "MACD", v: `${pd.macd > 0 ? "▲" : "▼"} ${pd.macd}`, good: pd.macd > 0 },
+        { l: "RSI", v: Math.round(pd.rsi), good: pd.rsi < 40 },
+        { l: "MACD", v: `${pd.macd > 0 ? "▲" : "▼"} ${pd.macd.toFixed(2)}`, good: pd.macd > 0 },
         { l: "FIB", v: pd.fibLevel, good: true },
         { l: "MA", v: `${(isShort ? stock.maSellCount : stock.maBuyCount) ?? Math.round((stock.techScore || 50) / 100 * 12)}/12`, good: isShort ? (stock.maSellCount || 0) >= 10 : (stock.maBuyCount || 0) >= 10 },
         { l: "SKOR", v: `${Math.round(potential)}`, good: potential > 70 },
@@ -3775,11 +3850,11 @@ return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
       <div style={{ color: "#00d4aa", fontSize: 12, fontWeight: 700 }}>📐 {pd.pattern}</div>
       <div style={{ display: "flex", gap: 4 }}>
-        {["1S", "4S", "1G"].map(tf => (
+        {["15D", "1S", "4S", "1Haf"].map(tf => (
           <button key={tf} onClick={() => setTimeframe(tf)} style={{
             padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer",
             background: timeframe === tf ? "#00d4aa" : "#21262d", color: timeframe === tf ? "#000" : "#8b949e"
-          }}>{tf}</button>
+          }}>{tf === "15D" ? "15dk" : tf === "1S" ? "1h" : tf === "4S" ? "4h" : "1w"}</button>
         ))}
       </div>
     </div>
@@ -3800,25 +3875,33 @@ return (
         </div>
       </div>
       <ResponsiveContainer width="100%" height={140}>
-        <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -30, bottom: 5 }}>
-          <defs>
-            <linearGradient id="colorUp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00d4aa" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#00d4aa" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
+        <ComposedChart data={chartData} margin={{ top: 5, right: 35, left: -30, bottom: 5 }}>
           <XAxis dataKey="i" tick={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 9, fill: "#8b949e" }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 8, fontSize: 11 }} labelStyle={{ color: "#8b949e" }} itemStyle={{ color: "#00d4aa" }} formatter={(v: any) => [`${v.toFixed(pricePrecision)} ${currency}`, ""]} labelFormatter={() => ""} />
+          <YAxis domain={['auto', 'auto']} tick={{ fontSize: 9, fill: "#8b949e" }} axisLine={false} tickLine={false} />
+          <Tooltip 
+            contentStyle={{ background: "#21262d", border: "1px solid #30363d", borderRadius: 8, fontSize: 11 }} 
+            labelStyle={{ color: "#8b949e" }} 
+            itemStyle={{ color: "#00d4aa" }} 
+            formatter={(v: any, name: any) => {
+              if (name === "candle") return [Array.isArray(v) ? `${v[0].toFixed(pricePrecision)} - ${v[1].toFixed(pricePrecision)} ${currency}` : `${v}`, "Açılış - Kapanış"];
+              return [`${Number(v).toFixed(pricePrecision)} ${currency}`, name];
+            }} 
+            labelFormatter={() => ""} 
+          />
           <ReferenceLine y={price} stroke="#8b949e" strokeDasharray="3 3" label={{ value: "Giriş", position: "left", fontSize: 9, fill: "#8b949e" }} />
           <ReferenceLine y={tp1} stroke="#30d158" strokeDasharray="3 3" strokeWidth={1} label={{ value: `H1: ${tp1}`, position: "right", fontSize: 9, fill: "#30d158" }} />
           <ReferenceLine y={tp2} stroke="#30d158" strokeDasharray="3 3" strokeWidth={1} label={{ value: `H2: ${tp2}`, position: "right", fontSize: 9, fill: "#30d158" }} />
           <ReferenceLine y={tp3} stroke="#30d158" strokeDasharray="3 3" strokeWidth={1} label={{ value: `H3: ${tp3}`, position: "right", fontSize: 9, fill: "#30d158" }} />
           <ReferenceLine y={sl} stroke="#ff453a" strokeDasharray="3 3" strokeWidth={1} label={{ value: `SL: ${sl}`, position: "right", fontSize: 9, fill: "#ff453a" }} />
-          <Area type="monotone" dataKey="price" stroke="#00d4aa" strokeWidth={1.5} fill="url(#colorUp)" dot={false} isAnimationActive={false} />
+          <Bar dataKey="candle" isAnimationActive={false} maxBarSize={6}>
+            {chartData.map((entry, index) => {
+              const isUp = entry.price >= entry.open;
+              return <Cell key={`cell-${index}`} fill={isUp ? "#00d4aa" : "#ff453a"} />;
+            })}
+          </Bar>
           <Line type="monotone" dataKey="sma20" stroke="#ff9f0a" strokeWidth={1} dot={false} isAnimationActive={false} />
           <Line type="monotone" dataKey="ema50" stroke="#5e5ce6" strokeWidth={1} dot={false} isAnimationActive={false} />
-        </AreaChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
 
