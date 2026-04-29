@@ -432,7 +432,7 @@ const [candidates, setCandidates] = useState<Record<string, any[]>>(() => {
     // Realistic initial values (Actual 2024 Reality)
     const initialMocks: Record<string, number> = {
       "XU100": 9745.00, "XU030": 10450.00, "TRY=X": 32.45, "EURTRY=X": 35.10,
-      "BTC-USDT": 64200.00, "ETH-USDT": 3150.00, "SOL-USDT": 145.00,
+      "BTC-USDT": 64850.00, "ETH-USDT": 3150.00, "SOL-USDT": 145.00,
       "GC=F": 2350.00, "GAU=X": 2450.00, "GAG=X": 30.25,
       ...REALISTIC_BIST_PRICES
     };
@@ -659,7 +659,7 @@ useEffect(() => {
             if (!next[sym]) {
               const seed = getSymbolSeed(sym);
               let basePrice = 1 + (seed % 50);
-              if (sym === 'BTC-USDT') basePrice = 104200.00;
+              if (sym === 'BTC-USDT') basePrice = 64850.00;
               if (sym === 'ETH-USDT') basePrice = 5850.00;
               if (sym === 'SOL-USDT') basePrice = 285.00;
               if (sym === 'BNB-USDT') basePrice = 920.00;
