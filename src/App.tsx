@@ -2776,25 +2776,22 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
         const mType = isCrypto ? "Kripto" : "BIST";
         const vName = isCrypto ? "varlık" : "hisse";
         
-        let rsiVal = s.rsi || (s.pd && s.pd.rsi);
-        if (!rsiVal) {
-          const seed = getSymbolSeed(s.symbol);
-          rsiVal = 30 + (seed % 40); // 30-70 range
-        }
+        // Define metrics
+        let rsiVal = s.rsi || (s.pd && s.pd.rsi) || 50;
+        let volSpikeVal = s.volSpike || (s.dynamicVolume ? 1 + (s.dynamicVolume / 200) : 1.2);
+        let volRatio = volSpikeVal * 100;
         
-        let volSpikeVal = s.volSpike;
-        if (!volSpikeVal) {
-          const seed = getSymbolSeed(s.symbol);
-          volSpikeVal = 1.1 + (seed % 30) / 10;
-        }
+        // Dynamic Reason Templates
+        const reasons = [
+          `RSI ${rsiVal.toFixed(0)} seviyesinde ve ${volRatio.toFixed(0)}% hacim artışı teknik göstergelerin alım yönünde birleştiğini doğruluyor.`,
+          `${volRatio.toFixed(0)}% seviyesindeki hacim ivmesi, hissede kurumsal bir ilgiyi ve teknik yapıdaki sıkışmanın kırıldığını işaret ediyor.`,
+          `Formasyon yapısı içerisinde ${rsiVal.toFixed(1)} RSI değeri, fiyatı daha yukarı taşıyacak bir ivme alanı bırakıyor.`,
+          `Hacimdeki ${volRatio.toFixed(0)}% artış, ${mType} dinamikleri içerisinde bu ${vName}nin öne çıkan bir likidite çekeceğine dair güçlü emareler sunuyor.`,
+          `Teknik göstergelerde ${volRatio.toFixed(0)}% hacim artışı ile RSI ${rsiVal.toFixed(0)} dengesi, kısa vadeli fırsat yapısını destekliyor.`
+        ];
         
-        if (s.source === 'ALPHA') reason = `Alpha AI algoritması hem temel hem teknik verilerde nadir görülen güçlü korelasyon tespit etti. RSI seviyesi ${rsiVal.toFixed(1)} ile momentum destekleniyor.`;
-        else if (s.source === 'REBOUND') reason = `Aşırı satım bölgesinden (RSI ${rsiVal.toFixed(1)}) hacimli bir dönüş teyidi geldi, bu da güçlü bir tepki alımı potansiyeline işaret ediyor.`;
-        else if (s.source === 'FLOW') reason = s.isVolumeLeader 
-          ? `Bu ${vName} bugün ${mType}'in en yüksek hacimli ilk 20 varlığı arasında. %${((volSpikeVal-1)*100).toFixed(0)} hacim artışıyla istikrarlı bir kurumsal para girişi yapıyı güçlendiriyor.`
-          : `Varlıkta anlık patlamadan ziyade, kademeli bir hacim artışı (${volSpikeVal.toFixed(1)}x) ve alış iştahı (net para girişi) izleniyor.`;
-        else reason = `Bu ${vName}de hem formasyon kırılımı hem de hacim artışı birleşerek ideal bir 'trade' yapısı oluşturmuş durumda.`;
-
+        reason = reasons[getSymbolSeed(s.symbol) % reasons.length];
+        
         const detail = `Analiz ekibi olarak bu ${vName}yi seçmemizin nedeni; ${reason} Mevcut teknik seviyeler TP1 ve TP2 hedeflerine ulaşma olasılığını güçlü gösteriyor. Risk-ödül rasyosu 1:3 seviyesinde olması, stop limitini koruyarak pozisyon almayı mantıklı kılıyor.`;
         
         // Ensure price and change are updated from the live prices state
