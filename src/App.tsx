@@ -429,11 +429,11 @@ const [candidates, setCandidates] = useState<Record<string, any[]>>(() => {
 });
     const [prices, setPrices] = useState<Record<string, number>>(() => {
     const p: Record<string, number> = {};
-    // Realistic initial values (Actual 2024 Reality)
+    // Realistic initial values (Actual 2026 Reality)
     const initialMocks: Record<string, number> = {
-      "XU100": 9745.00, "XU030": 10450.00, "TRY=X": 32.45, "EURTRY=X": 35.10,
-      "BTC-USDT": 64850.00, "ETH-USDT": 3150.00, "SOL-USDT": 145.00,
-      "GC=F": 2350.00, "GAU=X": 2450.00, "GAG=X": 30.25,
+      "XU100": 14338.50, "XU030": 14450.00, "TRY=X": 45.01, "EURTRY=X": 49.10,
+      "BTC-USDT": 64850.00, "ETH-USDT": 3450.00, "SOL-USDT": 155.00,
+      "GC=F": 3445.00, "GAU=X": 3450.00, "GAG=X": 105.55,
       ...REALISTIC_BIST_PRICES
     };
     
@@ -974,18 +974,10 @@ useEffect(() => {
         console.log(`[App] Backend returned ${count} prices`);
         
         if (count === 0) {
-          console.warn("[App] Backend cache is empty, attempting fallbacks...");
-          fetchCryptoFallback();
-          fetchBistFallback();
-          setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
+          console.warn("[App] Backend cache is empty.");
+          setFetchError(`Veri Hattı: Boş`);
         } else {
           setFetchError(null);
-          
-          // Check if crypto data is missing (e.g. Vercel IP blocked by Binance)
-          if (!data["BTC-USDT"]) {
-            console.warn("[App] Backend response missing crypto data, triggering crypto fallback...");
-            fetchCryptoFallback();
-          }
           
           setPrices(prev => {
             const next = { ...prev };
@@ -1014,8 +1006,6 @@ useEffect(() => {
         const errorText = await res.text().catch(() => "Unknown error");
         console.warn(`[App] Backend error ${res.status}:`, errorText);
         setFetchError(`Fiyat Hattı Hatası: ${res.status}`);
-        fetchCryptoFallback();
-        fetchBistFallback();
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -1028,12 +1018,10 @@ useEffect(() => {
         console.error("[App] API fetch error:", error);
         setFetchError(`Bağlantı Hatası: ${error.message}`);
       }
-      fetchCryptoFallback();
-      fetchBistFallback();
     } finally {
       setLoading(false);
     }
-  }, [fetchCryptoFallback, fetchBistFallback]);
+  }, []);
 
   const fetchNews = useCallback(async () => {
     try {
@@ -1935,7 +1923,7 @@ border: "1px solid #30363d"
 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
   <span style={{ color: "#fff", fontSize: 15, fontWeight: 600 }}>{currentTime}</span>
   <button 
-    onClick={() => { fetchPrices(); fetchBistFallback(); fetchCryptoFallback(); }}
+    onClick={() => { fetchPrices(); }}
     style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #30363d", color: "#8b949e", fontSize: 10, padding: "2px 8px", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
   >
     <RefreshCw size={10} /> Yenile
@@ -2040,10 +2028,10 @@ border: "1px solid #30363d"
         <div style={{ marginTop: 8, color: "#8b949e" }}>Sample Prices:</div>
         <pre>{safeJsonStringify(Object.fromEntries(Object.entries(prices).slice(0, 10)))}</pre>
         <button 
-          onClick={() => { fetchBistFallback(); fetchCryptoFallback(); }}
+          onClick={() => { fetchPrices(); }}
           style={{ marginTop: 8, background: "#00d4aa", color: "#000", border: "none", padding: "4px 8px", borderRadius: 4, fontWeight: 700 }}
         >
-          Yedek Hatları Zorla
+          Yenile
         </button>
       </div>
     )}
@@ -4012,7 +4000,29 @@ return (
           <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
         </div>
       ) : aiAnalysis ? (
-        <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{aiAnalysis}</div>
+        <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+          {aiAnalysis.includes("⚠️") ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {aiAnalysis}
+              <button 
+                onClick={onFetchAi}
+                style={{
+                  background: "rgba(255,159,10,0.15)",
+                  border: "1px solid rgba(255,159,10,0.5)",
+                  borderRadius: 6,
+                  padding: "6px 12px",
+                  color: "#ff9f0a",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  width: "fit-content"
+                }}
+              >
+                Tekrar Dene
+              </button>
+            </div>
+          ) : aiAnalysis}
+        </div>
       ) : (
         <div style={{ textAlign: "center", padding: "10px 0" }}>
           <button 

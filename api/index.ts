@@ -20,13 +20,13 @@ const __dirname = dirname(__filename);
 
 // --- In-Memory Price Cache (Current 2024 Reality) ---
 const inMemoryPrices: Record<string, any> = {
-  "XU100": { price: 9750.00, change: 1.25, source: 'Initial' },
-  "XU030": { price: 10450.00, change: 1.10, source: 'Initial' },
-  "TRY=X": { price: 32.45, change: 0.15, source: 'Initial' },
-  "EURTRY=X": { price: 35.10, change: 0.08, source: 'Initial' },
+  "XU100": { price: 14338.50, change: 1.25, source: 'Initial' },
+  "XU030": { price: 14450.00, change: 1.10, source: 'Initial' },
+  "TRY=X": { price: 45.01, change: -0.11, source: 'Initial' },
+  "EURTRY=X": { price: 49.10, change: 0.08, source: 'Initial' },
   "BTC-USDT": { price: 64850.00, change: 2.50, source: 'Initial' },
-  "ETH-USDT": { price: 3150.00, change: 1.80, source: 'Initial' },
-  "SOL-USDT": { price: 145.00, change: 4.20, source: 'Initial' },
+  "ETH-USDT": { price: 3450.00, change: 1.80, source: 'Initial' },
+  "SOL-USDT": { price: 155.00, change: 4.20, source: 'Initial' },
   "BNB-USDT": { price: 585.00, change: 1.10, source: 'Initial' },
   "AVAX-USDT": { price: 35.50, change: -2.10, source: 'Initial' },
   "XRP-USDT": { price: 0.52, change: 0.25, source: 'Initial' },
@@ -34,12 +34,12 @@ const inMemoryPrices: Record<string, any> = {
   "DOGE-USDT": { price: 0.16, change: 2.50, source: 'Initial' },
   "PEPE-USDT": { price: 0.0000085, change: 5.30, source: 'Initial' },
   "10000PEPE-USDT": { price: 0.085, change: 5.30, source: 'Initial' },
-  "GC=F": { price: 2345.00, change: 0.85, source: 'Initial' },
-  "GAU=X": { price: 2450.00, change: 0.95, source: 'Initial' },
-  "GAG=X": { price: 30.25, change: 1.45, source: 'Initial' },
-  "XU100_change": 1.25, "XU030_change": 1.10, "TRY=X_change": 0.15,
+  "GC=F": { price: 3445.00, change: 0.85, source: 'Initial' },
+  "GAU=X": { price: 3450.00, change: 0.95, source: 'Initial' },
+  "GAG=X": { price: 105.55, change: -1.09, source: 'Initial' },
+  "XU100_change": 1.25, "XU030_change": 1.10, "TRY=X_change": -0.11,
   "BTC-USDT_change": 2.50, "ETH-USDT_change": 1.80, "SOL-USDT_change": 4.20,
-  "GAG=X_change": 1.45
+  "GAG=X_change": -1.09
 };
 const inMemoryNews: any[] = [];
 
@@ -283,7 +283,27 @@ async function updateCryptoPrices() {
     }
     console.log(`[Worker] Crypto update cycle complete.`);
   } catch (err) {
-    console.error("[Worker] Crypto update failed:", err);
+    console.error("[Worker] Crypto update failed via Binance, trying YahooFinance fallback...", err);
+    try {
+      const yfCrypto = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD", "AVAX-USD", "DOGE-USD"];
+      const individualPromises = yfCrypto.map(symbol => yahooFinance.quote(symbol).catch(() => null));
+      const individualResults = await Promise.all(individualPromises);
+      for (const quote of individualResults) {
+         if (quote && quote.regularMarketPrice !== undefined) {
+             const sym = (quote as any).symbol.replace('-USD', '-USDT');
+             inMemoryPrices[sym] = {
+               price: (quote as any).regularMarketPrice,
+               change: (quote as any).regularMarketChangePercent || 0,
+               lastUpdated: new Date().toISOString(),
+               source: 'YahooFinance'
+             };
+             inMemoryPrices[`${sym}_change`] = (quote as any).regularMarketChangePercent || 0;
+         }
+      }
+      console.log(`[Worker] Crypto update cycle complete via fallback.`);
+    } catch (fallbackErr) {
+       console.error("[Worker] Crypto fallback failed:", fallbackErr);
+    }
   }
 }
 
@@ -323,7 +343,22 @@ async function updateBistPrices() {
           }
         }
       } catch (batchErr) {
-        console.error(`[Worker] BIST batch ${i} failed:`, batchErr);
+        console.warn(`[Worker] BIST batch ${i} failed. Trying individually...`);
+        // Fallback: try individually
+        const individualPromises = batch.map(symbol => yahooFinance.quote(symbol).catch(() => null));
+        const individualResults = await Promise.all(individualPromises);
+        for (const quote of individualResults) {
+          if (quote && quote.regularMarketPrice !== undefined) {
+             const originalSymbol = (quote as any).symbol.replace('.IS', '');
+             inMemoryPrices[originalSymbol] = {
+               price: (quote as any).regularMarketPrice,
+               change: (quote as any).regularMarketChangePercent || 0,
+               lastUpdated: new Date().toISOString(),
+               source: 'YahooFinance'
+             };
+             inMemoryPrices[`${originalSymbol}_change`] = (quote as any).regularMarketChangePercent || 0;
+          }
+        }
       }
     }
   } catch (err) {
