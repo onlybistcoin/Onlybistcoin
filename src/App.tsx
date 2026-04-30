@@ -432,7 +432,7 @@ const [candidates, setCandidates] = useState<Record<string, any[]>>(() => {
     // Realistic initial values (Actual 2026 Reality)
     const initialMocks: Record<string, number> = {
       "XU100": 14338.50, "XU030": 14450.00, "TRY=X": 45.01, "EURTRY=X": 49.10,
-      "BTC-USDT": 64850.00, "ETH-USDT": 3450.00, "SOL-USDT": 155.00,
+      "BTC-USDT": 75600.00, "ETH-USDT": 3450.00, "SOL-USDT": 155.00,
       "GC=F": 3445.00, "GAU=X": 3450.00, "GAG=X": 105.55,
       ...REALISTIC_BIST_PRICES
     };
@@ -659,7 +659,7 @@ useEffect(() => {
             if (!next[sym]) {
               const seed = getSymbolSeed(sym);
               let basePrice = 1 + (seed % 50);
-              if (sym === 'BTC-USDT') basePrice = 64850.00;
+              if (sym === 'BTC-USDT') basePrice = 75600.00;
               if (sym === 'ETH-USDT') basePrice = 5850.00;
               if (sym === 'SOL-USDT') basePrice = 285.00;
               if (sym === 'BNB-USDT') basePrice = 920.00;
@@ -975,10 +975,17 @@ useEffect(() => {
         
         if (count === 0) {
           console.warn("[App] Backend cache is empty.");
-          setFetchError(`Veri Hattı: Boş`);
+          setFetchError(`Veri Hattı: Boş (Yedekler devrede)`);
+          fetchCryptoFallback();
+          fetchBistFallback();
         } else {
           setFetchError(null);
           
+          if (!data["BTC-USDT"]) {
+            console.warn("[App] Backend response missing crypto data, triggering crypto fallback...");
+            fetchCryptoFallback();
+          }
+
           setPrices(prev => {
             const next = { ...prev };
             for (const [symbol, info] of Object.entries(data)) {
@@ -1006,22 +1013,26 @@ useEffect(() => {
         const errorText = await res.text().catch(() => "Unknown error");
         console.warn(`[App] Backend error ${res.status}:`, errorText);
         setFetchError(`Fiyat Hattı Hatası: ${res.status}`);
+        fetchCryptoFallback();
+        fetchBistFallback();
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.warn("[App] API fetch timed out");
-        setFetchError("Bağlantı Zaman Aşımı");
+        setFetchError("Bağlantı Zaman Aşımı (Yedekler devrede)");
       } else if (error.message && (error.message.includes("pattern") || error.message.includes("URL"))) {
         console.warn("[App] Invalid URL context, using fallbacks.");
         setFetchError(`Bağlantı Hatası (URL): ${error.message}`);
       } else {
         console.error("[App] API fetch error:", error);
-        setFetchError(`Bağlantı Hatası: ${error.message}`);
+        setFetchError(`Bağlantı Hatası: ${error.message} (Yedekler devrede)`);
       }
+      fetchCryptoFallback();
+      fetchBistFallback();
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchCryptoFallback, fetchBistFallback]);
 
   const fetchNews = useCallback(async () => {
     try {
@@ -1182,7 +1193,7 @@ VURGULANACAK KRİTERLER:
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-3.1-flash-lite-preview",
       contents: prompt,
     });
     

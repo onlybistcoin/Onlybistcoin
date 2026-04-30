@@ -24,7 +24,7 @@ const inMemoryPrices: Record<string, any> = {
   "XU030": { price: 14450.00, change: 1.10, source: 'Initial' },
   "TRY=X": { price: 45.01, change: -0.11, source: 'Initial' },
   "EURTRY=X": { price: 49.10, change: 0.08, source: 'Initial' },
-  "BTC-USDT": { price: 64850.00, change: 2.50, source: 'Initial' },
+  "BTC-USDT": { price: 75600.00, change: -2.10, source: 'Initial' },
   "ETH-USDT": { price: 3450.00, change: 1.80, source: 'Initial' },
   "SOL-USDT": { price: 155.00, change: 4.20, source: 'Initial' },
   "BNB-USDT": { price: 585.00, change: 1.10, source: 'Initial' },
