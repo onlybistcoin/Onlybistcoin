@@ -18,28 +18,37 @@ process.on('unhandledRejection', (reason, promise) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// --- In-Memory Price Cache (Current 2024 Reality) ---
+// --- In-Memory Price Cache (Current Reality) ---
 const inMemoryPrices: Record<string, any> = {
-  "XU100": { price: 14338.50, change: 1.25, source: 'Initial' },
-  "XU030": { price: 14450.00, change: 1.10, source: 'Initial' },
-  "TRY=X": { price: 45.01, change: -0.11, source: 'Initial' },
-  "EURTRY=X": { price: 49.10, change: 0.08, source: 'Initial' },
-  "BTC-USDT": { price: 75600.00, change: -2.10, source: 'Initial' },
-  "ETH-USDT": { price: 3450.00, change: 1.80, source: 'Initial' },
-  "SOL-USDT": { price: 155.00, change: 4.20, source: 'Initial' },
-  "BNB-USDT": { price: 585.00, change: 1.10, source: 'Initial' },
-  "AVAX-USDT": { price: 35.50, change: -2.10, source: 'Initial' },
-  "XRP-USDT": { price: 0.52, change: 0.25, source: 'Initial' },
-  "ADA-USDT": { price: 0.48, change: -1.20, source: 'Initial' },
-  "DOGE-USDT": { price: 0.16, change: 2.50, source: 'Initial' },
+  "XU100": { price: 14420.77, change: 0.35, source: 'Initial' },
+  "XU030": { price: 14550.00, change: 0.40, source: 'Initial' },
+  "TRY=X": { price: 42.25, change: 0.15, source: 'Initial' },
+  "EURTRY=X": { price: 45.85, change: 0.08, source: 'Initial' },
+  "BTC-USDT": { price: 81000.74, change: 1.42, source: 'Initial' },
+  "ETH-USDT": { price: 2380.81, change: 0.78, source: 'Initial' },
+  "SOL-USDT": { price: 185.00, change: 2.20, source: 'Initial' },
+  "BNB-USDT": { price: 615.00, change: 1.10, source: 'Initial' },
+  "AVAX-USDT": { price: 42.50, change: -1.10, source: 'Initial' },
+  "XRP-USDT": { price: 0.58, change: 0.25, source: 'Initial' },
+  "ADA-USDT": { price: 0.42, change: -1.20, source: 'Initial' },
+  "DOGE-USDT": { price: 0.18, change: 2.50, source: 'Initial' },
   "PEPE-USDT": { price: 0.0000085, change: 5.30, source: 'Initial' },
   "10000PEPE-USDT": { price: 0.085, change: 5.30, source: 'Initial' },
-  "GC=F": { price: 3445.00, change: 0.85, source: 'Initial' },
-  "GAU=X": { price: 3450.00, change: 0.95, source: 'Initial' },
-  "GAG=X": { price: 105.55, change: -1.09, source: 'Initial' },
-  "XU100_change": 1.25, "XU030_change": 1.10, "TRY=X_change": -0.11,
-  "BTC-USDT_change": 2.50, "ETH-USDT_change": 1.80, "SOL-USDT_change": 4.20,
-  "GAG=X_change": -1.09
+  "GC=F": { price: 3155.00, change: 0.85, source: 'Initial' },
+  "GAU=X": { price: 3250.00, change: 0.95, source: 'Initial' },
+  "GAG=X": { price: 38.55, change: 1.45, source: 'Initial' },
+  "SAHOL": { price: 104.85, change: 0.30, source: 'Initial' },
+  "AKBNK": { price: 83.35, change: 0.40, source: 'Initial' },
+  "THYAO": { price: 328.75, change: -1.82, source: 'Initial' },
+  "GARAN": { price: 143.10, change: 0.30, source: 'Initial' },
+  "EREGL": { price: 45.64, change: 5.69, source: 'Initial' },
+  "KCHOL": { price: 221.00, change: -0.64, source: 'Initial' },
+  "TUPRS": { price: 290.75, change: -1.72, source: 'Initial' },
+  "SISE": { price: 57.86, change: 4.31, source: 'Initial' },
+  "ASELS": { price: 441.75, change: -0.88, source: 'Initial' },
+  "XU100_change": 0.35, "XU030_change": 0.40, "TRY=X_change": 0.15,
+  "BTC-USDT_change": 1.42, "ETH-USDT_change": 0.78, "SOL-USDT_change": 2.20,
+  "GAG=X_change": 1.45, "SAHOL_change": 0.30, "AKBNK_change": 0.40
 };
 const inMemoryNews: any[] = [];
 
@@ -239,70 +248,101 @@ const CRYPTO_SYMBOLS = [
 ];
 
 const binance = new ccxt.binance({ enableRateLimit: true });
+let binanceMarketsLoaded = false;
+
 async function updateCryptoPrices() {
   try {
-    console.log("[Worker] Fetching crypto prices from Binance...");
-    const tickers = await binance.fetchTickers();
-    const symbolSet = new Set(CRYPTO_SYMBOLS);
+    if (!binanceMarketsLoaded) {
+      console.log("[Worker] Loading Binance markets...");
+      await binance.loadMarkets();
+      binanceMarketsLoaded = true;
+    }
+
+    console.log("[Worker] Fetching crypto prices from Binance (Robust)...");
+    
+    // Filter symbols that exist in Binance Spot markets
+    const validSymbols = CRYPTO_SYMBOLS.filter(s => binance.markets[s]);
+    
+    if (validSymbols.length === 0) {
+      console.warn("[Worker] No valid crypto symbols found for Binance Spot.");
+      return;
+    }
+
+    const tickers = await binance.fetchTickers(validSymbols);
     let count = 0;
 
     for (const symbol in tickers) {
-      if (!symbolSet.has(symbol)) continue;
       const ticker = tickers[symbol];
+      if (!ticker || ticker.last === undefined) continue;
       count++;
-      // Map back to App.tsx format (e.g. BTC-USDT or 10000PEPE-USDT)
+      
+      // Map back to App.tsx format (e.g. BTC-USDT)
       let docId = symbol.replace("/", "-");
       
-      // Special case for BEAM: Binance uses BEAMX/USDT, App uses BEAM-USDT
-      if (symbol === "BEAMX/USDT") {
-        docId = "BEAM-USDT";
-      }
+      // Special cases
+      if (symbol === "BEAMX/USDT") docId = "BEAM-USDT";
+      if (symbol === "POL/USDT") docId = "POL-USDT"; // Ensure POL is mapped
       
+      // Update memory
+      inMemoryPrices[docId] = {
+        price: ticker.last,
+        change: ticker.percentage || 0,
+        lastUpdated: new Date().toISOString(),
+        source: 'Binance'
+      };
+      inMemoryPrices[`${docId}_change`] = ticker.percentage || 0;
+
       // Handle 10000 prefix for meme coins
-      if (["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "SATS-USDT", "BOME-USDT", "MEW-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"].includes(docId)) {
+      const memeCoins = ["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "SATS-USDT", "BOME-USDT", "MEW-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"];
+      if (memeCoins.includes(docId)) {
         const prefixedId = "10000" + docId;
         inMemoryPrices[prefixedId] = {
-          price: ticker.last * 10000,
+          price: (ticker.last || 0) * 10000,
           change: ticker.percentage || 0,
           lastUpdated: new Date().toISOString(),
           source: 'Binance'
         };
         inMemoryPrices[`${prefixedId}_change`] = ticker.percentage || 0;
       }
-
-      if (ticker.last !== undefined) {
-        inMemoryPrices[docId] = {
-          price: ticker.last,
-          change: ticker.percentage || 0,
-          lastUpdated: new Date().toISOString(),
-          source: 'Binance'
-        };
-        // Store change separately for App.tsx
-        inMemoryPrices[`${docId}_change`] = ticker.percentage || 0;
-      }
     }
-    console.log(`[Worker] Crypto update cycle complete.`);
+    console.log(`[Worker] Crypto update complete. Updated ${count} symbols.`);
   } catch (err) {
-    console.error("[Worker] Crypto update failed via Binance, trying YahooFinance fallback...", err);
+    console.warn("[Worker] Crypto targeted update failed, trying full fetch fallback...", err);
     try {
-      const yfCrypto = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD", "AVAX-USD", "DOGE-USD"];
-      const individualPromises = yfCrypto.map(symbol => yahooFinance.quote(symbol).catch(() => null));
-      const individualResults = await Promise.all(individualPromises);
-      for (const quote of individualResults) {
-         if (quote && quote.regularMarketPrice !== undefined) {
-             const sym = (quote as any).symbol.replace('-USD', '-USDT');
-             inMemoryPrices[sym] = {
-               price: (quote as any).regularMarketPrice,
-               change: (quote as any).regularMarketChangePercent || 0,
-               lastUpdated: new Date().toISOString(),
-               source: 'YahooFinance'
-             };
-             inMemoryPrices[`${sym}_change`] = (quote as any).regularMarketChangePercent || 0;
-         }
-      }
-      console.log(`[Worker] Crypto update cycle complete via fallback.`);
-    } catch (fallbackErr) {
-       console.error("[Worker] Crypto fallback failed:", fallbackErr);
+       // Full fetch fallback
+       const allTickers = await binance.fetchTickers();
+       const symbolSet = new Set(CRYPTO_SYMBOLS);
+       for (const s in allTickers) {
+          if (symbolSet.has(s)) {
+             const t = allTickers[s];
+             const docId = s.replace("/", "-");
+             inMemoryPrices[docId] = { price: t.last, change: t.percentage || 0, lastUpdated: new Date().toISOString(), source: 'Binance-Full' };
+             inMemoryPrices[`${docId}_change`] = t.percentage || 0;
+          }
+       }
+    } catch (e2) {
+       console.error("[Worker] Crypto full fallback failed, trying YahooFinance...", e2);
+       // ... existing Yahoo fallback logic would go here if I weren't replacing the whole function block
+       // I'll keep the Yahoo fallback logic in the replacement to be safe.
+       try {
+          const yfCrypto = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD", "AVAX-USD", "DOGE-USD"];
+          const individualPromises = yfCrypto.map(symbol => yahooFinance.quote(symbol).catch(() => null));
+          const individualResults = await Promise.all(individualPromises);
+          for (const quote of individualResults) {
+             if (quote && (quote as any).regularMarketPrice !== undefined) {
+                 const sym = (quote as any).symbol.replace('-USD', '-USDT');
+                 inMemoryPrices[sym] = {
+                   price: (quote as any).regularMarketPrice,
+                   change: (quote as any).regularMarketChangePercent || 0,
+                   lastUpdated: new Date().toISOString(),
+                   source: 'YahooFinance'
+                 };
+                 inMemoryPrices[`${sym}_change`] = (quote as any).regularMarketChangePercent || 0;
+             }
+          }
+       } catch (yfErr) {
+          console.error("[Worker] Yahoo fallback also failed:", yfErr);
+       }
     }
   }
 }
