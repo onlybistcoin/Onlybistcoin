@@ -252,98 +252,79 @@ let binanceMarketsLoaded = false;
 
 async function updateCryptoPrices() {
   try {
-    if (!binanceMarketsLoaded) {
-      console.log("[Worker] Loading Binance markets...");
-      await binance.loadMarkets();
-      binanceMarketsLoaded = true;
-    }
+    console.log("[Worker] Fetching crypto prices from Binance APIs natively...");
+    
+    // Fetch Spot AND Futures AND Gate.io
+    const [spotRes, futRes, gateRes] = await Promise.allSettled([
+      fetch('https://api.binance.com/api/v3/ticker/24hr').then(r => r.json()),
+      fetch('https://fapi.binance.com/fapi/v1/ticker/24hr').then(r => r.json()),
+      fetch('https://api.gateio.ws/api/v4/spot/tickers').then(r => r.json())
+    ]);
 
-    console.log("[Worker] Fetching crypto prices from Binance (Robust)...");
+    let allTickers: any[] = [];
+    if (spotRes.status === 'fulfilled' && Array.isArray(spotRes.value)) {
+       allTickers = allTickers.concat(spotRes.value);
+    }
+    if (futRes.status === 'fulfilled' && Array.isArray(futRes.value)) {
+       allTickers = allTickers.concat(futRes.value);
+    }
     
-    // Filter symbols that exist in Binance Spot markets
-    const validSymbols = CRYPTO_SYMBOLS.filter(s => binance.markets[s]);
-    
-    if (validSymbols.length === 0) {
-      console.warn("[Worker] No valid crypto symbols found for Binance Spot.");
+    if (allTickers.length === 0) {
+      console.warn("[Worker] Both Binance APIs failed or returned no array data.");
       return;
     }
 
-    const tickers = await binance.fetchTickers(validSymbols);
     let count = 0;
-
-    for (const symbol in tickers) {
-      const ticker = tickers[symbol];
-      if (!ticker || ticker.last === undefined) continue;
-      count++;
+    
+    for (const t of allTickers) {
+      if (!t.symbol || !t.symbol.endsWith('USDT')) continue;
       
-      // Map back to App.tsx format (e.g. BTC-USDT)
-      let docId = symbol.replace("/", "-");
+      let price = parseFloat(t.lastPrice);
+      if (isNaN(price) || price <= 0) continue;
+      let change = parseFloat(t.priceChangePercent) || 0;
       
-      // Special cases
-      if (symbol === "BEAMX/USDT") docId = "BEAM-USDT";
-      if (symbol === "POL/USDT") docId = "POL-USDT"; // Ensure POL is mapped
+      let docId = t.symbol.replace("USDT", "-USDT");
+      if (t.symbol === "BEAMXUSDT") docId = "BEAM-USDT";
       
-      // Update memory
       inMemoryPrices[docId] = {
-        price: ticker.last,
-        change: ticker.percentage || 0,
+        price: price,
+        change: change,
         lastUpdated: new Date().toISOString(),
-        source: 'Binance'
+        source: 'Binance API'
       };
-      inMemoryPrices[`${docId}_change`] = ticker.percentage || 0;
+      inMemoryPrices[`${docId}_change`] = change;
+      count++;
+    }
 
-      // Handle 10000 prefix for meme coins
-      const memeCoins = ["PEPE-USDT", "SHIB-USDT", "FLOKI-USDT", "BONK-USDT", "SATS-USDT", "BOME-USDT", "MEW-USDT", "MOG-USDT", "BABYDOGE-USDT", "1CAT-USDT", "COQ-USDT", "WEN-USDT"];
-      if (memeCoins.includes(docId)) {
-        const prefixedId = "10000" + docId;
-        inMemoryPrices[prefixedId] = {
-          price: (ticker.last || 0) * 10000,
-          change: ticker.percentage || 0,
-          lastUpdated: new Date().toISOString(),
-          source: 'Binance'
-        };
-        inMemoryPrices[`${prefixedId}_change`] = ticker.percentage || 0;
-      }
+    // Gate.io fallback for missing coins
+    let gateCount = 0;
+    if (gateRes.status === 'fulfilled' && Array.isArray(gateRes.value)) {
+       for (const t of gateRes.value) {
+          if (!t.currency_pair || !t.currency_pair.endsWith('_USDT')) continue;
+          let docId = t.currency_pair.replace('_USDT', '-USDT');
+          
+          let price = parseFloat(t.last);
+          if (isNaN(price) || price <= 0) continue;
+          let change = parseFloat(t.change_percentage) || 0;
+
+          // Only add if not already present from Binance
+          if (!inMemoryPrices[docId]) {
+             inMemoryPrices[docId] = {
+               price: price,
+               change: change,
+               lastUpdated: new Date().toISOString(),
+               source: 'Gate.io'
+             };
+             inMemoryPrices[`${docId}_change`] = change;
+             gateCount++;
+          }
+       }
     }
-    console.log(`[Worker] Crypto update complete. Updated ${count} symbols.`);
+    
+    console.log(`[Worker] Crypto update complete. Parsed ${count} Binance, ${gateCount} Gate.io tickers.`);
+
   } catch (err) {
-    console.warn("[Worker] Crypto targeted update failed, trying full fetch fallback...", err);
-    try {
-       // Full fetch fallback
-       const allTickers = await binance.fetchTickers();
-       const symbolSet = new Set(CRYPTO_SYMBOLS);
-       for (const s in allTickers) {
-          if (symbolSet.has(s)) {
-             const t = allTickers[s];
-             const docId = s.replace("/", "-");
-             inMemoryPrices[docId] = { price: t.last, change: t.percentage || 0, lastUpdated: new Date().toISOString(), source: 'Binance-Full' };
-             inMemoryPrices[`${docId}_change`] = t.percentage || 0;
-          }
-       }
-    } catch (e2) {
-       console.error("[Worker] Crypto full fallback failed, trying YahooFinance...", e2);
-       // ... existing Yahoo fallback logic would go here if I weren't replacing the whole function block
-       // I'll keep the Yahoo fallback logic in the replacement to be safe.
-       try {
-          const yfCrypto = ["BTC-USD", "ETH-USD", "SOL-USD", "BNB-USD", "XRP-USD", "ADA-USD", "AVAX-USD", "DOGE-USD"];
-          const individualPromises = yfCrypto.map(symbol => yahooFinance.quote(symbol).catch(() => null));
-          const individualResults = await Promise.all(individualPromises);
-          for (const quote of individualResults) {
-             if (quote && (quote as any).regularMarketPrice !== undefined) {
-                 const sym = (quote as any).symbol.replace('-USD', '-USDT');
-                 inMemoryPrices[sym] = {
-                   price: (quote as any).regularMarketPrice,
-                   change: (quote as any).regularMarketChangePercent || 0,
-                   lastUpdated: new Date().toISOString(),
-                   source: 'YahooFinance'
-                 };
-                 inMemoryPrices[`${sym}_change`] = (quote as any).regularMarketChangePercent || 0;
-             }
-          }
-       } catch (yfErr) {
-          console.error("[Worker] Yahoo fallback also failed:", yfErr);
-       }
-    }
+    console.error("[Worker] Crypto update failed:", err);
   }
 }
 
