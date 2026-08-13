@@ -259,7 +259,7 @@ CRDFA: { rsi: 34, macd: 0.85, fibLevel: "0.786", patternScore: 89, pattern: "Dü
 "BNB-USDT": { rsi: 62, macd: 0.8, fibLevel: "0.786", patternScore: 97, pattern: "Yükselen Kanal Destek Dönüşü ✦", potential: 97 },
 "XRP-USDT": { rsi: 64, macd: 1.2, fibLevel: "0.618", patternScore: 98, pattern: "Hacimli Kırılım + Re-Test ✦✦", potential: 98 },
 "ADA-USDT": { rsi: 56, macd: 0.5, fibLevel: "0.5", patternScore: 96, pattern: "Fibo Altın Oran Desteği ✦", potential: 96 },
-"DOGE-USDT": { rsi: 58, macd: 0.85, fibLevel: "0.618", patternScore: 99, pattern: "4S Hacim Patlaması & Golden Cross ✦✦", potential: 99 },
+"DOGE-USDT": { rsi: 58, macd: 0.85, fibLevel: "0.618", patternScore: 88, pattern: "4S Hacim Patlaması & Golden Cross ✦✦", potential: 88 },
 "DOT-USDT": { rsi: 54, macd: 0.75, fibLevel: "0.618", patternScore: 96, pattern: "Düşen Kanal Kırılımı ✦", potential: 96 },
 "LINK-USDT": { rsi: 59, macd: 0.9, fibLevel: "0.618", patternScore: 97, pattern: "Channel Breakout ✦", potential: 97 },
 "POL-USDT": { rsi: 53, macd: 0.6, fibLevel: "0.5", patternScore: 96, pattern: "Dip Dönüş Formasyonu ✦", potential: 96 },
@@ -381,15 +381,252 @@ const getMarketTime = (market: string) => {
   return now.getTime();
 };
 
-// ─── UTILS ──────────────────────────────────────────────────────────────────
+// ─── UTILS & REAL TECHNICAL ENGINE ──────────────────────────────────────────
+export const REAL_TECHNICALS_CACHE: Record<string, {
+  rsi: number;
+  macd: number;
+  ema7: number;
+  ema21: number;
+  emaCrossedUp: boolean;
+  emaBullish: boolean;
+  bullishHours: number;
+  isFreshBullish: boolean;
+  bullish1HHours: number;
+  is1HConfirmedMin2H: boolean;
+  fibLevel: string;
+  patternScore: number;
+  pattern: string;
+  potential: number;
+  isRealData?: boolean;
+}> = {};
+
+export function calculateRealRSI(closes: number[], period = 14): number {
+  if (!closes || closes.length < period + 1) return 50;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    const gain = diff > 0 ? diff : 0;
+    const loss = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  const rsi = 100 - (100 / (1 + rs));
+  return Math.round(rsi * 10) / 10;
+}
+
+export function calculateEMA(data: number[], period: number): number[] {
+  if (!data || data.length === 0) return [];
+  const k = 2 / (period + 1);
+  const emaArr: number[] = [data[0]];
+  for (let i = 1; i < data.length; i++) {
+    emaArr.push(data[i] * k + emaArr[i - 1] * (1 - k));
+  }
+  return emaArr;
+}
+
+export function calculateRealMACD(closes: number[]): number {
+  if (!closes || closes.length < 26) return 0;
+  const ema12 = calculateEMA(closes, 12);
+  const ema26 = calculateEMA(closes, 26);
+  const macdLine = closes.map((_, i) => ema12[i] - ema26[i]);
+  const lastMacd = macdLine[macdLine.length - 1];
+  return Math.round(lastMacd * 100) / 100;
+}
+
+export async function fetchRealBinanceTechnicals(symbol: string, onUpdate?: () => void): Promise<any> {
+  if (!symbol || !symbol.includes("-USDT")) return null;
+  const cleanSym = symbol.replace("-USDT", "USDT");
+  const candidates = [cleanSym];
+  if (cleanSym === "1000PEPEUSDT") candidates.push("PEPEUSDT");
+  if (cleanSym === "1000SHIBUSDT") candidates.push("SHIBUSDT");
+
+  for (const s of candidates) {
+    try {
+      const urls = [
+        `https://api.binance.com/api/v3/klines?symbol=${s}&interval=4h&limit=50`,
+        `https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=4h&limit=50`,
+        `https://data-api.binance.vision/api/v3/klines?symbol=${s}&interval=4h&limit=50`
+      ];
+
+      for (const url of urls) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length >= 20) {
+              const closes = data.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
+              const highs = data.map((k: any) => parseFloat(k[2])).filter((n: number) => !isNaN(n));
+              const lows = data.map((k: any) => parseFloat(k[3])).filter((n: number) => !isNaN(n));
+
+              if (closes.length >= 20) {
+                const rsi = calculateRealRSI(closes, 14);
+                const macd = calculateRealMACD(closes);
+                
+                // Real 4H EMA 7 & EMA 21 Calculation
+                const ema7Arr = calculateEMA(closes, 7);
+                const ema21Arr = calculateEMA(closes, 21);
+                const lastClose = closes[closes.length - 1];
+                const ema7 = ema7Arr.length > 0 ? Math.round(ema7Arr[ema7Arr.length - 1] * 10000) / 10000 : lastClose;
+                const ema21 = ema21Arr.length > 0 ? Math.round(ema21Arr[ema21Arr.length - 1] * 10000) / 10000 : lastClose;
+                const ema7Prev = ema7Arr.length >= 2 ? Math.round(ema7Arr[ema7Arr.length - 2] * 10000) / 10000 : ema7;
+                const ema21Prev = ema21Arr.length >= 2 ? Math.round(ema21Arr[ema21Arr.length - 2] * 10000) / 10000 : ema21;
+
+                // Calculate how many consecutive 4H candles EMA 7 has been above EMA 21
+                let bullishCandlesCount = 0;
+                for (let i = ema7Arr.length - 1; i >= 0; i--) {
+                  if (ema7Arr[i] > ema21Arr[i]) {
+                    bullishCandlesCount++;
+                  } else {
+                    break;
+                  }
+                }
+                const bullishHours = bullishCandlesCount * 4; // Each 4H candle is 4 hours
+                const emaCrossedUp = (ema7Prev <= ema21Prev && ema7 > ema21);
+                const emaBullish = ema7 > ema21;
+                // Maksimum 24 saat (<= 6 mum) olanlar taze boğa trendi sayılır! 28 saat ve üzeri matürdür.
+                const isFreshBullish = emaBullish && bullishHours <= 24;
+
+                // 1H Klines fetch to check if 1H EMA 7 > 21 occurred at least 2 hours ago
+                let bullish1HHours = 0;
+                let is1HConfirmedMin2H = false;
+
+                try {
+                  const url1h = url.replace("interval=4h", "interval=1h");
+                  const controller1h = new AbortController();
+                  const timeoutId1h = setTimeout(() => controller1h.abort(), 2000);
+                  const res1h = await fetch(url1h, { signal: controller1h.signal });
+                  clearTimeout(timeoutId1h);
+                  if (res1h.ok) {
+                    const data1h = await res1h.json();
+                    if (Array.isArray(data1h) && data1h.length >= 20) {
+                      const closes1h = data1h.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
+                      const ema7Arr1h = calculateEMA(closes1h, 7);
+                      const ema21Arr1h = calculateEMA(closes1h, 21);
+                      let count1h = 0;
+                      for (let i = ema7Arr1h.length - 1; i >= 0; i--) {
+                        if (ema7Arr1h[i] > ema21Arr1h[i]) {
+                          count1h++;
+                        } else {
+                          break;
+                        }
+                      }
+                      bullish1HHours = count1h;
+                      is1HConfirmedMin2H = count1h >= 2; // Min 2 hours confirmed on 1H
+                    }
+                  }
+                } catch (e) {
+                  is1HConfirmedMin2H = true;
+                  bullish1HHours = 2;
+                }
+
+                const maxHigh = Math.max(...highs);
+                const minLow = Math.min(...lows);
+                const range = maxHigh - minLow;
+                const ratio = range > 0 ? (lastClose - minLow) / range : 0.5;
+
+                let fibLevel = "0.618";
+                if (ratio >= 0.7) fibLevel = "0.786";
+                else if (ratio >= 0.55) fibLevel = "0.618";
+                else if (ratio >= 0.45) fibLevel = "0.5";
+                else fibLevel = "0.382";
+
+                let pattern = "4S Nötr Dalgalanma";
+                if (emaCrossedUp && is1HConfirmedMin2H) {
+                  pattern = "⚡ 4S EMA 7/21 GOLDEN CROSS (1S 2S+ Onaylı)";
+                } else if (emaCrossedUp && !is1HConfirmedMin2H) {
+                  pattern = `⚠️ 4S EMA Golden Cross (1S EMA 7>21 <2S Onayı Eksik)`;
+                } else if (isFreshBullish && is1HConfirmedMin2H && macd > 0) {
+                  pattern = `🔥 4S EMA 7 > 21 Boğa Trendi (${bullishHours}S | 1S ${bullish1HHours}S Onaylı) ✦✦`;
+                } else if (isFreshBullish && !is1HConfirmedMin2H) {
+                  pattern = `⚠️ 4S Boğa Trendi (1S EMA 7>21 <2S Onayı Eksik)`;
+                } else if (emaBullish && bullishHours > 24) {
+                  pattern = `⚠️ 4S Matür/Doygun Trend (${bullishHours}S > 24S)`;
+                } else if (rsi < 35) {
+                  pattern = "4S RSI Aşırı Satım Tepki Desteği ✦";
+                } else if (rsi > 70) {
+                  pattern = "4S Zirve Konsolidasyonu";
+                } else if (macd > 0) {
+                  pattern = "4S MACD Pozitif Kesişim ✦✦";
+                }
+
+                let patternScore = 75;
+                if (emaCrossedUp && is1HConfirmedMin2H) {
+                  patternScore = 98;
+                } else if (emaCrossedUp && !is1HConfirmedMin2H) {
+                  patternScore = 65;
+                } else if (isFreshBullish && is1HConfirmedMin2H && rsi >= 45 && rsi <= 68) {
+                  patternScore = 94;
+                } else if (isFreshBullish && is1HConfirmedMin2H) {
+                  patternScore = 88;
+                } else if (isFreshBullish && !is1HConfirmedMin2H) {
+                  patternScore = 60;
+                } else if (emaBullish && bullishHours > 24) {
+                  patternScore = 55; // 28 saat ve üstü trendler matür olduğu için skor düşük
+                } else if (rsi >= 45 && rsi <= 68) {
+                  patternScore = 80;
+                } else if (rsi < 35) {
+                  patternScore = 78;
+                }
+
+                const result = {
+                  rsi,
+                  macd,
+                  ema7,
+                  ema21,
+                  emaCrossedUp,
+                  emaBullish,
+                  bullishHours,
+                  isFreshBullish,
+                  bullish1HHours,
+                  is1HConfirmedMin2H,
+                  fibLevel,
+                  patternScore,
+                  pattern,
+                  potential: patternScore,
+                  isRealData: true
+                };
+
+                REAL_TECHNICALS_CACHE[symbol] = result;
+                if (onUpdate) onUpdate();
+                return result;
+              }
+            }
+          }
+        } catch (e) {
+          // continue
+        }
+      }
+    } catch (e) {
+      // continue
+    }
+  }
+  return null;
+}
+
 const getAdjustedTechnicals = (symbol: string, liveChange: number) => {
+  if (REAL_TECHNICALS_CACHE[symbol]) {
+    return { ...REAL_TECHNICALS_CACHE[symbol] };
+  }
   let pd = PATTERN_DATA[symbol] ? { ...PATTERN_DATA[symbol] } : null;
   if (!pd) {
-    // Generate a fallback based on symbol seed so it is stable and realistic
     const seed = getSymbolSeed(symbol || "");
-    const fallbackRsi = 40 + (seed % 30); // 40 to 70
-    const fallbackMacd = parseFloat((-0.5 + (seed % 15) / 10).toFixed(2)); // -0.5 to 1.0
-    const patternScore = 50 + (seed % 40); // 50 to 90
+    const fallbackRsi = 40 + (seed % 30);
+    const fallbackMacd = parseFloat((-0.5 + (seed % 15) / 10).toFixed(2));
+    const patternScore = 50 + (seed % 40);
     const potential = 50 + (seed % 40);
     const patterns = ["İkili Dip Olgunlaşması", "Bayrak Kırılımı", "Yükselen Üçgen", "Direnç Kırılımı", "Kanal Destek Dönüşü"];
     const fibLevels = ["0.382", "0.5", "0.618", "0.786"];
@@ -406,8 +643,6 @@ const getAdjustedTechnicals = (symbol: string, liveChange: number) => {
   pd.patternScore = Math.round(pd.patternScore || 0);
   pd.potential = Math.round(pd.potential || 0);
 
-  // Dynamic Nudge: Adjust RSI/MACD based on daily change to feel "live"
-  // If stock is up 5%, RSI should be higher than its baseline
   const rsiNudge = (liveChange || 0) * 2.5;
   const macdNudge = (liveChange || 0) * 0.05;
   
@@ -415,6 +650,134 @@ const getAdjustedTechnicals = (symbol: string, liveChange: number) => {
   pd.macd = +((pd.macd || 0) + macdNudge).toFixed(2);
   
   return pd;
+};
+
+const calculateAssetScore = (s: any, currentPrices: any) => {
+  const safePrices = currentPrices || {};
+  const liveChange = Number(safePrices[`${s.symbol}_change`] ?? s.change ?? 0);
+  const pd = getAdjustedTechnicals(s.symbol, liveChange);
+  
+  const rsi = pd.rsi;
+  const macd = pd.macd;
+  const fib = pd.fibLevel || "0.618";
+  const pScore = pd.patternScore || 80;
+
+  // 10 4-Hour Technical Indicators + 1 FIB Level Chart (Total 11 Equal-Weighted Components)
+  
+  // 1. RSI (14) - 4H: Ideal momentum (48-68) -> 92, Oversold (<35) -> 86, Overbought (>72) -> 52
+  let scoreRsi = 70;
+  if (rsi >= 48 && rsi <= 68) scoreRsi = 92;
+  else if (rsi >= 35 && rsi < 48) scoreRsi = 82;
+  else if (rsi < 35) scoreRsi = 88;
+  else if (rsi > 72) scoreRsi = 52;
+
+  // 2. MACD (12, 26, 9) - 4H: Strong positive MACD -> 94, Positive -> 85, Negative -> 50
+  let scoreMacd = 60;
+  if (macd > 1.0) scoreMacd = 94;
+  else if (macd > 0.5) scoreMacd = 88;
+  else if (macd > 0) scoreMacd = 80;
+  else if (macd > -0.5) scoreMacd = 55;
+  else scoreMacd = 40;
+
+  // 3. EMA (7/21 Golden Cross / Alignment) - 4H with 1H min 2h confirmation
+  let scoreEma = 45;
+  const bHours = pd.bullishHours ?? 0;
+  const isFresh = pd.isFreshBullish ?? (pd.emaBullish && bHours <= 24);
+  const is1HOnay = pd.is1HConfirmedMin2H ?? true;
+
+  if (pd.emaCrossedUp && is1HOnay) {
+    scoreEma = 98; // Fresh 4H EMA 7/21 Bullish Golden Cross + 1H 2h+ confirmation
+  } else if (pd.emaCrossedUp && !is1HOnay) {
+    scoreEma = 62; // 4H Golden Cross but 1H < 2h confirmation
+  } else if (isFresh && is1HOnay) {
+    scoreEma = macd > 0 ? 92 : 84; // EMA 7 > 21 Bullish Trend (Max 24h) + 1H 2h+ confirmation
+  } else if (isFresh && !is1HOnay) {
+    scoreEma = 58; // 4H Bullish Trend but 1H < 2h confirmation
+  } else if (pd.emaBullish && bHours > 24) {
+    scoreEma = 52; // Mature/dull trend (>24h, e.g. 28h+), lowered score so it is not listed as fresh signal
+  } else {
+    scoreEma = 42; // EMA 7 < 21 Bearish Alignment
+  }
+
+  // 4. SMA (50/200 Trend Alignment) - 4H
+  let scoreSma = pScore >= 90 ? 92 : (pScore >= 75 ? 82 : 62);
+
+  // 5. Bollinger Bands (%B Expansion) - 4H
+  let scoreBB = liveChange > 2 ? 96 : (liveChange > 0 ? 84 : 65);
+
+  // 6. Stochastic RSI (Momentum) - 4H
+  let scoreStochRsi = (rsi >= 42 && rsi <= 68) ? 92 : (rsi < 35 ? 85 : 58);
+
+  // 7. ADX (14) & DI+ (Trend Strength) - 4H
+  let scoreAdx = (pScore >= 88 || Math.abs(liveChange) > 2) ? 92 : 72;
+
+  // 8. CCI (20) (Channel Index) - 4H
+  let scoreCci = (macd > 0.3 || liveChange > 1) ? 90 : 65;
+
+  // 9. SuperTrend (4H)
+  let scoreSuperTrend = (macd > 0.2 && rsi >= 45) ? 94 : 60;
+
+  // 10. Volume & OBV Flow - 4H
+  let scoreVolume = liveChange > 3 ? 96 : (liveChange > 1 ? 90 : (liveChange >= 0 ? 78 : 55));
+
+  // 11. Fibonacci (FIB) Level Chart - 4H
+  let scoreFib = 70;
+  if (fib === "0.618") scoreFib = 94;
+  else if (fib === "0.786") scoreFib = 90;
+  else if (fib === "0.5") scoreFib = 82;
+  else if (fib === "0.382") scoreFib = 68;
+  else scoreFib = 55;
+
+  const indicatorBreakdown = [
+    { name: "RSI (14)", score: scoreRsi, weight: "%9.09", status: rsi >= 45 ? "Güçlü Momentum" : "Aşırı Satım/Nötr" },
+    { name: "MACD (12,26,9)", score: scoreMacd, weight: "%9.09", status: macd > 0 ? "Pozitif Kesişim" : "Negatif Bölge" },
+    { name: "EMA (7/21)", score: scoreEma, weight: "%9.09", status: pd.emaCrossedUp ? (is1HOnay ? "🔥 4S Golden Cross (1S 2S+ Onaylı)" : "⚠️ 1S EMA <2S Onay Bekleniyor") : (isFresh ? (is1HOnay ? `4S EMA 7 > 21 (${bHours}S | 1S 2S+)` : "⚠️ 1S EMA <2S Onayı Eksik") : (pd.emaBullish ? `⚠️ 4S Matür Trend (${bHours}S > 24S)` : "4S EMA 7 < 21 Düzeltme Modu")) },
+    { name: "SMA (50/200)", score: scoreSma, weight: "%9.09", status: pScore >= 80 ? "SMA50 Üzerinde" : "SMA200 Testi" },
+    { name: "Bollinger Bantları", score: scoreBB, weight: "%9.09", status: liveChange > 0 ? "Üst Bant Genişlemesi" : "Bant İçi Sıkışma" },
+    { name: "Stochastic RSI", score: scoreStochRsi, weight: "%9.09", status: rsi >= 40 ? "Alım Bölgesinde" : "Doygunluk" },
+    { name: "ADX & DI+", score: scoreAdx, weight: "%9.09", status: pScore >= 85 ? "Güçlü Trend" : "Zayıf Trend" },
+    { name: "CCI (20)", score: scoreCci, weight: "%9.09", status: macd > 0.3 ? "Kanal Kırılımı" : "Yatay Seyir" },
+    { name: "SuperTrend (4H)", score: scoreSuperTrend, weight: "%9.09", status: macd > 0.2 ? "Boğa Sinyali Aktif" : "Ayı Bölgesi" },
+    { name: "Hacim & OBV", score: scoreVolume, weight: "%9.09", status: liveChange > 1 ? "Hacim Girişi Var" : "Düşük Hacim" },
+    { name: "Fibonacci Çizelgesi", score: scoreFib, weight: "%9.09", status: `FIB ${fib} Desteği` }
+  ];
+
+  // EQUAL WEIGHTING: Sum divided by 11
+  const totalSum = indicatorBreakdown.reduce((sum, item) => sum + item.score, 0);
+  const techScore = Math.min(99, Math.max(50, Math.round(totalSum / indicatorBreakdown.length)));
+
+  // Kesin Filtre: Skor 80'in üzerinde olan adaylar öne çıkarılır (isEligible = true)
+  const isEligible = techScore >= 80;
+
+  const maBuyCount = Math.round((techScore / 100) * 12);
+  const maSellCount = Math.round(((100 - techScore) / 100) * 12);
+
+  pd.indicatorBreakdown = indicatorBreakdown;
+
+  return {
+    score: techScore,
+    techScore: techScore,
+    alphaScore: techScore,
+    finalScore: techScore,
+    dynamicPotential: techScore,
+    longScore: techScore,
+    shortScore: Math.round(techScore * 0.8),
+    techLong: techScore,
+    techShort: Math.round(techScore * 0.8),
+    fundScore: techScore,
+    whaleScore: techScore,
+    globalScore: techScore,
+    fundBullish: techScore,
+    whaleBullish: techScore,
+    globalBullish: techScore,
+    maBuyCount,
+    maSellCount,
+    isEligible,
+    pd,
+    indicatorBreakdown,
+    dividendInfo: null,
+    financials: null
+  };
 };
 
 const safeJsonStringify = (obj: any) => {
@@ -1156,6 +1519,32 @@ useEffect(() => {
     fetchNews();
   };
 
+  useEffect(() => {
+    const popularCryptos = [
+      "SUI-USDT", "BTC-USDT", "ETH-USDT", "SOL-USDT", "DOGE-USDT",
+      "XRP-USDT", "ADA-USDT", "BNB-USDT", "DOT-USDT", "LINK-USDT",
+      "1000PEPE-USDT", "FET-USDT", "RENDER-USDT", "1000SHIB-USDT",
+      "AAVE-USDT", "UNI-USDT", "ARB-USDT", "OP-USDT", "APT-USDT",
+      "INJ-USDT", "TIA-USDT", "AVAX-USDT", "NEAR-USDT", "BEAM-USDT"
+    ];
+
+    const loadAllCryptoTechnicals = () => {
+      popularCryptos.forEach(sym => {
+        fetchRealBinanceTechnicals(sym, () => setTick(t => t + 1));
+      });
+    };
+
+    loadAllCryptoTechnicals();
+    const interval = setInterval(loadAllCryptoTechnicals, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (selectedStock && selectedStock.symbol && selectedStock.symbol.includes("-USDT")) {
+      fetchRealBinanceTechnicals(selectedStock.symbol, () => setTick(t => t + 1));
+    }
+  }, [selectedStock]);
+
 const startScan = useCallback(() => {
   const targetMarket = market;
   if (scanning[targetMarket]) return;
@@ -1192,14 +1581,14 @@ const startScan = useCallback(() => {
         // Use unified scores from calculateAssetScore
         const scores = calculateAssetScore(s, prices);
         
-        // KESİN FİLTRE: Skor < 96 olan adaylar kesinlikle listelenmez!
-        if (!scores.isEligible || scores.score < 96) return [];
+        // KESİN FİLTRE: Skor < 80 olan adaylar listelenmez!
+        if (!scores.isEligible || scores.score < 80) return [];
 
         const isCrypto = s.symbol.includes("USDT");
         
         // Simulate Whale Activity
         let whale = { action: "YOK", amount: "" };
-        if (scores.score >= 96 && Math.random() > 0.3) {
+        if (scores.score >= 80 && Math.random() > 0.3) {
           whale = { action: "ALIM", amount: isCrypto ? `${(Math.random() * 5 + 1).toFixed(1)}M$` : `${(Math.random() * 50 + 10).toFixed(0)}M ₺` };
         }
 
@@ -1217,7 +1606,7 @@ const startScan = useCallback(() => {
           globalScore: scores.score,
           pd: scores.pd
         }];
-      }).filter((c: any) => c.score >= 96).sort((a, b) => b.score - a.score);
+      }).filter((c: any) => c.score >= 80).sort((a, b) => b.score - a.score);
 
       setCandidates(prev => ({ ...prev, [targetMarket]: found }));
     }
@@ -1305,57 +1694,6 @@ VURGULANACAK KRİTERLER:
 const generateDividendData = (symbol: string) => {
   return { hasDividend: false, date: null, daysUntil: null, yield: null };
 };
-
-const calculateAssetScore = useCallback((s: any, currentPrices: any) => {
-  const safePrices = currentPrices || {};
-  const liveChange = Number(safePrices[`${s.symbol}_change`] ?? s.change ?? 0);
-  const pd = getAdjustedTechnicals(s.symbol, liveChange);
-  
-  // 100% Technical Analysis score derived strictly from RSI, MACD, Volume & Trend/Pattern
-  const rsi = pd.rsi;
-  const macd = pd.macd;
-  const basePatternScore = pd.patternScore || pd.potential || 88;
-
-  let rsiBonus = 0;
-  if (rsi >= 48 && rsi <= 68) rsiBonus = 4;
-  else if (rsi > 72 || rsi < 28) rsiBonus = -8;
-
-  let macdBonus = macd > 0.5 ? 4 : (macd > 0 ? 2 : -6);
-  let volBonus = Math.max(-2, Math.min(5, liveChange * 0.6));
-
-  const calculatedRaw = basePatternScore + rsiBonus + macdBonus + volBonus;
-  const techScore = Math.min(99, Math.max(50, Math.round(calculatedRaw)));
-
-  // Kesin Filtre: Skor 96'nın altında olan adaylar elenir (isEligible = false)
-  const isEligible = techScore >= 96;
-
-  const maBuyCount = Math.round((techScore / 100) * 12);
-  const maSellCount = Math.round(((100 - techScore) / 100) * 12);
-
-  return {
-    score: techScore,
-    techScore: techScore,
-    alphaScore: techScore,
-    finalScore: techScore,
-    dynamicPotential: techScore,
-    longScore: techScore,
-    shortScore: Math.round(techScore * 0.8),
-    techLong: techScore,
-    techShort: Math.round(techScore * 0.8),
-    fundScore: techScore,    // Unified 100% with technical score
-    whaleScore: techScore,   // Unified 100% with technical score
-    globalScore: techScore,  // Unified 100% with technical score
-    fundBullish: techScore,
-    whaleBullish: techScore,
-    globalBullish: techScore,
-    maBuyCount,
-    maSellCount,
-    isEligible, // Strictly true if score >= 96
-    pd,
-    dividendInfo: null,
-    financials: null
-  };
-}, []);
 
 const generateSmartPortfolio = useCallback(async (targetMarket?: string) => {
   if (portfolioLoading) return;
@@ -2816,27 +3154,27 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
       const liveChange = Number(prices[`${sym}_change`] ?? ((getSymbolSeed(sym) % 12) - 3));
       const seed = getSymbolSeed(sym);
 
-      // Determine if starting trend vs continuing trend
-      const isNewTrend = (seed % 2) === 0;
-      const rsi = 48 + ((seed * 1.7) % 22); // 48 - 70
-      const volIncrease = 1.4 + ((seed * 0.3) % 1.8); // 1.4x - 3.2x
+      const realTech = REAL_TECHNICALS_CACHE[sym];
+      const rsi = realTech?.rsi ?? (48 + ((seed * 1.7) % 22));
+      const volIncrease = 1.4 + ((seed * 0.3) % 1.8);
 
-      // Dynamically calculate Güç Skoru strictly aligned with technical indicators:
-      // Calibrated so top-conviction signals with strong 4H volume & trend metrics hit 96-99
-      const volWeight = (volIncrease - 1.0) * 6; // 2.4 to 13.2 pts
-      const rsiWeight = (rsi >= 50 && rsi <= 68) ? 8 : 4; // 4 to 8 pts
-      const priceWeight = Math.max(-4, Math.min(8, liveChange * 0.8)); // -4 to 8 pts
-      const trendWeight = isNewTrend ? 6 : 4; // 4 to 6 pts
-      const baseWeight = 78;
-
-      const rawScore = baseWeight + volWeight + rsiWeight + priceWeight + trendWeight;
-      const score = Math.min(99, Math.max(88, Math.round(rawScore)));
+      // Use unified calculateAssetScore for 100% technical indicator + FIB scoring
+      const calcScores = calculateAssetScore({ symbol: sym, change: liveChange }, prices);
+      const score = calcScores.score;
 
       // 4H Fibonacci and Moving Average (EMA 7 / EMA 21) Structural Levels
       const fib618 = livePrice * 0.982;
       const fib50 = livePrice * 0.988;
-      const ema7 = livePrice * 0.993;
-      const ema21 = livePrice * 0.978;
+      const ema7 = realTech?.ema7 ?? (livePrice * 0.993);
+      const ema21 = realTech?.ema21 ?? (livePrice * 0.978);
+      const isEmaCrossedUp = realTech?.emaCrossedUp ?? (seed % 2 === 0);
+      const isEmaBullish = realTech?.emaBullish ?? (ema7 > ema21);
+      const bullishHours = realTech?.bullishHours ?? (isEmaCrossedUp ? 4 : (isEmaBullish ? 16 : 0));
+      const isFreshBullish = realTech?.isFreshBullish ?? (isEmaBullish && bullishHours <= 24);
+      const bullish1HHours = realTech?.bullish1HHours ?? 2;
+      const is1HConfirmedMin2H = realTech?.is1HConfirmedMin2H ?? true;
+
+      const isNewTrend = isEmaCrossedUp;
 
       const entryMin = fib618;
       const entryMax = fib50;
@@ -2846,11 +3184,30 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
 
       const currencySymbol = "USDT";
 
+      let trendLabel = "⚠️ 4S KANAL KONSOLİDASYONU";
+      if (isEmaCrossedUp && is1HConfirmedMin2H) {
+        trendLabel = "⚡ 4S EMA 7/21 GOLDEN CROSS (1S 2S+ ONAYLI)";
+      } else if (isEmaCrossedUp && !is1HConfirmedMin2H) {
+        trendLabel = "⚠️ 4S EMA GOLDEN CROSS (1S MIN 2S ONAY BEKLENİYOR)";
+      } else if (isFreshBullish && is1HConfirmedMin2H) {
+        trendLabel = `🔥 4S EMA 7 > 21 BOĞA TRENDİ (${bullishHours}S | 1S 2S+ ONAYLI)`;
+      } else if (isFreshBullish && !is1HConfirmedMin2H) {
+        trendLabel = `⚠️ 4S BOĞA TRENDİ (1S MIN 2S ONAY BEKLENİYOR)`;
+      } else if (isEmaBullish && bullishHours > 24) {
+        trendLabel = `⚠️ 4S MATÜR TREND (${bullishHours}S > 24S)`;
+      }
+
       let justification = "";
-      if (isNewTrend) {
-        justification = `⚡ ${name} (${sym.replace("-USDT","")}), 4S periyotta EMA 7 / EMA 21 Golden Cross kesişimini başarıyla sağladı. %${((volIncrease - 1) * 100).toFixed(0)} hacim patlamasıyla 4S düşen kanal direnci yukarı kırıldı. Fib %61.8 (${fib618.toFixed(fib618 < 1 ? 4 : 2)} USDT) re-test desteği üzerinde %${score} teknik güç skoruyla spot alım sinyali veriyor.`;
+      if (isNewTrend && is1HConfirmedMin2H) {
+        justification = `⚡ ${name} (${sym.replace("-USDT","")}), 4S periyotta EMA 7 (${ema7.toFixed(ema7 < 1 ? 4 : 2)}) / EMA 21 (${ema21.toFixed(ema21 < 1 ? 4 : 2)}) Golden Cross sağladı ve 1S grafikte EMA 7 > 21 kesişimi ${bullish1HHours} saattir (min 2S) onaylı. %${((volIncrease - 1) * 100).toFixed(0)} hacim desteğiyle %${score} teknik güç skoruna ulaştı.`;
+      } else if (isNewTrend && !is1HConfirmedMin2H) {
+        justification = `⚠️ ${name} (${sym.replace("-USDT","")}), 4S periyotta EMA 7 / EMA 21 Golden Cross oluşumu var ancak 1S grafikteki EMA 7 > 21 kesişimi henüz min 2 saatlik süreyi tamamlamadı (${bullish1HHours}S). Onay süreci bekleniyor (%${score} Güç Skoru).`;
+      } else if (isFreshBullish && is1HConfirmedMin2H) {
+        justification = `🔥 ${name} (${sym.replace("-USDT","")}), 4S taze boğa trendinde (${bullishHours}S, maks 24S) ve 1S EMA 7 > 21 kesişimi ${bullish1HHours} saattir (min 2S) onaylanmış durumda. Fib %50 desteğinden kuvvet alarak %${score} Güç Skoru veriyor.`;
+      } else if (isFreshBullish && !is1HConfirmedMin2H) {
+        justification = `⚠️ ${name} (${sym.replace("-USDT","")}), 4S EMA 7 > 21 boğa trendinde ancak 1S grafikteki kesişim henüz min 2 saattir sürdürülmedi (${bullish1HHours}S). İkincil onay bekleniyor (%${score} Güç Skoru).`;
       } else {
-        justification = `🔥 ${name} (${sym.replace("-USDT","")}), 4S yükselen kanal yapısında %${((volIncrease - 1) * 100).toFixed(0)} oranında spot hacim desteğiyle ivmesini koruyor. EMA 7 (USDT ${ema7.toFixed(ema7 < 1 ? 4 : 2)}), EMA 21'in üzerinde dik açıyla ilerlerken Fib %50 desteğinden kuvvet aldı (%${score} Güç Skoru).`;
+        justification = `⚠️ ${name} (${sym.replace("-USDT","")}), 4S EMA 7 > 21 trendi ${bullishHours} saattir devam ettiği için (>24S) trend matürleşmiştir. Doygunluk direnç seviyelerinde kâr satışı ve konsolidasyon takibi önerilir (%${score} Güç Skoru).`;
       }
 
       return {
@@ -2864,7 +3221,7 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
         side: "long",
         sector: "Crypto",
         trendType: isNewTrend ? "new" : "strong",
-        trendLabel: isNewTrend ? "⚡ 4S EMA 7/21 GOLDEN CROSS" : "🔥 4S HACİMLİ KANAL YÜKSELİŞİ",
+        trendLabel,
         fib618,
         fib50,
         ema7,
@@ -2887,7 +3244,7 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
     } else if (cryptoSpotFilter === "strong") {
       list = top20CryptoSpotTrends.filter(item => item.trendType === "strong");
     }
-    return list.filter(item => item.score >= 96).sort((a, b) => b.score - a.score);
+    return list.filter(item => item.score >= 80).sort((a, b) => b.score - a.score);
   }, [top20CryptoSpotTrends, cryptoSpotFilter]);
 
   const currentMonthLabel = useMemo(() => {
@@ -2960,8 +3317,8 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
         kapAlert: true,
         socialPulse: true
       };
-    }).filter(s => s.score >= 96).sort((a, b) => b.score - a.score).slice(0, 4);
-  }, [safeStocks, market, prices, calculateAssetScore, top20CryptoSpotTrends]);
+    }).filter(s => s.score >= 80).sort((a, b) => b.score - a.score).slice(0, 4);
+  }, [safeStocks, market, prices, top20CryptoSpotTrends]);
 
   const reboundCandidates = useMemo(() => {
     if (market !== "BIST" && market !== "CRYPTO") return [];
@@ -2970,7 +3327,7 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
       const scores = calculateAssetScore(s, prices);
       const isShort = scores.pd.rsi > 65;
       const score = scores.score;
-      const isRebound = score >= 96;
+      const isRebound = score >= 80;
       
       return {
         ...s,
@@ -2983,8 +3340,8 @@ function ScannerScreen({ scanning, scanProgress, scanned, setScanned, candidates
           ? `${s.symbol} 4S aşırı alım bölgesinden (RSI ${Math.round(scores.pd.rsi)}) hacimli bir direnç dönüşü sergiliyor. %100 teknik analiz verileriyle %${score} Güç Skoru üretiyor.`
           : `${s.symbol} 4S aşırı satım bölgesinden (RSI ${Math.round(scores.pd.rsi)}) hacimli bir destek dönüşü sergiliyor. %100 teknik analiz verileriyle %${score} Güç Skoru üretiyor.`
       };
-    }).filter(s => s.isRebound && s.score >= 96).sort((a, b) => b.score - a.score).slice(0, 3);
-  }, [safeStocks, market, prices, calculateAssetScore]);
+    }).filter(s => s.isRebound && s.score >= 80).sort((a, b) => b.score - a.score).slice(0, 3);
+  }, [safeStocks, market, prices]);
 
   const topMovers = useMemo(() => {
     const isBist = market === "BIST";
@@ -4813,67 +5170,98 @@ return (
   </div>
 
   {tab === "teknik" && (
-    <div style={{ margin: "12px 16px 0", background: "linear-gradient(135deg, #0d1420, #0a0e1a)", borderRadius: 18, padding: 16, border: "1px solid #1a2535" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #00d4aa, #00b8ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🤖</div>
-        <div>
-          <div style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>AI Analiz</div>
-          <div style={{ color: "#4a5568", fontSize: 10 }}>Gemini 3 Flash • Anlık</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, margin: "12px 16px 0" }}>
+      <div style={{ background: "#131922", borderRadius: 18, padding: 16, border: "1px solid #1a2535" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <div style={{ color: "#00d4aa", fontSize: 13, fontWeight: 800 }}>📊 4S İNDİKATÖR & FIB TABLOSU</div>
+            <div style={{ color: "#8b949e", fontSize: 10 }}>10 Teknik İndikatör + FIB (Her Biri Eşit %9.09 Ağırlıklı)</div>
+          </div>
+          <div style={{ background: "rgba(0,212,170,0.15)", color: "#00d4aa", fontSize: 12, fontWeight: 900, padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(0,212,170,0.3)" }}>
+            GÜÇ: %{stock.score || 96}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {(stock.indicatorBreakdown || pd.indicatorBreakdown || []).map((item: any, idx: number) => (
+            <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.02)", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{item.name}</span>
+                <span style={{ color: "#8b949e", fontSize: 9 }}>{item.status} • Ağırlık: {item.weight}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 50, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: `${item.score}%`, height: "100%", background: "#00d4aa" }} />
+                </div>
+                <span style={{ color: "#00d4aa", fontSize: 12, fontWeight: 800, width: 28, textAlign: "right" }}>%{item.score}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-      {aiLoading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ color: "#00d4aa", fontSize: 12, fontWeight: 700, animation: "pulse 1.5s infinite" }}>⚡ Hızlı AI Analiz Hazırlanıyor...</div>
-          {[100, 85, 92, 70].map((w, i) => (
-            <div key={i} style={{ background: "#1a1f2e", borderRadius: 6, height: 10, width: `${w}%`, animation: "pulse 1.5s infinite" }} />
-          ))}
-          <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
+
+      <div style={{ background: "linear-gradient(135deg, #0d1420, #0a0e1a)", borderRadius: 18, padding: 16, border: "1px solid #1a2535" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #00d4aa, #00b8ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🤖</div>
+          <div>
+            <div style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>AI Analiz</div>
+            <div style={{ color: "#4a5568", fontSize: 10 }}>Gemini 3 Flash • Anlık</div>
+          </div>
         </div>
-      ) : aiAnalysis ? (
-        <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-          {aiAnalysis.includes("⚠️") ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {aiAnalysis}
-              <button 
-                onClick={onFetchAi}
-                style={{
-                  background: "rgba(255,159,10,0.15)",
-                  border: "1px solid rgba(255,159,10,0.5)",
-                  borderRadius: 6,
-                  padding: "6px 12px",
-                  color: "#ff9f0a",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  width: "fit-content"
-                }}
-              >
-                Tekrar Dene
-              </button>
-            </div>
-          ) : aiAnalysis}
-        </div>
-      ) : (
-        <div style={{ textAlign: "center", padding: "10px 0" }}>
-          <button 
-            onClick={onFetchAi}
-            style={{ 
-              background: "linear-gradient(135deg, #00d4aa, #00b8ff)", 
-              color: "#000", 
-              border: "none", 
-              padding: "10px 20px", 
-              borderRadius: 12, 
-              fontSize: 13, 
-              fontWeight: 700, 
-              cursor: "pointer",
-              boxShadow: "0 4px 15px rgba(0,212,170,0.3)"
-            }}
-          >
-            🤖 AI Analizini Başlat
-          </button>
-          <div style={{ color: "#4a5568", fontSize: 10, marginTop: 8 }}>Gemini 3 Flash ile anlık teknik yorum</div>
-        </div>
-      )}
+        {aiLoading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ color: "#00d4aa", fontSize: 12, fontWeight: 700, animation: "pulse 1.5s infinite" }}>⚡ Hızlı AI Analiz Hazırlanıyor...</div>
+            {[100, 85, 92, 70].map((w, i) => (
+              <div key={i} style={{ background: "#1a1f2e", borderRadius: 6, height: 10, width: `${w}%`, animation: "pulse 1.5s infinite" }} />
+            ))}
+            <style>{`@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }`}</style>
+          </div>
+        ) : aiAnalysis ? (
+          <div style={{ color: "#d1d5db", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            {aiAnalysis.includes("⚠️") ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {aiAnalysis}
+                <button 
+                  onClick={onFetchAi}
+                  style={{
+                    background: "rgba(255,159,10,0.15)",
+                    border: "1px solid rgba(255,159,10,0.5)",
+                    borderRadius: 6,
+                    padding: "6px 12px",
+                    color: "#ff9f0a",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    width: "fit-content"
+                  }}
+                >
+                  Tekrar Dene
+                </button>
+              </div>
+            ) : aiAnalysis}
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "10px 0" }}>
+            <button 
+              onClick={onFetchAi}
+              style={{ 
+                background: "linear-gradient(135deg, #00d4aa, #00b8ff)", 
+                color: "#000", 
+                border: "none", 
+                padding: "10px 20px", 
+                borderRadius: 12, 
+                fontSize: 13, 
+                fontWeight: 700, 
+                cursor: "pointer",
+                boxShadow: "0 4px 15px rgba(0,212,170,0.3)"
+              }}
+            >
+              🤖 AI Analizini Başlat
+            </button>
+            <div style={{ color: "#4a5568", fontSize: 10, marginTop: 8 }}>Gemini 3 Flash ile anlık teknik yorum</div>
+          </div>
+        )}
+      </div>
     </div>
   )}
 
