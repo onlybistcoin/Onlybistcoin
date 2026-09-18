@@ -63,9 +63,6 @@ if (fs.existsSync(firebaseConfigPath)) {
   firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
 }
 
-import ccxt from "ccxt";
-import * as finnhub from "finnhub";
-import * as cheerio from "cheerio";
 import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
 
@@ -88,21 +85,6 @@ if (firebaseConfig.projectId) {
   const clientApp = initializeClientApp(firebaseConfig);
   db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
   console.log(`[Firebase Client] Firestore initialized with Database ID: ${firebaseConfig.firestoreDatabaseId}`);
-}
-
-// Finnhub Setup
-const finnhubKey = process.env.VITE_FINNHUB_API_KEY || "";
-let finnhubClient: any = null;
-
-if (finnhubKey) {
-  try {
-    const finnhubModule: any = (finnhub as any).default || finnhub;
-    const DefaultApi = finnhubModule.DefaultApi;
-    finnhubClient = new DefaultApi(finnhubKey);
-    console.log("[Finnhub] Client initialized successfully");
-  } catch (err) {
-    console.error("[Finnhub] Initialization error:", err);
-  }
 }
 
 const app = express();
@@ -140,14 +122,14 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // 3. API routes
 let lastUpdate = 0;
-const UPDATE_INTERVAL = 10000; // 10 seconds
+const UPDATE_INTERVAL = 30000; // 30 seconds
 
 app.get("/api/prices", async (req, res) => {
   const now = Date.now();
-  // If data is older than 10 seconds, trigger an update in background
+  // If data is older than 30 seconds, trigger an update in background
   if (now - lastUpdate > UPDATE_INTERVAL) {
     lastUpdate = now;
-    console.log("[API] Triggering background price update...");
+    console.log("[API] Triggering background price update (30s interval)...");
     
     // Fire and forget update to keep response fast and avoid timeouts/rate limit spam
     Promise.allSettled([
@@ -186,6 +168,386 @@ app.get("/api/health", (req, res) => {
     time: new Date().toISOString(),
     pricesCount: Object.keys(inMemoryPrices).length
   });
+});
+
+app.post("/api/ai/analyze", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
+    }
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: "GEMINI_API_KEY yapılandırılmamış." });
+    }
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey });
+    
+    // Model fallback chain: gemini-3.8-flash, then gemini-3.1-flash-lite, then gemini-flash-latest
+    const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("AI generation timed out (12s)")), 12000)
+    );
+
+    const generatePromise = (async () => {
+      for (const m of candidateModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model: m,
+            contents: prompt
+          });
+          if (response?.text) return response.text;
+        } catch (err: any) {
+          console.warn(`[Server] Model ${m} attempt error:`, err?.message || err);
+        }
+      }
+      return null;
+    })();
+
+    const result = await Promise.race([generatePromise, timeoutPromise]) as string | null;
+
+    if (!result) {
+      return res.status(500).json({ error: "Yapay zeka analizi şu anda oluşturulamadı." });
+    }
+
+    return res.json({ text: result });
+  } catch (error: any) {
+    console.error("[Server] Gemini generateContent failed:", error?.message || error);
+    return res.status(500).json({ error: error?.message || "AI analizi sırasında bir hata oluştu." });
+  }
+});
+
+// Helper to normalize Bybit perpetual symbol formats
+function normalizeBybitSymbol(s: string): string {
+  let sym = s.trim().toUpperCase().replace('-', '');
+  if (sym === 'PEPEUSDT') return '1000PEPEUSDT';
+  if (sym === 'SHIBUSDT' || sym === '1000SHIBUSDT') return 'SHIB1000USDT';
+  if (sym === 'BONKUSDT') return '1000BONKUSDT';
+  if (sym === 'FLOKIUSDT') return '1000FLOKIUSDT';
+  if (sym === 'FETUSDT') return 'DOTUSDT';
+  return sym;
+}
+
+// Bybit V5 Batch Long/Short Account Ratio proxy for top coins
+app.get('/api/bybit/batch-longshort', async (req, res) => {
+  try {
+    const period = (req.query.period as string) || '5min';
+    const defaultSymbols = [
+      "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", 
+      "DOGEUSDT", "SUIUSDT", "1000PEPEUSDT", "AVAXUSDT", "LINKUSDT", 
+      "ADAUSDT", "NEARUSDT", "APTUSDT", "RENDERUSDT", "DOTUSDT", 
+      "AAVEUSDT", "TAOUSDT", "INJUSDT", "ARBUSDT", "OPUSDT", "WIFUSDT", "LTCUSDT"
+    ];
+    const querySymbols = req.query.symbols ? (req.query.symbols as string).split(',') : defaultSymbols;
+    
+    const results = await Promise.all(querySymbols.map(async (sym) => {
+      const raw = normalizeBybitSymbol(sym);
+      try {
+        const url = `https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${raw}&period=${period}&limit=1`;
+        const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.retCode === 0 && data.result?.list?.length > 0) {
+            const item = data.result.list[0];
+            const buy = Math.round(parseFloat(item.buyRatio) * 1000) / 10;
+            const sell = Math.round(parseFloat(item.sellRatio) * 1000) / 10;
+            return {
+              symbol: raw,
+              buyRatio: buy,
+              sellRatio: sell,
+              timestamp: item.timestamp,
+              period,
+              isShortSqueeze: sell >= 53,
+              isOverLong: buy >= 68
+            };
+          }
+        }
+      } catch (err) {}
+      return null;
+    }));
+    res.json({ success: true, count: results.filter(Boolean).length, period, data: results.filter(Boolean) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Batch Bybit error' });
+  }
+});
+
+// Bybit V5 Single Symbol Long/Short Account Ratio proxy
+app.get('/api/bybit/longshort', async (req, res) => {
+  try {
+    const rawSymbol = normalizeBybitSymbol(req.query.symbol as string || 'BTCUSDT');
+    const period = (req.query.period as string) || '5min';
+    const url = `https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${rawSymbol}&period=${period}&limit=1`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!response.ok) {
+      return res.status(500).json({ error: 'Bybit API error', status: response.status });
+    }
+    const data = await response.json();
+    if (data.retCode === 0 && data.result?.list?.length > 0) {
+      const item = data.result.list[0];
+      const buyRatio = Math.round(parseFloat(item.buyRatio) * 1000) / 10;
+      const sellRatio = Math.round(parseFloat(item.sellRatio) * 1000) / 10;
+      return res.json({
+        symbol: rawSymbol,
+        buyRatio,
+        sellRatio,
+        period,
+        timestamp: item.timestamp,
+        isShortSqueeze: sellRatio >= 53,
+        isOverLong: buyRatio >= 68
+      });
+    }
+    res.json({ symbol: rawSymbol, buyRatio: 50, sellRatio: 50, period, isShortSqueeze: false, isOverLong: false });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Bybit error' });
+  }
+});
+
+// In-memory cache for crypto technicals (30s TTL)
+const cryptoTechnicalsCache: Record<string, { data: any; timestamp: number }> = {};
+
+function serverCalculateEMA(data: number[], period: number): number[] {
+  if (!data || data.length === 0) return [];
+  if (data.length < period) {
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    return data.map(() => avg);
+  }
+  const k = 2 / (period + 1);
+  const emaArr = new Array(data.length);
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += data[i];
+    emaArr[i] = sum / (i + 1);
+  }
+  emaArr[period - 1] = sum / period;
+  for (let i = period; i < data.length; i++) {
+    emaArr[i] = data[i] * k + emaArr[i - 1] * (1 - k);
+  }
+  return emaArr;
+}
+
+function serverCalculateRSI(closes: number[], period = 14): number {
+  if (!closes || closes.length < period + 1) return 50;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    const gain = diff > 0 ? diff : 0;
+    const loss = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return Math.round((100 - (100 / (1 + rs))) * 10) / 10;
+}
+
+function serverCalculateMACD(closes: number[]): number {
+  if (!closes || closes.length < 26) return 0;
+  const ema12 = serverCalculateEMA(closes, 12);
+  const ema26 = serverCalculateEMA(closes, 26);
+  const lastMacd = ema12[ema12.length - 1] - ema26[ema26.length - 1];
+  return Math.round(lastMacd * 100) / 100;
+}
+
+app.get("/api/crypto/technicals", async (req, res) => {
+  const rawSymbol = ((req.query.symbol as string) || "BTC-USDT").trim().toUpperCase();
+  const cleanSym = rawSymbol.replace("-USDT", "USDT");
+  const cacheKey = rawSymbol;
+
+  const cached = cryptoTechnicalsCache[cacheKey];
+  if (cached && (Date.now() - cached.timestamp) < 30000) {
+    return res.json(cached.data);
+  }
+
+  const candidateSymbols = [cleanSym];
+  if (cleanSym === "1000PEPEUSDT") candidateSymbols.push("PEPEUSDT");
+  if (cleanSym === "1000SHIBUSDT") candidateSymbols.push("SHIBUSDT");
+
+  for (const s of candidateSymbols) {
+    try {
+      const urls = [
+        `https://api.binance.com/api/v3/klines?symbol=${s}&interval=4h&limit=150`,
+        `https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=4h&limit=150`,
+        `https://data-api.binance.vision/api/v3/klines?symbol=${s}&interval=4h&limit=150`
+      ];
+
+      let data4h: any = null;
+      for (const url of urls) {
+        try {
+          const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
+          if (r.ok) {
+            const json = await r.json();
+            if (Array.isArray(json) && json.length >= 30) {
+              data4h = json;
+              break;
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (!data4h) continue;
+
+      const closes = data4h.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
+      const highs = data4h.map((k: any) => parseFloat(k[2])).filter((n: number) => !isNaN(n));
+      const lows = data4h.map((k: any) => parseFloat(k[3])).filter((n: number) => !isNaN(n));
+      const lastClose = closes[closes.length - 1];
+
+      // Standard EMA 7, 21, 50 calculation over full 150 lookback
+      const ema7Arr = serverCalculateEMA(closes, 7);
+      const ema21Arr = serverCalculateEMA(closes, 21);
+      const ema50Arr = serverCalculateEMA(closes, 50);
+
+      const ema7 = ema7Arr.length > 0 ? Math.round(ema7Arr[ema7Arr.length - 1] * 10000) / 10000 : lastClose;
+      const ema21 = ema21Arr.length > 0 ? Math.round(ema21Arr[ema21Arr.length - 1] * 10000) / 10000 : lastClose;
+      const ema50 = ema50Arr.length > 0 ? Math.round(ema50Arr[ema50Arr.length - 1] * 10000) / 10000 : lastClose;
+
+      const ema7Prev = ema7Arr.length >= 2 ? Math.round(ema7Arr[ema7Arr.length - 2] * 10000) / 10000 : ema7;
+      const ema21Prev = ema21Arr.length >= 2 ? Math.round(ema21Arr[ema21Arr.length - 2] * 10000) / 10000 : ema21;
+
+      const emaCrossedUp = (ema7Prev <= ema21Prev && ema7 > ema21);
+      const emaBullish = ema7 > ema21;
+
+      let bullishCandlesCount = 0;
+      for (let i = ema7Arr.length - 1; i >= 0; i--) {
+        if (ema7Arr[i] > ema21Arr[i]) bullishCandlesCount++;
+        else break;
+      }
+      const bullishHours = bullishCandlesCount * 4;
+      const isFreshBullish = emaBullish && bullishHours <= 24;
+
+      let bearishCandlesCount = 0;
+      for (let i = ema7Arr.length - 1; i >= 0; i--) {
+        if (ema7Arr[i] < ema21Arr[i]) bearishCandlesCount++;
+        else break;
+      }
+      const bearishHours = bearishCandlesCount * 4;
+
+      // 1H confirmation
+      let bullish1HHours = 0;
+      let is1HConfirmedMin2H = false;
+      try {
+        const url1h = `https://api.binance.com/api/v3/klines?symbol=${s}&interval=1h&limit=50`;
+        const r1h = await fetch(url1h, { signal: AbortSignal.timeout(2500) });
+        if (r1h.ok) {
+          const data1h = await r1h.json();
+          if (Array.isArray(data1h) && data1h.length >= 20) {
+            const closes1h = data1h.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
+            const ema7Arr1h = serverCalculateEMA(closes1h, 7);
+            const ema21Arr1h = serverCalculateEMA(closes1h, 21);
+            let count1h = 0;
+            for (let i = ema7Arr1h.length - 1; i >= 0; i--) {
+              if (ema7Arr1h[i] > ema21Arr1h[i]) count1h++;
+              else break;
+            }
+            bullish1HHours = count1h;
+            is1HConfirmedMin2H = count1h >= 2;
+          }
+        }
+      } catch (e) {
+        is1HConfirmedMin2H = emaBullish;
+        bullish1HHours = emaBullish ? 2 : 0;
+      }
+
+      const rsi = serverCalculateRSI(closes, 14);
+      const macd = serverCalculateMACD(closes);
+
+      // Fibonacci levels
+      const maxHigh = Math.max(...highs.slice(-50));
+      const minLow = Math.min(...lows.slice(-50));
+      const range = maxHigh - minLow;
+      const ratio = range > 0 ? (lastClose - minLow) / range : 0.5;
+
+      let fibLevel = "0.618";
+      if (ratio >= 0.7) fibLevel = "0.786";
+      else if (ratio >= 0.55) fibLevel = "0.618";
+      else if (ratio >= 0.45) fibLevel = "0.5";
+      else fibLevel = "0.382";
+
+      const fib618 = minLow + range * 0.618;
+      const fib50 = minLow + range * 0.50;
+
+      let pattern = emaBullish ? `4S EMA 7 > 21 Boğa Trendi (${bullishHours}S)` : `4S EMA 7 < 21 Düzeltme Modu (${bearishHours}S)`;
+      if (emaCrossedUp && is1HConfirmedMin2H) {
+        pattern = "⚡ 4S EMA 7/21 GOLDEN CROSS (1S 2S+ Onaylı)";
+      } else if (emaCrossedUp && !is1HConfirmedMin2H) {
+        pattern = `⚠️ 4S EMA Golden Cross (1S EMA <2S Onayı Eksik)`;
+      } else if (isFreshBullish && is1HConfirmedMin2H && macd > 0) {
+        pattern = `🔥 4S EMA 7 > 21 Boğa Trendi (${bullishHours}S | 1S ${bullish1HHours}S Onaylı) ✦✦`;
+      } else if (isFreshBullish && !is1HConfirmedMin2H) {
+        pattern = `⚠️ 4S Boğa Trendi (1S EMA <2S Onayı Eksik)`;
+      }
+
+      let patternScore = 50;
+      if (emaCrossedUp && is1HConfirmedMin2H) patternScore = 98;
+      else if (emaCrossedUp && !is1HConfirmedMin2H) patternScore = 78;
+      else if (isFreshBullish && is1HConfirmedMin2H && macd > 0) patternScore = 94;
+      else if (isFreshBullish && is1HConfirmedMin2H) patternScore = 88;
+      else if (isFreshBullish && !is1HConfirmedMin2H) patternScore = 74;
+      else if (emaBullish && bullishHours > 24) patternScore = 55;
+      else if (!emaBullish) patternScore = Math.max(30, 48 - bearishHours);
+
+      const klines = data4h.slice(-50).map((k: any, idx: number) => {
+        const fullIdx = data4h.length - 50 + idx;
+        const open = parseFloat(k[1]);
+        const close = parseFloat(k[4]);
+        return {
+          i: idx,
+          time: k[0],
+          open,
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          price: close,
+          candle: [Math.min(open, close), Math.max(open, close)],
+          volume: parseFloat(k[5]),
+          sma20: ema7Arr[fullIdx] !== undefined ? Math.round(ema7Arr[fullIdx] * 10000) / 10000 : undefined,
+          ema50: ema21Arr[fullIdx] !== undefined ? Math.round(ema21Arr[fullIdx] * 10000) / 10000 : undefined,
+        };
+      });
+
+      const responsePayload = {
+        symbol: rawSymbol,
+        price: lastClose,
+        rsi,
+        macd,
+        ema7,
+        ema21,
+        ema50,
+        emaCrossedUp,
+        emaBullish,
+        bullishHours,
+        isFreshBullish,
+        bearishHours,
+        bullish1HHours,
+        is1HConfirmedMin2H,
+        fibLevel,
+        fib618,
+        fib50,
+        isAboveFib618: ratio >= 0.55,
+        patternScore,
+        pattern,
+        potential: patternScore,
+        isRealData: true,
+        klines
+      };
+
+      cryptoTechnicalsCache[cacheKey] = { data: responsePayload, timestamp: Date.now() };
+      return res.json(responsePayload);
+    } catch (err: any) {
+      console.warn(`[Technicals API] Error processing ${s}:`, err?.message || err);
+    }
+  }
+
+  res.status(404).json({ error: "Could not fetch technicals for " + rawSymbol });
 });
 
 app.get("/api/refresh", async (req, res) => {
@@ -246,9 +608,6 @@ const CRYPTO_SYMBOLS = [
   "MAGIC/USDT", "ENJ/USDT", "OG/USDT", "CITY/USDT", "BAR/USDT", "PSG/USDT", "JUV/USDT", "ACM/USDT", "ASR/USDT", "ATM/USDT",
   "INTER/USDT", "LAZIO/USDT", "PORTO/USDT", "SANTOS/USDT", "ALPINE/USDT", "BEAMX/USDT"
 ];
-
-const binance = new ccxt.binance({ enableRateLimit: true });
-let binanceMarketsLoaded = false;
 
 async function updateCryptoPrices() {
   try {
@@ -486,8 +845,8 @@ async function startServer() {
     updateBistPrices();
     updateCommodities();
 
-    setInterval(updateCryptoPrices, 10000); // 10 seconds
-    setInterval(updateBistPrices, 30000); // 30 seconds
+    setInterval(updateCryptoPrices, 30000); // 30 seconds
+    setInterval(updateBistPrices, 60000); // 60 seconds
     setInterval(updateCommodities, 60000); // 1 minute
   });
 }
