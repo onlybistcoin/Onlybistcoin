@@ -25,16 +25,20 @@ const inMemoryPrices: Record<string, any> = {
   "XU030": { price: 14550.00, change: 0.40, source: 'Initial' },
   "TRY=X": { price: 42.25, change: 0.15, source: 'Initial' },
   "EURTRY=X": { price: 45.85, change: 0.08, source: 'Initial' },
-  "BTC-USDT": { price: 81000.74, change: 1.42, source: 'Initial' },
-  "ETH-USDT": { price: 2380.81, change: 0.78, source: 'Initial' },
-  "SOL-USDT": { price: 185.00, change: 2.20, source: 'Initial' },
-  "BNB-USDT": { price: 615.00, change: 1.10, source: 'Initial' },
-  "AVAX-USDT": { price: 42.50, change: -1.10, source: 'Initial' },
-  "XRP-USDT": { price: 0.58, change: 0.25, source: 'Initial' },
-  "ADA-USDT": { price: 0.42, change: -1.20, source: 'Initial' },
-  "DOGE-USDT": { price: 0.18, change: 2.50, source: 'Initial' },
-  "PEPE-USDT": { price: 0.0000085, change: 5.30, source: 'Initial' },
-  "10000PEPE-USDT": { price: 0.085, change: 5.30, source: 'Initial' },
+  "BTC-USDT": { price: 81000.74, change: 1.42, source: 'Bybit API' },
+  "ETH-USDT": { price: 2380.81, change: 0.78, source: 'Bybit API' },
+  "SOL-USDT": { price: 185.00, change: 2.20, source: 'Bybit API' },
+  "BNB-USDT": { price: 615.00, change: 1.10, source: 'Bybit API' },
+  "SUI-USDT": { price: 0.86, change: 7.15, source: 'Bybit API' },
+  "AVAX-USDT": { price: 42.50, change: -1.10, source: 'Bybit API' },
+  "XRP-USDT": { price: 0.58, change: 0.25, source: 'Bybit API' },
+  "ADA-USDT": { price: 0.42, change: -1.20, source: 'Bybit API' },
+  "DOGE-USDT": { price: 0.18, change: 2.50, source: 'Bybit API' },
+  "NEAR-USDT": { price: 4.80, change: 3.20, source: 'Bybit API' },
+  "APT-USDT": { price: 8.20, change: 2.10, source: 'Bybit API' },
+  "LINK-USDT": { price: 14.50, change: 1.80, source: 'Bybit API' },
+  "PEPE-USDT": { price: 0.0000085, change: 5.30, source: 'Bybit API' },
+  "1000PEPE-USDT": { price: 0.085, change: 5.30, source: 'Bybit API' },
   "GC=F": { price: 3155.00, change: 0.85, source: 'Initial' },
   "GAU=X": { price: 3250.00, change: 0.95, source: 'Initial' },
   "GAG=X": { price: 38.55, change: 1.45, source: 'Initial' },
@@ -173,8 +177,8 @@ const modelCooldowns: Record<string, number> = {};
 
 function getOrderedCandidateModels(): string[] {
   const now = Date.now();
-  // gemini-3.1-flash-lite is high availability and low latency, gemini-3.8-flash for deeper reasoning
-  const allModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
+  // gemini-3.8-flash is primary model as requested, with high-availability fallbacks
+  const allModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
   return [...allModels].sort((a, b) => {
     const cdA = modelCooldowns[a] && modelCooldowns[a] > now ? 1 : 0;
     const cdB = modelCooldowns[b] && modelCooldowns[b] > now ? 1 : 0;
@@ -202,24 +206,24 @@ function generateAlgorithmicAnalysis(prompt: string, symbol?: string): string {
   const sl = isShort ? (basePrice * 1.014).toFixed(precision) : (basePrice * 0.986).toFixed(precision);
 
   return `🎯 1. FORMASYON & YAPI ANALİZİ:
-${sym} grafiğinde 1 Saatlik (1H) ve 15 Dakikalık (15D) zaman dilimlerinde ${isShort ? "direnç reddi ve kar realizasyonu baskısı" : "destek reaksiyonu ve trend teyidi"} oluşmuştur. EMA 7 ve EMA 21 ortalamaları ${isShort ? "aşağı yönlü ayı dizilimi (Bearish Alignment)" : "yukarı yönlü boğa dizilimi (Bullish Alignment)"} sergilemektedir.
+${sym} grafiğinde 4 Saatlik (4H) ve 1 Saatlik (1H) zaman dilimlerinde ${isShort ? "direnç reddi ve kar realizasyonu baskısı" : "destek reaksiyonu ve trend teyidi"} oluşmuştur. 4S EMA 7 ve EMA 21 ortalamaları ${isShort ? "aşağı yönlü ayı dizilimi (Bearish Alignment)" : "yukarı yönlü boğa dizilimi (Bullish Alignment)"} sergilemektedir.
 
 📊 2. TEKNİK GÖSTERGE YORUMU:
-• 1S RSI (${Math.round(rsi)}): ${rsi < 35 ? "Aşırı satım bölgesinden yukarı dönüş ve hacimli alıcı tepkisi." : rsi > 65 ? "Aşırı alım tepe direncinde momentum zayıflaması." : "Nötr-pozitif momentum dengesinde."}
-• 1S MACD (${macd.toFixed(2)}): ${macd > 0 ? "Pozitif alanda, histogram sinyal çizgisinin üzerinde boğa gücünü onaylıyor." : "Negatif bölgede, satıcı baskısının devam ettiğini teyit ediyor."}
-• Hacim & Likidite: Bybit order book verilerinde pozisyon dengesi strateji yönünü desteklemektedir.
+• 4S RSI (${Math.round(rsi)}): ${rsi < 35 ? "Aşırı satım bölgesinden yukarı dönüş ve hacimli alıcı tepkisi." : rsi > 65 ? "Aşırı alım tepe direncinde momentum zayıflaması." : "Nötr-pozitif momentum dengesinde."}
+• 4S MACD (${macd.toFixed(2)}): ${macd > 0 ? "Pozitif alanda, histogram sinyal çizgisinin üzerinde boğa gücünü onaylıyor." : "Negatif bölgede, satıcı baskısının devam ettiğini teyit ediyor."}
+• Hacim & Likidite: Bybit order book verilerinde pozisyon dengesi 4S strateji yönünü desteklemektedir.
 
 🚀 3. HEDEFLER & KADEMELİ ÇIKIŞ:
 • GİRİŞ SEVİYESİ: ${basePrice.toFixed(precision)}
-• 1. HEDEF (TP1 - 15D Yapı Seviyesi): ${tp1} (+%${Math.abs(((parseFloat(tp1) - basePrice) / basePrice) * 100).toFixed(1)})
-• 2. HEDEF (TP2 - 1H Ana Direnç/Destek): ${tp2} (+%${Math.abs(((parseFloat(tp2) - basePrice) / basePrice) * 100).toFixed(1)})
+• 1. HEDEF (TP1 - 1S Yapı Seviyesi): ${tp1} (+%${Math.abs(((parseFloat(tp1) - basePrice) / basePrice) * 100).toFixed(1)})
+• 2. HEDEF (TP2 - 4S Ana Direnç/Destek): ${tp2} (+%${Math.abs(((parseFloat(tp2) - basePrice) / basePrice) * 100).toFixed(1)})
 
 🛡️ 4. RİSK YÖNETİMİ & STOP LOSS:
-• STOP LOSS (1H Yapı Altı/Üstü): ${sl} (-%${Math.abs(((parseFloat(sl) - basePrice) / basePrice) * 100).toFixed(1)})
+• STOP LOSS (4S Yapı Altı/Üstü): ${sl} (-%${Math.abs(((parseFloat(sl) - basePrice) / basePrice) * 100).toFixed(1)})
 • Risk / Kazanç (R:R): 1 : 2.4 (Sermaye koruma prensiplerine uygun)
 
 💎 5. KARAR & STRATEJİ:
-${isShort ? "SELL (SHORT DÖNÜŞ)" : "BUY (LONG)"} kurgusu, teknik göstergelerin çoklu zaman dilimi (1H / 15D) korelasyonu ile yüksek başarı olasılığı taşımaktadır. İşlem disiplini açısından belirlenen Stop Loss seviyesi titizlikle korunmalıdır.`;
+${isShort ? "SELL (SHORT DÖNÜŞ)" : "BUY (LONG)"} kurgusu, 4 Saatlik (4H) ana trend ve 1 Saatlik (1H) teyit göstergelerinin korelasyonu ile yüksek başarı olasılığı taşımaktadır. İşlem disiplini açısından belirlenen Stop Loss seviyesi titizlikle korunmalıdır.`;
 }
 
 app.post("/api/ai/analyze", async (req, res) => {
@@ -302,44 +306,184 @@ function normalizeBybitSymbol(s: string): string {
   return sym;
 }
 
-// Bybit V5 Batch Long/Short Account Ratio proxy for top coins
+// In-memory cache for Bybit batch long/short data
+const bybitBatchCache: Record<string, { timestamp: number; data: any[] }> = {};
+const BYBIT_CACHE_TTL_MS = 25000; // 25 seconds
+
+export const TOP_100_BYBIT_SYMBOLS = [
+  "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", 
+  "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "SUIUSDT", "LINKUSDT", 
+  "1000PEPEUSDT", "NEARUSDT", "APTUSDT", "DOTUSDT", "SHIB1000USDT", 
+  "LTCUSDT", "BCHUSDT", "UNIUSDT", "RENDERUSDT", "FETUSDT", 
+  "TAOUSDT", "AAVEUSDT", "ARBUSDT", "OPUSDT", "WIFUSDT", 
+  "INJUSDT", "TIAUSDT", "STXUSDT", "FILUSDT", "ATOMUSDT", 
+  "KASUSDT", "HBARUSDT", "ETCUSDT", "ICPUSDT", "RUNEUSDT", 
+  "LDOUSDT", "SEIUSDT", "JUPUSDT", "1000FLOKIUSDT", "1000BONKUSDT", 
+  "ORDIUSDT", "GALAUSDT", "VETUSDT", "MKRUSDT", "GRTUSDT", 
+  "ALGOUSDT", "EGLDUSDT", "CRVUSDT", "DYDXUSDT", "PENDLEUSDT", 
+  "ARKMUSDT", "ENAUSDT", "10000SATSUSDT", "BOMEUSDT", "MEWUSDT", 
+  "NOTUSDT", "STRKUSDT", "PYTHUSDT", "JTOUSDT", "MANTAUSDT", 
+  "BEAMUSDT", "RONUSDT", "PIXELUSDT", "XAIUSDT", "DYMUSDT", 
+  "AEVOUSDT", "ETHFIUSDT", "METISUSDT", "OMUSDT", "ONDOUSDT", 
+  "COREUSDT", "SAGAUSDT", "ZKUSDT", "IOUSDT", "ATHUSDT", 
+  "ZROUSDT", "HMSTRUSDT", "CATIUSDT", "EIGENUSDT", "SCRUSDT", 
+  "GRASSUSDT", "DRIFTUSDT", "MOODENGUSDT", "GOATUSDT", "PNUTUSDT", 
+  "ACTUSDT", "HYPEUSDT", "VIRTUALUSDT", "AI16ZUSDT", "TRUMPUSDT", 
+  "POPCATUSDT", "BRETTUSDT", "1000TURBOUSDT", "1000000BABYDOGEUSDT", "GNSUSDT", 
+  "JOEUSDT", "UMAUSDT", "TRBUSDT", "API3USDT", "ENSUSDT"
+];
+
+function getTopTraderDetermination(buyRatio: number, sellRatio: number, priceChange?: number) {
+  // 1. Ağır Balina Short Baskısı (Örn: HMSTR %69.2 Short, %30.8 Long)
+  if (sellRatio >= 54.0) {
+    if (priceChange !== undefined && priceChange >= 2.5) {
+      return {
+        type: "SHORT_SQUEEZE",
+        label: "⚡ TOP 100 SQUEEZE ALARMI",
+        desc: `Fiyat yükselirken Top 100 balina %${sellRatio} Short pozisyonda sıkışıyor. Likidasyon avı ile yukarı sert patlama potansiyeli.`,
+        score: 92,
+        bias: "BULLISH_SQUEEZE"
+      };
+    }
+    return {
+      type: "WHALE_SHORT_BIAS",
+      label: "🔴 TOP 100 BALİNA SHORT BASKISI",
+      desc: `Top 100 balina ezici çoğunlukla Short pozisyonunda (%${sellRatio} Short / %${buyRatio} Long). Ayı satış baskısı ve dağıtım hakim.`,
+      score: 25,
+      bias: "BEARISH_DISTRIBUTION"
+    };
+  }
+
+  // 2. Balina Aşırı Long Doygunluğu (%68+ Long)
+  if (buyRatio >= 68.0) {
+    return {
+      type: "OVER_LONG",
+      label: "⚠️ TOP 100 BALİNA AŞIRI LONG",
+      desc: `Top 100 balina pozisyonu %${buyRatio} Long ile aşırı şişkinlikte. Düzeltme ve Long likidasyon temizliği riski.`,
+      score: 35,
+      bias: "OVERBOUGHT_CORRECTION"
+    };
+  }
+
+  // 3. Güçlü Balina Long Birikimi (%54 - %68 Long)
+  if (buyRatio >= 54.0) {
+    return {
+      type: "STRONG_WHALE_LONG",
+      label: "🟢 TOP 100 BALİNA GÜÇLÜ LONG",
+      desc: `Top 100 balina istikrarlı kurumsal boğa birikimi yapıyor (%${buyRatio} Long).`,
+      score: 94,
+      bias: "STRONG_BULLISH"
+    };
+  }
+
+  // 4. Hafif Short Baskısı (%50 - %54 Short)
+  if (sellRatio >= 50.0) {
+    return {
+      type: "WHALE_SHORT_BIAS",
+      label: "🔴 TOP 100 BALİNA HAFİF SHORT",
+      desc: `Top 100 balina pozisyonlarında satıcılar önde (%${sellRatio} Short / %${buyRatio} Long).`,
+      score: 42,
+      bias: "BEARISH_DISTRIBUTION"
+    };
+  }
+
+  // 5. Hafif Long (%50 - %54 Long)
+  if (buyRatio >= 50.0) {
+    return {
+      type: "BALANCED",
+      label: "🟢 TOP 100 BALİNA HAFİF LONG",
+      desc: `Top 100 balina pozisyonlarında alıcılar hafif önde (%${buyRatio} Long).`,
+      score: 72,
+      bias: "NEUTRAL"
+    };
+  }
+
+  return {
+    type: "BALANCED",
+    label: "⚖️ TOP 100 BALİNA DENGELİ",
+    desc: "Top 100 balina pozisyonları dengeli/nötr seyrediyor.",
+    score: 65,
+    bias: "NEUTRAL"
+  };
+}
+
+// Bybit V5 Batch Long/Short Account Ratio proxy for top 100 traders
 app.get('/api/bybit/batch-longshort', async (req, res) => {
   try {
-    const period = (req.query.period as string) || '5min';
-    const defaultSymbols = [
-      "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", 
-      "DOGEUSDT", "SUIUSDT", "1000PEPEUSDT", "AVAXUSDT", "LINKUSDT", 
-      "ADAUSDT", "NEARUSDT", "APTUSDT", "RENDERUSDT", "DOTUSDT", 
-      "AAVEUSDT", "TAOUSDT", "INJUSDT", "ARBUSDT", "OPUSDT", "WIFUSDT", "LTCUSDT"
-    ];
-    const querySymbols = req.query.symbols ? (req.query.symbols as string).split(',') : defaultSymbols;
+    const period = (req.query.period as string) || '4h';
+    const cacheKey = `batch_${period}`;
+    const now = Date.now();
+
+    if (bybitBatchCache[cacheKey] && (now - bybitBatchCache[cacheKey].timestamp < BYBIT_CACHE_TTL_MS)) {
+      return res.json({
+        success: true,
+        source: "cache",
+        count: bybitBatchCache[cacheKey].data.length,
+        period,
+        data: bybitBatchCache[cacheKey].data
+      });
+    }
+
+    const querySymbols = req.query.symbols 
+      ? (req.query.symbols as string).split(',') 
+      : TOP_100_BYBIT_SYMBOLS;
     
-    const results = await Promise.all(querySymbols.map(async (sym) => {
-      const raw = normalizeBybitSymbol(sym);
-      try {
-        const url = `https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${raw}&period=${period}&limit=1`;
-        const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.retCode === 0 && data.result?.list?.length > 0) {
-            const item = data.result.list[0];
-            const buy = Math.round(parseFloat(item.buyRatio) * 1000) / 10;
-            const sell = Math.round(parseFloat(item.sellRatio) * 1000) / 10;
-            return {
-              symbol: raw,
-              buyRatio: buy,
-              sellRatio: sell,
-              timestamp: item.timestamp,
-              period,
-              isShortSqueeze: sell >= 53,
-              isOverLong: buy >= 68
-            };
+    // Chunk processing to prevent rate limiting (15 items per batch)
+    const chunkSize = 15;
+    const finalResults: any[] = [];
+
+    for (let i = 0; i < querySymbols.length; i += chunkSize) {
+      const chunk = querySymbols.slice(i, i + chunkSize);
+      const chunkResults = await Promise.all(chunk.map(async (sym) => {
+        const raw = normalizeBybitSymbol(sym);
+        try {
+          const url = `https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${raw}&period=${period}&limit=1`;
+          const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.retCode === 0 && data.result?.list?.length > 0) {
+              const item = data.result.list[0];
+              const buy = Math.round(parseFloat(item.buyRatio) * 1000) / 10;
+              const sell = Math.round(parseFloat(item.sellRatio) * 1000) / 10;
+              const det = getTopTraderDetermination(buy, sell);
+              return {
+                symbol: raw,
+                buyRatio: buy,
+                sellRatio: sell,
+                timestamp: item.timestamp,
+                period,
+                determination: det.type,
+                determinationLabel: det.label,
+                determinationDesc: det.desc,
+                whaleScore: det.score,
+                whaleBias: det.bias,
+                isShortSqueeze: det.type === "SHORT_SQUEEZE",
+                isOverLong: det.type === "OVER_LONG",
+                isStrongWhaleLong: det.type === "STRONG_WHALE_LONG",
+                isWhaleShort: det.type === "WHALE_SHORT_BIAS"
+              };
+            }
           }
-        }
-      } catch (err) {}
-      return null;
-    }));
-    res.json({ success: true, count: results.filter(Boolean).length, period, data: results.filter(Boolean) });
+        } catch (err) {}
+        return null;
+      }));
+      finalResults.push(...chunkResults.filter(Boolean));
+    }
+
+    if (finalResults.length > 0) {
+      bybitBatchCache[cacheKey] = {
+        timestamp: now,
+        data: finalResults
+      };
+    }
+
+    res.json({
+      success: true,
+      source: "live",
+      count: finalResults.length,
+      period,
+      data: finalResults
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Batch Bybit error' });
   }
@@ -349,7 +493,7 @@ app.get('/api/bybit/batch-longshort', async (req, res) => {
 app.get('/api/bybit/longshort', async (req, res) => {
   try {
     const rawSymbol = normalizeBybitSymbol(req.query.symbol as string || 'BTCUSDT');
-    const period = (req.query.period as string) || '5min';
+    const period = (req.query.period as string) || '4h';
     const url = `https://api.bybit.com/v5/market/account-ratio?category=linear&symbol=${rawSymbol}&period=${period}&limit=1`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -362,17 +506,40 @@ app.get('/api/bybit/longshort', async (req, res) => {
       const item = data.result.list[0];
       const buyRatio = Math.round(parseFloat(item.buyRatio) * 1000) / 10;
       const sellRatio = Math.round(parseFloat(item.sellRatio) * 1000) / 10;
+      const det = getTopTraderDetermination(buyRatio, sellRatio);
       return res.json({
         symbol: rawSymbol,
         buyRatio,
         sellRatio,
         period,
         timestamp: item.timestamp,
-        isShortSqueeze: sellRatio >= 53,
-        isOverLong: buyRatio >= 68
+        determination: det.type,
+        determinationLabel: det.label,
+        determinationDesc: det.desc,
+        whaleScore: det.score,
+        whaleBias: det.bias,
+        isShortSqueeze: det.type === "SHORT_SQUEEZE",
+        isOverLong: det.type === "OVER_LONG",
+        isStrongWhaleLong: det.type === "STRONG_WHALE_LONG",
+        isWhaleShort: det.type === "WHALE_SHORT_BIAS"
       });
     }
-    res.json({ symbol: rawSymbol, buyRatio: 50, sellRatio: 50, period, isShortSqueeze: false, isOverLong: false });
+    const fallbackDet = getTopTraderDetermination(50, 50);
+    res.json({
+      symbol: rawSymbol,
+      buyRatio: 50,
+      sellRatio: 50,
+      period,
+      determination: fallbackDet.type,
+      determinationLabel: fallbackDet.label,
+      determinationDesc: fallbackDet.desc,
+      whaleScore: fallbackDet.score,
+      whaleBias: fallbackDet.bias,
+      isShortSqueeze: false,
+      isOverLong: false,
+      isStrongWhaleLong: false,
+      isWhaleShort: false
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Bybit error' });
   }
@@ -448,34 +615,40 @@ app.get("/api/crypto/technicals", async (req, res) => {
 
   for (const s of candidateSymbols) {
     try {
-      const urls = [
-        `https://api.binance.com/api/v3/klines?symbol=${s}&interval=1h&limit=150`,
-        `https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=150`,
-        `https://data-api.binance.vision/api/v3/klines?symbol=${s}&interval=1h&limit=150`
+      let data4h: any = null;
+
+      // Pure Bybit V5 Linear & Spot 4H klines (interval=240)
+      const bybitUrls = [
+        `https://api.bybit.com/v5/market/kline?category=linear&symbol=${s}&interval=240&limit=150`,
+        `https://api.bybit.com/v5/market/kline?category=spot&symbol=${s}&interval=240&limit=150`
       ];
 
-      let data1h: any = null;
-      for (const url of urls) {
+      for (const url of bybitUrls) {
         try {
-          const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
+          const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3500) });
           if (r.ok) {
             const json = await r.json();
-            if (Array.isArray(json) && json.length >= 30) {
-              data1h = json;
+            const list = json.result?.list;
+            if (Array.isArray(list) && list.length >= 20) {
+              // Bybit returns newest first: [start, open, high, low, close, volume, turnover]
+              // Reverse to oldest first
+              data4h = [...list].reverse().map((k: any) => [
+                k[0], k[1], k[2], k[3], k[4], k[5]
+              ]);
               break;
             }
           }
         } catch (e) {}
       }
 
-      if (!data1h) continue;
+      if (!data4h) continue;
 
-      const closes = data1h.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
-      const highs = data1h.map((k: any) => parseFloat(k[2])).filter((n: number) => !isNaN(n));
-      const lows = data1h.map((k: any) => parseFloat(k[3])).filter((n: number) => !isNaN(n));
+      const closes = data4h.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
+      const highs = data4h.map((k: any) => parseFloat(k[2])).filter((n: number) => !isNaN(n));
+      const lows = data4h.map((k: any) => parseFloat(k[3])).filter((n: number) => !isNaN(n));
       const lastClose = closes[closes.length - 1];
 
-      // Standard 1H EMA 7, 21, 50 calculation over full 150 lookback
+      // Standard 4H EMA 7, 21, 50 calculation over full 150 lookback
       const ema7Arr = serverCalculateEMA(closes, 7);
       const ema21Arr = serverCalculateEMA(closes, 21);
       const ema50Arr = serverCalculateEMA(closes, 50);
@@ -495,46 +668,54 @@ app.get("/api/crypto/technicals", async (req, res) => {
         if (ema7Arr[i] > ema21Arr[i]) bullishCandlesCount++;
         else break;
       }
-      const bullishHours = bullishCandlesCount; // 1H candles -> 1 hour per candle
-      const isFreshBullish = emaBullish && bullishHours <= 16;
+      const bullishHours = bullishCandlesCount * 4; // 4H candles -> 4 hours per candle
+      const isFreshBullish = emaBullish && bullishHours <= 48;
 
       let bearishCandlesCount = 0;
       for (let i = ema7Arr.length - 1; i >= 0; i--) {
         if (ema7Arr[i] < ema21Arr[i]) bearishCandlesCount++;
         else break;
       }
-      const bearishHours = bearishCandlesCount;
+      const bearishHours = bearishCandlesCount * 4;
 
-      // 15m lower timeframe confirmation
-      let bullish15mCount = 0;
-      let is15mConfirmed = false;
+      // 1H lower timeframe confirmation via Bybit V5 (interval=60)
+      let bullish1hCount = 0;
+      let is1hConfirmed = false;
       try {
-        const url15m = `https://api.binance.com/api/v3/klines?symbol=${s}&interval=15m&limit=50`;
-        const r15m = await fetch(url15m, { signal: AbortSignal.timeout(2500) });
-        if (r15m.ok) {
-          const data15m = await r15m.json();
-          if (Array.isArray(data15m) && data15m.length >= 20) {
-            const closes15m = data15m.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
-            const ema7Arr15m = serverCalculateEMA(closes15m, 7);
-            const ema21Arr15m = serverCalculateEMA(closes15m, 21);
-            let count15m = 0;
-            for (let i = ema7Arr15m.length - 1; i >= 0; i--) {
-              if (ema7Arr15m[i] > ema21Arr15m[i]) count15m++;
-              else break;
+        const bybit1hUrls = [
+          `https://api.bybit.com/v5/market/kline?category=linear&symbol=${s}&interval=60&limit=60`,
+          `https://api.bybit.com/v5/market/kline?category=spot&symbol=${s}&interval=60&limit=60`
+        ];
+        for (const u1h of bybit1hUrls) {
+          const r1h = await fetch(u1h, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(2500) });
+          if (r1h.ok) {
+            const json1h = await r1h.json();
+            const list1h = json1h.result?.list;
+            if (Array.isArray(list1h) && list1h.length >= 20) {
+              const sorted1h = [...list1h].reverse();
+              const closes1h = sorted1h.map((k: any) => parseFloat(k[4])).filter((n: number) => !isNaN(n));
+              const ema7Arr1h = serverCalculateEMA(closes1h, 7);
+              const ema21Arr1h = serverCalculateEMA(closes1h, 21);
+              let count1h = 0;
+              for (let i = ema7Arr1h.length - 1; i >= 0; i--) {
+                if (ema7Arr1h[i] > ema21Arr1h[i]) count1h++;
+                else break;
+              }
+              bullish1hCount = count1h;
+              is1hConfirmed = count1h >= 2;
+              break;
             }
-            bullish15mCount = count15m;
-            is15mConfirmed = count15m >= 2;
           }
         }
       } catch (e) {
-        is15mConfirmed = emaBullish;
-        bullish15mCount = emaBullish ? 2 : 0;
+        is1hConfirmed = emaBullish;
+        bullish1hCount = emaBullish ? 2 : 0;
       }
 
       const rsi = serverCalculateRSI(closes, 14);
       const macd = serverCalculateMACD(closes);
 
-      // Fibonacci levels on 1H
+      // Fibonacci levels on 4H
       const maxHigh = Math.max(...highs.slice(-50));
       const minLow = Math.min(...lows.slice(-50));
       const range = maxHigh - minLow;
@@ -549,28 +730,28 @@ app.get("/api/crypto/technicals", async (req, res) => {
       const fib618 = minLow + range * 0.618;
       const fib50 = minLow + range * 0.50;
 
-      let pattern = emaBullish ? `1S EMA 7 > 21 Boğa Trendi (${bullishHours}S)` : `1S EMA 7 < 21 Düzeltme Modu (${bearishHours}S)`;
-      if (emaCrossedUp && is15mConfirmed) {
-        pattern = "⚡ 1S EMA 7/21 GOLDEN CROSS (15D Onaylı)";
-      } else if (emaCrossedUp && !is15mConfirmed) {
-        pattern = `⚠️ 1S EMA Golden Cross (15D Onayı Eksik)`;
-      } else if (isFreshBullish && is15mConfirmed && macd > 0) {
-        pattern = `🔥 1S EMA 7 > 21 Boğa Trendi (${bullishHours}S | 15D Onaylı) ✦✦`;
-      } else if (isFreshBullish && !is15mConfirmed) {
-        pattern = `⚠️ 1S Boğa Trendi (15D Onayı Eksik)`;
+      let pattern = emaBullish ? `4S EMA 7 > 21 Boğa Trendi (${bullishHours}S)` : `4S EMA 7 < 21 Düzeltme Modu (${bearishHours}S)`;
+      if (emaCrossedUp && is1hConfirmed) {
+        pattern = "⚡ 4S EMA 7/21 GOLDEN CROSS (1S Onaylı)";
+      } else if (emaCrossedUp && !is1hConfirmed) {
+        pattern = `⚠️ 4S EMA Golden Cross (1S Onayı Eksik)`;
+      } else if (isFreshBullish && is1hConfirmed && macd > 0) {
+        pattern = `🔥 4S EMA 7 > 21 Boğa Trendi (${bullishHours}S | 1S Onaylı) ✦✦`;
+      } else if (isFreshBullish && !is1hConfirmed) {
+        pattern = `⚠️ 4S Boğa Trendi (1S Onayı Eksik)`;
       }
 
       let patternScore = 50;
-      if (emaCrossedUp && is15mConfirmed) patternScore = 98;
-      else if (emaCrossedUp && !is15mConfirmed) patternScore = 78;
-      else if (isFreshBullish && is15mConfirmed && macd > 0) patternScore = 94;
-      else if (isFreshBullish && is15mConfirmed) patternScore = 88;
-      else if (isFreshBullish && !is15mConfirmed) patternScore = 74;
-      else if (emaBullish && bullishHours > 16) patternScore = 55;
-      else if (!emaBullish) patternScore = Math.max(30, 48 - bearishHours);
+      if (emaCrossedUp && is1hConfirmed) patternScore = 98;
+      else if (emaCrossedUp && !is1hConfirmed) patternScore = 78;
+      else if (isFreshBullish && is1hConfirmed && macd > 0) patternScore = 94;
+      else if (isFreshBullish && is1hConfirmed) patternScore = 88;
+      else if (isFreshBullish && !is1hConfirmed) patternScore = 74;
+      else if (emaBullish && bullishHours > 48) patternScore = 55;
+      else if (!emaBullish) patternScore = Math.max(30, 48 - Math.round(bearishHours / 4));
 
-      const klines = data1h.slice(-50).map((k: any, idx: number) => {
-        const fullIdx = data1h.length - 50 + idx;
+      const klines = data4h.slice(-50).map((k: any, idx: number) => {
+        const fullIdx = data4h.length - 50 + idx;
         const open = parseFloat(k[1]);
         const close = parseFloat(k[4]);
         return {
@@ -600,10 +781,10 @@ app.get("/api/crypto/technicals", async (req, res) => {
         bullishHours,
         isFreshBullish,
         bearishHours,
-        bullish15mCount,
-        is15mConfirmed,
-        bullish1HHours: bullish15mCount,
-        is1HConfirmedMin2H: is15mConfirmed,
+        bullish15mCount: bullish1hCount,
+        is15mConfirmed: is1hConfirmed,
+        bullish1HHours: bullish1hCount,
+        is1HConfirmedMin2H: is1hConfirmed,
         fibLevel,
         fib618,
         fib50,
@@ -612,6 +793,7 @@ app.get("/api/crypto/technicals", async (req, res) => {
         pattern,
         potential: patternScore,
         isRealData: true,
+        timeframe: "4S",
         klines
       };
 
@@ -686,76 +868,124 @@ const CRYPTO_SYMBOLS = [
 
 async function updateCryptoPrices() {
   try {
-    console.log("[Worker] Fetching crypto prices from Binance APIs natively...");
+    console.log("[Worker] Fetching 100% live crypto prices directly from Bybit API (Linear & Spot)...");
     
-    // Fetch Spot AND Futures AND Gate.io
-    const [spotRes, futRes, gateRes] = await Promise.allSettled([
-      fetch('https://api.binance.com/api/v3/ticker/24hr').then(r => r.json()),
-      fetch('https://fapi.binance.com/fapi/v1/ticker/24hr').then(r => r.json()),
-      fetch('https://api.gateio.ws/api/v4/spot/tickers').then(r => r.json())
+    // Fetch Bybit Linear (Perpetual Futures) and Bybit Spot in parallel
+    const [bybitLinearRes, bybitSpotRes] = await Promise.allSettled([
+      fetch('https://api.bybit.com/v5/market/tickers?category=linear', { headers: { 'User-Agent': 'Mozilla/5.0' } }).then(r => r.json()),
+      fetch('https://api.bybit.com/v5/market/tickers?category=spot', { headers: { 'User-Agent': 'Mozilla/5.0' } }).then(r => r.json())
     ]);
 
-    let allTickers: any[] = [];
-    if (spotRes.status === 'fulfilled' && Array.isArray(spotRes.value)) {
-       allTickers = allTickers.concat(spotRes.value);
-    }
-    if (futRes.status === 'fulfilled' && Array.isArray(futRes.value)) {
-       allTickers = allTickers.concat(futRes.value);
-    }
-    
-    if (allTickers.length === 0) {
-      console.warn("[Worker] Both Binance APIs failed or returned no array data.");
-      return;
+    let bybitCount = 0;
+
+    // 1. Process Bybit Linear (Main Bybit Futures Market)
+    if (bybitLinearRes.status === 'fulfilled' && bybitLinearRes.value?.result?.list) {
+      for (const t of bybitLinearRes.value.result.list) {
+        if (!t.symbol || !t.symbol.endsWith('USDT')) continue;
+        const price = parseFloat(t.lastPrice);
+        if (isNaN(price) || price <= 0) continue;
+        const change = parseFloat((parseFloat(t.price24hPcnt || "0") * 100).toFixed(2));
+        const docId = t.symbol.replace("USDT", "-USDT");
+        
+        inMemoryPrices[docId] = {
+          price,
+          change,
+          volume: parseFloat(t.volume24h) || 0,
+          turnover: parseFloat(t.turnover24h) || 0,
+          high: parseFloat(t.highPrice24h) || 0,
+          low: parseFloat(t.lowPrice24h) || 0,
+          lastUpdated: new Date().toISOString(),
+          source: 'Bybit API'
+        };
+        inMemoryPrices[`${docId}_change`] = change;
+        inMemoryPrices[`${docId}_source`] = 'Bybit API';
+
+        // Also normalize 1000 multipliers for meme coins
+        if (t.symbol === "SHIB1000USDT") {
+          inMemoryPrices["SHIB-USDT"] = {
+            price: price / 1000,
+            change,
+            lastUpdated: new Date().toISOString(),
+            source: 'Bybit API'
+          };
+          inMemoryPrices["SHIB-USDT_change"] = change;
+          inMemoryPrices["SHIB-USDT_source"] = 'Bybit API';
+        } else if (t.symbol === "1000PEPEUSDT") {
+          inMemoryPrices["PEPE-USDT"] = {
+            price: price / 1000,
+            change,
+            lastUpdated: new Date().toISOString(),
+            source: 'Bybit API'
+          };
+          inMemoryPrices["PEPE-USDT_change"] = change;
+          inMemoryPrices["PEPE-USDT_source"] = 'Bybit API';
+        } else if (t.symbol === "1000FLOKIUSDT") {
+          inMemoryPrices["FLOKI-USDT"] = {
+            price: price / 1000,
+            change,
+            lastUpdated: new Date().toISOString(),
+            source: 'Bybit API'
+          };
+          inMemoryPrices["FLOKI-USDT_change"] = change;
+          inMemoryPrices["FLOKI-USDT_source"] = 'Bybit API';
+        } else if (t.symbol === "1000BONKUSDT") {
+          inMemoryPrices["BONK-USDT"] = {
+            price: price / 1000,
+            change,
+            lastUpdated: new Date().toISOString(),
+            source: 'Bybit API'
+          };
+          inMemoryPrices["BONK-USDT_change"] = change;
+          inMemoryPrices["BONK-USDT_source"] = 'Bybit API';
+        }
+        bybitCount++;
+      }
     }
 
-    let count = 0;
-    
-    for (const t of allTickers) {
-      if (!t.symbol || !t.symbol.endsWith('USDT')) continue;
-      
-      let price = parseFloat(t.lastPrice);
-      if (isNaN(price) || price <= 0) continue;
-      let change = parseFloat(t.priceChangePercent) || 0;
-      
-      let docId = t.symbol.replace("USDT", "-USDT");
-      if (t.symbol === "BEAMXUSDT") docId = "BEAM-USDT";
-      
-      inMemoryPrices[docId] = {
-        price: price,
-        change: change,
-        lastUpdated: new Date().toISOString(),
-        source: 'Binance API'
-      };
-      inMemoryPrices[`${docId}_change`] = change;
-      count++;
-    }
-
-    // Gate.io fallback for missing coins
-    let gateCount = 0;
-    if (gateRes.status === 'fulfilled' && Array.isArray(gateRes.value)) {
-       for (const t of gateRes.value) {
-          if (!t.currency_pair || !t.currency_pair.endsWith('_USDT')) continue;
-          let docId = t.currency_pair.replace('_USDT', '-USDT');
-          
-          let price = parseFloat(t.last);
-          if (isNaN(price) || price <= 0) continue;
-          let change = parseFloat(t.change_percentage) || 0;
-
-          // Only add if not already present from Binance
-          if (!inMemoryPrices[docId]) {
-             inMemoryPrices[docId] = {
-               price: price,
-               change: change,
-               lastUpdated: new Date().toISOString(),
-               source: 'Gate.io'
-             };
-             inMemoryPrices[`${docId}_change`] = change;
-             gateCount++;
+    // 2. Process Bybit Spot (fill any spot-only coins and USDTTRY)
+    if (bybitSpotRes.status === 'fulfilled' && bybitSpotRes.value?.result?.list) {
+      for (const t of bybitSpotRes.value.result.list) {
+        // Capture USDTTRY from Bybit spot
+        if (t.symbol === "USDTTRY") {
+          const tryPrice = parseFloat(t.lastPrice);
+          if (!isNaN(tryPrice) && tryPrice > 0) {
+            const tryChange = parseFloat((parseFloat(t.price24hPcnt || "0") * 100).toFixed(2));
+            inMemoryPrices["USDT-TRY"] = {
+              price: tryPrice,
+              change: tryChange,
+              lastUpdated: new Date().toISOString(),
+              source: 'Bybit API'
+            };
+            inMemoryPrices["USDT-TRY_change"] = tryChange;
+            inMemoryPrices["USDT-TRY_source"] = 'Bybit API';
+            inMemoryPrices["USDTTRY"] = inMemoryPrices["USDT-TRY"];
           }
-       }
+        }
+
+        if (!t.symbol || !t.symbol.endsWith('USDT')) continue;
+        const docId = t.symbol.replace("USDT", "-USDT");
+        if (inMemoryPrices[docId] && inMemoryPrices[docId].source === 'Bybit API') continue;
+        const price = parseFloat(t.lastPrice);
+        if (isNaN(price) || price <= 0) continue;
+        const change = parseFloat((parseFloat(t.price24hPcnt || "0") * 100).toFixed(2));
+        
+        inMemoryPrices[docId] = {
+          price,
+          change,
+          volume: parseFloat(t.volume24h) || 0,
+          turnover: parseFloat(t.turnover24h) || 0,
+          high: parseFloat(t.highPrice24h) || 0,
+          low: parseFloat(t.lowPrice24h) || 0,
+          lastUpdated: new Date().toISOString(),
+          source: 'Bybit API'
+        };
+        inMemoryPrices[`${docId}_change`] = change;
+        inMemoryPrices[`${docId}_source`] = 'Bybit API';
+        bybitCount++;
+      }
     }
     
-    console.log(`[Worker] Crypto update complete. Parsed ${count} Binance, ${gateCount} Gate.io tickers.`);
+    console.log(`[Worker] Bybit crypto update complete. Processed ${bybitCount} Bybit tickers.`);
 
   } catch (err) {
     console.error("[Worker] Crypto update failed:", err);
@@ -865,7 +1095,7 @@ async function updateCommodities() {
         inMemoryPrices["GAG=X_change"] = changes["SI=F"];
       }
       
-      // USDT/TRY calculation if not already from Binance
+      // USDT/TRY fallback calculation if not already from Bybit
       if (prices["TRY=X"] && !inMemoryPrices["USDT-TRY"]) {
         inMemoryPrices["USDT-TRY"] = {
           price: prices["TRY=X"] * 1.001, // USDT usually slightly higher than USD
